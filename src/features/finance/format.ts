@@ -12,9 +12,15 @@ export function financialErrorMessage(error: unknown) {
       return 'El registro no existe o no pertenece a tu organización.'
     }
     if (error.status === 409) {
+      if (error.details?.code === 'INCOME_REQUIRES_RECONCILIATION') {
+        return 'Este ingreso requiere conciliación antes de registrar un cobro.'
+      }
       const message = Array.isArray(error.details?.message)
         ? error.details.message.join(' ')
         : error.details?.message ?? ''
+      if (/income_requires_reconciliation/i.test(message)) {
+        return 'Este ingreso requiere conciliación antes de registrar un cobro.'
+      }
       if (/overpayment/i.test(message)) return 'El importe supera el saldo pendiente.'
       if (/already_reversed/i.test(message)) return 'Ese movimiento ya fue reversado.'
       if (/edit_below_settled/i.test(message)) {
