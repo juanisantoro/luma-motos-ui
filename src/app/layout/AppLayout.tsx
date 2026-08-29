@@ -220,7 +220,7 @@ export function AppLayout() {
               className={({ isActive }) =>
                 `nav-item ${isActive ? 'nav-item--active' : ''}`
               }
-              end={item.to === '/'}
+              end={item.to === '/' || item.to === '/operaciones'}
               key={item.to}
               title={sidebarCompact ? item.label : undefined}
               to={item.to}

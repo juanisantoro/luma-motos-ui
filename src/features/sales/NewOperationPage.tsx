@@ -20,6 +20,7 @@ import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { listClients } from '../clients/api'
 import type { Client } from '../clients/types'
+import { CreditAlert, useCreditCheck } from '../credit-checks'
 import { stockApiGateway } from '../stock/api'
 import { stockErrorMessage } from '../stock/errors'
 import type {
@@ -100,6 +101,11 @@ export function NewOperationPage() {
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [completion, setCompletion] = useState<Completion | null>(null)
+  const creditCheck = useCreditCheck({
+    documentType: client?.documentType ?? 'DNI',
+    documentNumber: client?.documentNumber ?? '',
+    enabled: Boolean(client?.documentType && client.documentNumber),
+  })
 
   const permissions = useMemo(() => user?.role.permissions ?? [], [user])
   const canViewAvailability = hasPermission(
@@ -323,8 +329,8 @@ export function NewOperationPage() {
       return
     }
     const price = Number(agreedPrice)
-    if (!Number.isFinite(price) || price < 0) {
-      setFormError('Ingresá un precio acordado válido.')
+    if (!Number.isFinite(price) || price <= 0) {
+      setFormError('Ingresá un precio acordado mayor a cero.')
       return
     }
     if (source === 'PHYSICAL' && !unitId) {
@@ -525,6 +531,19 @@ export function NewOperationPage() {
                   </button>
                 ))}
             </div>
+            {client &&
+              (client.documentType && client.documentNumber ? (
+                <CreditAlert
+                  state={creditCheck.state}
+                  onRetry={creditCheck.retry}
+                  showClearResult
+                />
+              ) : (
+                <p className="operation-helper">
+                  Este cliente no tiene documento para consultar antecedentes
+                  crediticios.
+                </p>
+              ))}
           </section>
 
           <section className="operation-section" aria-labelledby="operation-data">

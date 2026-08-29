@@ -74,6 +74,8 @@ export function SalesOperationList({
             )}
             {canRelease &&
               operation.reservation?.status === 'ACTIVO' &&
+              (operation.status === 'BORRADOR' ||
+                operation.status === 'RECHAZADA') &&
               onRelease && (
                 <button
                   className="button button--danger-quiet sales-card__action"
@@ -119,21 +121,6 @@ export function SalesOperationList({
                   {operation.vehicle.unit?.vin ?? 'Sin unidad física'}
                 </small>
               </td>
-              {canRelease && (
-                <td>
-                  {operation.reservation?.status === 'ACTIVO' && onRelease && (
-                    <button
-                      className="button button--danger-quiet"
-                      disabled={busyId === operation.id}
-                      onClick={() => onRelease(operation)}
-                      type="button"
-                    >
-                      <Unlock size={16} />
-                      Liberar
-                    </button>
-                  )}
-                </td>
-              )}
               <td>{operation.branch.name}</td>
               <td>{formatMoney(operation.agreedPrice, operation.currency)}</td>
               <td>{operation.seller?.fullName ?? 'Sin asignar'}</td>
@@ -144,6 +131,24 @@ export function SalesOperationList({
                   {operationStatusLabels[operation.status]}
                 </span>
               </td>
+              {canRelease && (
+                <td>
+                  {operation.reservation?.status === 'ACTIVO' &&
+                    (operation.status === 'BORRADOR' ||
+                      operation.status === 'RECHAZADA') &&
+                    onRelease && (
+                      <button
+                        className="button button--danger-quiet"
+                        disabled={busyId === operation.id}
+                        onClick={() => onRelease(operation)}
+                        type="button"
+                      >
+                        <Unlock size={16} />
+                        Liberar
+                      </button>
+                    )}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

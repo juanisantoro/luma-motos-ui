@@ -43,6 +43,15 @@ vi.mock('../stock/api', () => ({
   },
 }))
 
+vi.mock('../credit-checks', () => ({
+  useCreditCheck: () => ({
+    state: { status: 'idle' },
+    retry: vi.fn(),
+    reset: vi.fn(),
+  }),
+  CreditAlert: () => null,
+}))
+
 vi.mock('./api', () => ({
   listSalesSellers: mocks.listSalesSellers,
   getSalesPricePolicy: mocks.getSalesPricePolicy,
@@ -162,7 +171,13 @@ describe('Nueva operación', () => {
       </MemoryRouter>,
     )
 
-    await user.click(await screen.findByRole('button', { name: /Ana Cliente/ }))
+    await user.click(
+      await screen.findByRole(
+        'button',
+        { name: /Ana Cliente/ },
+        { timeout: 3_000 },
+      ),
+    )
     await user.selectOptions(
       screen.getByLabelText('Versión *'),
       'version-1',
@@ -205,7 +220,13 @@ describe('Nueva operación', () => {
       </MemoryRouter>,
     )
 
-    await user.click(await screen.findByRole('button', { name: /Ana Cliente/ }))
+    await user.click(
+      await screen.findByRole(
+        'button',
+        { name: /Ana Cliente/ },
+        { timeout: 3_000 },
+      ),
+    )
     await user.selectOptions(
       screen.getByLabelText('Versión *'),
       'version-1',
