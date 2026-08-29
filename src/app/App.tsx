@@ -6,6 +6,9 @@ import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { ClientsPage } from '../features/clients/ClientsPage'
 import { CreditInquiriesPage } from '../features/credit-inquiries'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { ExpensesPage } from '../features/finance/ExpensesPage'
+import { IncomesPage } from '../features/finance/IncomesPage'
+import { PurchasesPage } from '../features/finance/PurchasesPage'
 import { ModulePlaceholder } from '../features/placeholders/ModulePlaceholder'
 import { ApprovalsPage } from '../features/sales/ApprovalsPage'
 import { OperationsPage } from '../features/sales/OperationsPage'
@@ -98,6 +101,21 @@ export function App() {
                     />
                   }
                 />
+              </Route>
+              <Route
+                element={<PermissionRoute permission="compras.consultar" />}
+              >
+                <Route path="compras" element={<PurchasesPage />} />
+              </Route>
+              <Route
+                element={<PermissionRoute permission="ingresos.consultar" />}
+              >
+                <Route path="ingresos" element={<IncomesPage />} />
+              </Route>
+              <Route
+                element={<PermissionRoute permission="gastos.consultar" />}
+              >
+                <Route path="gastos" element={<ExpensesPage />} />
               </Route>
               <Route
                 element={<PermissionRoute permission="auditoria.consultar" />}
