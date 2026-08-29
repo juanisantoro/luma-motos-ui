@@ -6,6 +6,8 @@ import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { ClientsPage } from '../features/clients/ClientsPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { ModulePlaceholder } from '../features/placeholders/ModulePlaceholder'
+import { stockApiGateway } from '../features/stock/api'
+import { StockPage } from '../features/stock/StockPage'
 import { AppLayout } from './layout/AppLayout'
 import { ForbiddenPage, NotFoundPage } from './pages/ErrorPages'
 
@@ -23,6 +25,30 @@ export function App() {
                 element={<PermissionRoute permission="clientes.consultar" />}
               >
                 <Route path="clientes" element={<ClientsPage />} />
+              </Route>
+              <Route
+                element={
+                  <PermissionRoute permission="inventario.consultar" />
+                }
+              >
+                <Route
+                  path="stock/motos"
+                  element={
+                    <StockPage
+                      gateway={stockApiGateway}
+                      vehicleType="MOTO"
+                    />
+                  }
+                />
+                <Route
+                  path="stock/autos"
+                  element={
+                    <StockPage
+                      gateway={stockApiGateway}
+                      vehicleType="AUTO"
+                    />
+                  }
+                />
               </Route>
               <Route
                 element={<PermissionRoute permission="usuarios.consultar" />}

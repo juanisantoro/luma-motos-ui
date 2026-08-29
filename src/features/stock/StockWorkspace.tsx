@@ -271,8 +271,12 @@ function CatalogList({
 
 function AvailabilityList({
   items,
+  canManage,
+  onEdit,
 }: {
   items: SupplierAvailability[]
+  canManage: boolean
+  onEdit: (item: SupplierAvailability) => void
 }) {
   if (items.length === 0) {
     return (
@@ -302,6 +306,15 @@ function AvailabilityList({
             <span>Sin VIN · fuera del stock físico</span>
           </div>
           {item.notes && <p>{item.notes}</p>}
+          {canManage && (
+            <button
+              className="button button--secondary availability-card__action"
+              onClick={() => onEdit(item)}
+              type="button"
+            >
+              Actualizar cantidad
+            </button>
+          )}
         </article>
       ))}
     </div>
@@ -389,7 +402,7 @@ function SuppliesList({
                 </div>
                 <div>
                   <dt>Destino</dt>
-                  <dd>{supply.destinationBranch?.name ?? 'A definir'}</dd>
+                  <dd>{supply.destinationBranch.name}</dd>
                 </div>
                 <div>
                   <dt>Pedido</dt>
@@ -462,7 +475,9 @@ export function StockWorkspace({
   const [supplyStatus, setSupplyStatus] =
     useState<FilterValue<SupplyStatus>>('ALL')
   const [unitModal, setUnitModal] = useState(false)
-  const [providerModal, setProviderModal] = useState(false)
+  const [providerModal, setProviderModal] = useState<
+    SupplierAvailability | 'new' | null
+  >(null)
   const [receiving, setReceiving] = useState<SupplyOrder | null>(null)
   const [busy, setBusy] = useState(false)
   const [busySupplyId, setBusySupplyId] = useState<string | null>(null)
@@ -545,7 +560,7 @@ export function StockWorkspace({
           item.vehicleType === vehicleType &&
           (condition === 'ALL' || item.condition === condition) &&
           (branchId === 'ALL' ||
-            item.destinationBranch?.id === branchId) &&
+            item.destinationBranch.id === branchId) &&
           (supplyStatus === 'ALL' || item.status === supplyStatus) &&
           matchesSearch(
             [
@@ -605,7 +620,7 @@ export function StockWorkspace({
   }
   const openProviderModal = () => {
     setActionError(null)
-    setProviderModal(true)
+    setProviderModal('new')
   }
   const openReception = (supply: SupplyOrder) => {
     setActionError(null)
@@ -708,8 +723,32 @@ export function StockWorkspace({
               className={tab === value ? 'is-active' : ''}
               id={`stock-${vehicleType.toLocaleLowerCase()}-${value}-tab`}
               key={value}
+              onKeyDown={(event) => {
+                if (
+                  event.key !== 'ArrowLeft' &&
+                  event.key !== 'ArrowRight'
+                ) {
+                  return
+                }
+                event.preventDefault()
+                const currentIndex = tabs.findIndex(
+                  ([tabValue]) => tabValue === value,
+                )
+                const direction = event.key === 'ArrowRight' ? 1 : -1
+                const next = tabs[
+                  (currentIndex + direction + tabs.length) % tabs.length
+                ]
+                if (!next) return
+                setTab(next[0])
+                document
+                  .getElementById(
+                    `stock-${vehicleType.toLocaleLowerCase()}-${next[0]}-tab`,
+                  )
+                  ?.focus()
+              }}
               onClick={() => setTab(value)}
               role="tab"
+              tabIndex={tab === value ? 0 : -1}
               type="button"
             >
               {label}
@@ -843,7 +882,14 @@ export function StockWorkspace({
           {tab === 'physical' && <PhysicalUnits units={units} />}
           {tab === 'catalog' && <CatalogList catalog={catalog} />}
           {tab === 'providers' && (
-            <AvailabilityList items={availability} />
+            <AvailabilityList
+              canManage={capabilities.manageAvailability}
+              items={availability}
+              onEdit={(item) => {
+                setActionError(null)
+                setProviderModal(item)
+              }}
+            />
           )}
           {tab === 'supply' && (
             <SuppliesList
@@ -879,15 +925,18 @@ export function StockWorkspace({
           vehicleType={vehicleType}
         />
       )}
-      {providerModal && (
+      {providerModal !== null && (
         <ProviderAvailabilityModal
+          {...(providerModal === 'new'
+            ? {}
+            : { availability: providerModal })}
           catalog={data.catalog}
           error={actionError}
-          onClose={() => setProviderModal(false)}
+          onClose={() => setProviderModal(null)}
           onSubmit={(input) =>
             void runMutation(
               () => onUpsertAvailability(input),
-              () => setProviderModal(false),
+              () => setProviderModal(null),
             )
           }
           submitting={busy}
@@ -897,7 +946,6 @@ export function StockWorkspace({
       )}
       {receiving && (
         <ReceiveSupplyModal
-          branches={data.branches}
           error={actionError}
           onClose={() => setReceiving(null)}
           onSubmit={(input) =>

@@ -1,4 +1,5 @@
 import type {
+  BranchOption,
   CreateUnitsInput,
   ReceiveSupplyInput,
   StockCapabilities,
@@ -12,6 +13,7 @@ export type StockGateway = {
   loadWorkspace: (
     vehicleType: VehicleKind,
     capabilities: StockCapabilities,
+    currentBranch: BranchOption | null,
     signal?: AbortSignal,
   ) => Promise<StockWorkspaceData>
   createUnits: (input: CreateUnitsInput) => Promise<void>
@@ -25,4 +27,3 @@ export type StockGateway = {
     input: ReceiveSupplyInput,
   ) => Promise<void>
 }
-

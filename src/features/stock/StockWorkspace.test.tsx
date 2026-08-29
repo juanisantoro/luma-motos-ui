@@ -210,6 +210,37 @@ describe('workspace de stock', () => {
     )
   })
 
+  it('actualiza disponibilidad sin confundirla con stock físico', async () => {
+    const user = userEvent.setup()
+    const handlers = renderWorkspace()
+
+    await user.click(screen.getByRole('tab', { name: 'Proveedores' }))
+    expect(screen.getByText('Sin VIN · fuera del stock físico')).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: 'Actualizar cantidad' }),
+    )
+    const dialog = screen.getByRole('dialog', {
+      name: 'Actualizar disponibilidad',
+    })
+    const quantity = within(dialog).getByLabelText('Cantidad disponible *')
+    await user.clear(quantity)
+    await user.type(quantity, '7')
+    await user.click(
+      within(dialog).getByRole('button', {
+        name: 'Actualizar disponibilidad',
+      }),
+    )
+
+    expect(handlers.onUpsertAvailability).toHaveBeenCalledWith({
+      vehicleType: 'MOTO',
+      condition: 'NUEVO',
+      catalogModelId: model.id,
+      supplierId: supplier.id,
+      quantity: 7,
+      notes: 'Entrega en 72 horas',
+    })
+  })
+
   it('recibe en sucursal y expone la unidad creada', async () => {
     const user = userEvent.setup()
     const received = {

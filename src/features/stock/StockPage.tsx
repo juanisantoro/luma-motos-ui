@@ -66,13 +66,25 @@ export function StockPage({
     }),
     [user],
   )
+  const currentBranch = useMemo(
+    () =>
+      user?.branch
+        ? { id: user.branch.id, name: user.branch.name }
+        : null,
+    [user],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
     setStatus('loading')
     setLoadError('')
     void gateway
-      .loadWorkspace(vehicleType, capabilities, controller.signal)
+      .loadWorkspace(
+        vehicleType,
+        capabilities,
+        currentBranch,
+        controller.signal,
+      )
       .then((workspace) => {
         setData(workspace)
         setStatus('success')
@@ -92,7 +104,7 @@ export function StockPage({
         setStatus('error')
       })
     return () => controller.abort()
-  }, [capabilities, gateway, refreshKey, vehicleType])
+  }, [capabilities, currentBranch, gateway, refreshKey, vehicleType])
 
   const reload = () => setRefreshKey((current) => current + 1)
   const mutateAndReload = async (mutation: () => Promise<void>) => {

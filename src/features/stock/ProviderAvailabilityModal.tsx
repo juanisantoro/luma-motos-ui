@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { useDialogFocus } from './dialog'
 import type {
   CatalogModel,
+  SupplierAvailability,
   SupplierOption,
   UpsertAvailabilityInput,
   VehicleCondition,
@@ -15,6 +16,7 @@ type ProviderAvailabilityModalProps = {
   suppliers: SupplierOption[]
   submitting: boolean
   error: string | null
+  availability?: SupplierAvailability
   onClose: () => void
   onSubmit: (input: UpsertAvailabilityInput) => void
 }
@@ -25,11 +27,14 @@ export function ProviderAvailabilityModal({
   suppliers,
   submitting,
   error,
+  availability,
   onClose,
   onSubmit,
 }: ProviderAvailabilityModalProps) {
   const dialogRef = useDialogFocus(onClose, submitting)
-  const [condition, setCondition] = useState<VehicleCondition>('NUEVO')
+  const [condition, setCondition] = useState<VehicleCondition>(
+    availability?.condition ?? 'NUEVO',
+  )
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -57,7 +62,9 @@ export function ProviderAvailabilityModal({
         <header className="stock-modal__header">
           <div>
             <p className="eyebrow">PROVEEDORES</p>
-            <h2 id="availability-modal-title">Informar disponibilidad</h2>
+            <h2 id="availability-modal-title">
+              {availability ? 'Actualizar disponibilidad' : 'Informar disponibilidad'}
+            </h2>
             <p>
               Registrá modelos y cantidades informadas. Esto no crea stock físico.
             </p>
@@ -87,7 +94,11 @@ export function ProviderAvailabilityModal({
           <div className="stock-form-grid">
             <label className="field">
               <span>Proveedor *</span>
-              <select name="supplierId" required>
+              <select
+                defaultValue={availability?.supplier.id ?? ''}
+                name="supplierId"
+                required
+              >
                 <option value="">Seleccionar</option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
@@ -98,7 +109,11 @@ export function ProviderAvailabilityModal({
             </label>
             <label className="field">
               <span>Marca, modelo y versión *</span>
-              <select name="catalogModelId" required>
+              <select
+                defaultValue={availability?.catalogModel.id ?? ''}
+                name="catalogModelId"
+                required
+              >
                 <option value="">Seleccionar</option>
                 {catalog
                   .filter(
@@ -127,12 +142,19 @@ export function ProviderAvailabilityModal({
             </label>
             <label className="field">
               <span>Cantidad disponible *</span>
-              <input name="quantity" min="0" type="number" required />
+              <input
+                defaultValue={availability?.quantity}
+                name="quantity"
+                min="0"
+                type="number"
+                required
+              />
             </label>
             <label className="field field--wide">
               <span>Observaciones</span>
               <textarea
                 name="notes"
+                defaultValue={availability?.notes ?? ''}
                 maxLength={1000}
                 placeholder="Plazo de entrega, colores o condiciones informadas"
                 rows={3}
@@ -154,7 +176,11 @@ export function ProviderAvailabilityModal({
               type="submit"
             >
               {submitting && <LoaderCircle className="spin" size={17} />}
-              {submitting ? 'Guardando…' : 'Guardar disponibilidad'}
+              {submitting
+                ? 'Guardando…'
+                : availability
+                  ? 'Actualizar disponibilidad'
+                  : 'Guardar disponibilidad'}
             </button>
           </footer>
         </form>

@@ -412,6 +412,7 @@ export function UnitFormModal({
               </div>
               <button
                 className="button button--secondary"
+                disabled={units.length >= 100}
                 onClick={() =>
                   setUnits((current) => [
                     ...current,

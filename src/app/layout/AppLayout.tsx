@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  Bike,
+  CarFront,
   ClipboardList,
   LayoutDashboard,
   LogOut,
@@ -38,6 +40,20 @@ const navigation: NavItem[] = [
     to: '/clientes',
     icon: UsersRound,
     permission: 'clientes.consultar',
+  },
+  {
+    label: 'Stock de motos',
+    description: 'Inventario y proveedores',
+    to: '/stock/motos',
+    icon: Bike,
+    permission: 'inventario.consultar',
+  },
+  {
+    label: 'Stock de autos',
+    description: 'Inventario y proveedores',
+    to: '/stock/autos',
+    icon: CarFront,
+    permission: 'inventario.consultar',
   },
   {
     label: 'Usuarios',

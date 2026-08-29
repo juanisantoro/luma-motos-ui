@@ -91,7 +91,7 @@ export type SupplyOrder = {
   supplier: SupplierOption
   quantity: number
   status: SupplyStatus
-  destinationBranch: BranchOption | null
+  destinationBranch: BranchOption
   requestedAt: string | null
   receivedUnit: PhysicalUnit | null
 }
@@ -148,6 +148,7 @@ export type ReceiveSupplyInput = {
   year: number
   mileage: number
   licensePlate?: string
+  idempotencyKey: string
 }
 
 export type StockCapabilities = {

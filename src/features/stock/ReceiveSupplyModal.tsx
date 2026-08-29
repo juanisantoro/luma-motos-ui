@@ -1,15 +1,10 @@
 import { LoaderCircle, PackageCheck, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useDialogFocus } from './dialog'
-import type {
-  BranchOption,
-  ReceiveSupplyInput,
-  SupplyOrder,
-} from './types'
+import type { ReceiveSupplyInput, SupplyOrder } from './types'
 
 type ReceiveSupplyModalProps = {
   supply: SupplyOrder
-  branches: BranchOption[]
   submitting: boolean
   error: string | null
   onClose: () => void
@@ -18,16 +13,13 @@ type ReceiveSupplyModalProps = {
 
 export function ReceiveSupplyModal({
   supply,
-  branches,
   submitting,
   error,
   onClose,
   onSubmit,
 }: ReceiveSupplyModalProps) {
   const dialogRef = useDialogFocus(onClose, submitting)
-  const [branchId, setBranchId] = useState(
-    supply.destinationBranch?.id ?? branches[0]?.id ?? '',
-  )
+  const [idempotencyKey] = useState(() => crypto.randomUUID())
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -35,13 +27,14 @@ export function ReceiveSupplyModal({
     const licensePlate = String(data.get('licensePlate') ?? '').trim()
     onSubmit({
       vin: String(data.get('vin')).trim().toUpperCase(),
-      branchId,
+      branchId: supply.destinationBranch.id,
       year: Number(data.get('year')),
       mileage:
         supply.condition === 'NUEVO' ? 0 : Number(data.get('mileage')),
       ...(licensePlate
         ? { licensePlate: licensePlate.toUpperCase() }
         : {}),
+      idempotencyKey,
     })
   }
 
@@ -101,16 +94,13 @@ export function ReceiveSupplyModal({
               <span>Sucursal de recepción *</span>
               <select
                 aria-label="Sucursal de recepción"
-                value={branchId}
-                onChange={(event) => setBranchId(event.target.value)}
+                value={supply.destinationBranch.id}
+                disabled
                 required
               >
-                <option value="">Seleccionar</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
+                <option value={supply.destinationBranch.id}>
+                  {supply.destinationBranch.name}
+                </option>
               </select>
             </label>
             <label className="field">
