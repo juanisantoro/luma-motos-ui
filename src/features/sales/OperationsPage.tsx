@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
+import type { VehicleKind } from '../stock/types'
 import { listSalesOperations } from './api'
 import { releaseSalesReservation } from './api'
 import { salesErrorMessage } from './errors'
@@ -24,8 +25,25 @@ import type {
 type FilterStatus = SalesOperationStatus | 'TODOS'
 const PAGE_SIZE = 20
 
-export function OperationsPage({ mine = false }: { mine?: boolean }) {
+function periodRange(period: string) {
+  if (!period) return {}
+  const [year, month] = period.split('-').map(Number)
+  if (!year || !month) return {}
+  return {
+    from: new Date(Date.UTC(year, month - 1, 1)).toISOString(),
+    to: new Date(Date.UTC(year, month, 0, 23, 59, 59, 999)).toISOString(),
+  }
+}
+
+export function OperationsPage({
+  mine = false,
+  vehicleType,
+}: {
+  mine?: boolean
+  vehicleType: VehicleKind
+}) {
   const { user } = useAuth()
+  const effectiveMine = mine || user?.role.code === 'VENDEDOR'
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
     'loading',
   )
@@ -35,8 +53,7 @@ export function OperationsPage({ mine = false }: { mine?: boolean }) {
   const [search, setSearch] = useState('')
   const [operationStatus, setOperationStatus] =
     useState<FilterStatus>('TODOS')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const [period, setPeriod] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -49,17 +66,18 @@ export function OperationsPage({ mine = false }: { mine?: boolean }) {
     const controller = new AbortController()
     setStatus('loading')
     setError('')
+    const range = periodRange(period)
     void listSalesOperations(
       {
         page,
         limit: PAGE_SIZE,
+        vehicleType,
         ...(search ? { search } : {}),
         ...(operationStatus === 'TODOS'
           ? {}
           : { status: operationStatus }),
-        ...(from ? { from } : {}),
-        ...(to ? { to } : {}),
-        ...(mine ? { mine: true } : {}),
+        ...range,
+        ...(effectiveMine ? { mine: true } : {}),
       },
       controller.signal,
     )
@@ -73,7 +91,15 @@ export function OperationsPage({ mine = false }: { mine?: boolean }) {
         setStatus('error')
       })
     return () => controller.abort()
-  }, [from, mine, operationStatus, page, refreshKey, search, to])
+  }, [
+    effectiveMine,
+    operationStatus,
+    page,
+    period,
+    refreshKey,
+    search,
+    vehicleType,
+  ])
 
   const submitFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -83,6 +109,8 @@ export function OperationsPage({ mine = false }: { mine?: boolean }) {
   const totalPages = result
     ? Math.max(1, Math.ceil(result.total / result.limit))
     : 1
+  const visibleOperations = result?.items ?? []
+  const vehicleNoun = vehicleType === 'MOTO' ? 'motos' : 'autos'
   const canRelease = hasPermission(
     user?.role.permissions,
     'reservas_stock.gestionar',
@@ -111,15 +139,20 @@ export function OperationsPage({ mine = false }: { mine?: boolean }) {
       <header className="page-heading">
         <div>
           <p className="eyebrow">VENTAS</p>
-          <h1>{mine ? 'Mis operaciones' : 'Operaciones'}</h1>
+          <h1>
+            {effectiveMine ? 'Mis operaciones' : 'Operaciones'} de {vehicleNoun}
+          </h1>
           <p>
-            {mine
+            {effectiveMine
               ? 'Tus ventas, reservas y estados de aprobación.'
               : 'Historial comercial, reservas y estados de aprobación.'}
           </p>
         </div>
         {hasPermission(user?.role.permissions, 'ventas.gestionar') && (
-          <Link className="button button--primary" to="/operaciones/nueva">
+          <Link
+            className="button button--primary"
+            to={`/${vehicleNoun}/operaciones/nueva`}
+          >
             <Plus size={18} />
             Nueva operación
           </Link>
@@ -158,24 +191,13 @@ export function OperationsPage({ mine = false }: { mine?: boolean }) {
             </select>
           </label>
           <label className="sales-date-field">
-            <span>Desde</span>
+            <span>Período</span>
             <input
-              type="date"
-              value={from}
+              type="month"
+              value={period}
               onChange={(event) => {
                 setPage(1)
-                setFrom(event.target.value)
-              }}
-            />
-          </label>
-          <label className="sales-date-field">
-            <span>Hasta</span>
-            <input
-              type="date"
-              value={to}
-              onChange={(event) => {
-                setPage(1)
-                setTo(event.target.value)
+                setPeriod(event.target.value)
               }}
             />
           </label>
@@ -209,20 +231,22 @@ export function OperationsPage({ mine = false }: { mine?: boolean }) {
               }
             />
           )}
-          {status === 'success' && result?.items.length === 0 && (
+          {status === 'success' && visibleOperations.length === 0 && (
             <StatePanel
               icon={ShoppingCart}
               title="No hay operaciones"
               description={
-                search || operationStatus !== 'TODOS' || from || to
+                search ||
+                operationStatus !== 'TODOS' ||
+                period
                   ? 'Probá con otros términos o modificá los filtros.'
-                  : 'Creá la primera operación para iniciar el circuito comercial.'
+                  : `Creá la primera operación de ${vehicleNoun === 'motos' ? 'moto' : 'auto'} para iniciar este circuito comercial.`
               }
             />
           )}
-          {status === 'success' && result && result.items.length > 0 && (
+          {status === 'success' && visibleOperations.length > 0 && (
             <SalesOperationList
-              operations={result.items}
+              operations={visibleOperations}
               canRelease={canRelease}
               busyId={busyId}
               onRelease={(operation) => {

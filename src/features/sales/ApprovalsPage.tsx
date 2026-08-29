@@ -1,9 +1,11 @@
 import { Check, RefreshCw, ShieldCheck, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
+import type { VehicleKind } from '../stock/types'
 import {
   approveSalesOperation,
-  listSalesOperations,
+  listSalesApprovals,
   rejectSalesOperation,
 } from './api'
 import { salesErrorMessage } from './errors'
@@ -15,7 +17,12 @@ import {
 import { SalesDecisionModal } from './SalesDecisionModal'
 import type { SalesOperation } from './types'
 
-export function ApprovalsPage() {
+export function ApprovalsPage({
+  vehicleType,
+}: {
+  vehicleType: VehicleKind
+}) {
+  const cards = useMediaQuery('(max-width: 768px)')
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
     'loading',
   )
@@ -30,8 +37,12 @@ export function ApprovalsPage() {
     const controller = new AbortController()
     setStatus('loading')
     setError('')
-    void listSalesOperations(
-      { status: 'PENDIENTE_APROBACION', page: 1, limit: 100 },
+    void listSalesApprovals(
+      {
+        vehicleType,
+        page: 1,
+        limit: 100,
+      },
       controller.signal,
     )
       .then((response) => {
@@ -44,7 +55,7 @@ export function ApprovalsPage() {
         setStatus('error')
       })
     return () => controller.abort()
-  }, [refreshKey])
+  }, [refreshKey, vehicleType])
 
   const reload = () => setRefreshKey((value) => value + 1)
 
@@ -97,8 +108,10 @@ export function ApprovalsPage() {
       <header className="page-heading">
         <div>
           <p className="eyebrow">CONTROL COMERCIAL</p>
-          <h1>Aprobaciones pendientes</h1>
-          <p>Revisión de precios y liberación coherente de reservas.</p>
+          <h1>
+            Aprobaciones de {vehicleType === 'MOTO' ? 'motos' : 'autos'}
+          </h1>
+          <p>Operaciones con precio inferior al valor de lista.</p>
         </div>
       </header>
 
@@ -153,10 +166,10 @@ export function ApprovalsPage() {
           <StatePanel
             icon={ShieldCheck}
             title="No hay aprobaciones pendientes"
-            description="Todas las operaciones enviadas ya fueron revisadas."
+            description={`Todas las operaciones de ${vehicleType === 'MOTO' ? 'motos' : 'autos'} enviadas ya fueron revisadas.`}
           />
         )}
-        {status === 'success' && operations.length > 0 && (
+        {status === 'success' && operations.length > 0 && cards && (
           <div className="approval-list">
             {operations.map((operation) => (
               <article className="approval-card" key={operation.id}>
@@ -196,11 +209,19 @@ export function ApprovalsPage() {
                     <dd>{formatMoney(operation.minimumPrice, operation.currency)}</dd>
                   </div>
                   <div>
-                    <dt>Reserva</dt>
-                    <dd>
-                      {operation.vehicle.unit?.vin ??
-                        operation.reservation?.status ??
-                        'Sin unidad'}
+                    <dt>Diferencia</dt>
+                    <dd className="sales-price-difference">
+                      -
+                      {formatMoney(
+                        String(
+                          Math.max(
+                            0,
+                            Number(operation.listPrice ?? 0) -
+                              Number(operation.agreedPrice),
+                          ),
+                        ),
+                        operation.currency,
+                      )}
                     </dd>
                   </div>
                 </dl>
@@ -229,6 +250,85 @@ export function ApprovalsPage() {
                 </div>
               </article>
             ))}
+          </div>
+        )}
+        {status === 'success' && operations.length > 0 && !cards && (
+          <div className="sales-table-wrap">
+            <table className="sales-table sales-table--approvals">
+              <thead>
+                <tr>
+                  <th>Operación</th>
+                  <th>Cliente</th>
+                  <th>Vendedor</th>
+                  <th>Precio lista</th>
+                  <th>Precio ofertado</th>
+                  <th>Diferencia</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {operations.map((operation) => {
+                  const operationDifference = Math.max(
+                    0,
+                    Number(operation.listPrice ?? 0) -
+                      Number(operation.agreedPrice),
+                  )
+                  return (
+                    <tr className="sales-row--below-list" key={operation.id}>
+                      <td>
+                        <strong>#{operation.number}</strong>
+                        <small>{vehicleLabel(operation)}</small>
+                      </td>
+                      <td>{operation.client.fullName}</td>
+                      <td>{operation.seller?.fullName ?? 'Sin asignar'}</td>
+                      <td>
+                        {formatMoney(operation.listPrice, operation.currency)}
+                      </td>
+                      <td>
+                        <strong>
+                          {formatMoney(
+                            operation.agreedPrice,
+                            operation.currency,
+                          )}
+                        </strong>
+                      </td>
+                      <td className="sales-price-difference">
+                        -
+                        {formatMoney(
+                          String(operationDifference),
+                          operation.currency,
+                        )}
+                      </td>
+                      <td>
+                        <div className="approval-table-actions">
+                          <button
+                            className="button button--success"
+                            disabled={busyId === operation.id}
+                            onClick={() => void approve(operation)}
+                            type="button"
+                          >
+                            <Check size={17} />
+                            Aprobar
+                          </button>
+                          <button
+                            className="button button--danger"
+                            disabled={busyId === operation.id}
+                            onClick={() => {
+                              setActionError('')
+                              setRejection(operation)
+                            }}
+                            type="button"
+                          >
+                            <X size={17} />
+                            Rechazar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

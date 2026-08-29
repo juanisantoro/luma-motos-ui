@@ -12,7 +12,13 @@ it('mantiene acciones en la última columna de la tabla', () => {
     agreedPrice: '4400000',
     currency: 'ARS',
     rowVersion: 3,
-    client: { id: 'client-1', fullName: 'Ana Cliente', active: true },
+    client: {
+      id: 'client-1',
+      fullName: 'Ana Cliente',
+      active: true,
+      documentType: 'DNI',
+      documentNumber: '12.345.678',
+    },
     branch: { id: 'branch-1', code: 'CENTRO', name: 'Casa Central' },
     vehicle: {
       versionId: 'version-1',
@@ -56,6 +62,22 @@ it('mantiene acciones en la última columna de la tabla', () => {
   const headers = screen.getAllByRole('columnheader')
   const cells = screen.getAllByRole('cell')
   expect(headers.at(-1)).toHaveTextContent('Acciones')
-  expect(cells[4]).toHaveTextContent('Casa Central')
+  expect(headers.map((header) => header.textContent)).toEqual([
+    'Operación',
+    'Fecha',
+    'Cliente',
+    'Vehículo / chasis',
+    'Origen / destino',
+    'Precio',
+    'Vendedor',
+    'Estado operación',
+    'Abastecimiento',
+    'Observación',
+    'Acciones',
+  ])
+  expect(cells[2]).toHaveTextContent('DNI 12.345.678')
+  expect(cells[3]).toHaveTextContent('Honda Wave 110 S')
+  expect(cells[3]).not.toHaveTextContent('[object Object]')
+  expect(cells[4]).toHaveTextContent('Stock físico · Casa Central')
   expect(cells.at(-1)).toHaveTextContent('Liberar')
 })

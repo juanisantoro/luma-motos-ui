@@ -96,6 +96,8 @@ const income: Income = {
 const expense: Expense = {
   id: 'expense-1',
   expenseDate: '2026-08-19',
+  month: 8,
+  year: 2026,
   category: 'FLETE',
   reference: 'TT-539',
   description: 'Traslado San Miguel',
@@ -111,12 +113,9 @@ const expense: Expense = {
   organizationId: organization.id,
   branchId: branch.id,
   branch,
-  unitId: null,
-  operationId: null,
-  vehicle: null,
-  operation: null,
   createdBy: { id: 'user-1', fullName: 'Lucía Fernández' },
-  paidBy: null,
+  paidBy: 'Lucía Fernández',
+  paymentRegisteredBy: null,
   account: null,
   notes: null,
   createdAt: '2026-08-19T12:00:00.000Z',
@@ -318,6 +317,110 @@ describe('administración financiera', () => {
         currency: 'ARS',
       })
     })
+  })
+
+  it('mantiene gastos generales sin Unidad/VIN ni consultas de inventario', async () => {
+    openRoute('/gastos')
+    const fetchMock = mockFinanceApi(
+      authUser(['gastos.consultar', 'gastos.gestionar']),
+      { expenses: [] },
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'No hay resultados' })
+    await user.click(screen.getByRole('button', { name: 'Nuevo gasto' }))
+    const dialog = screen.getByRole('dialog')
+
+    expect(within(dialog).getByLabelText('Fecha *')).toBeInTheDocument()
+    expect(
+      within(dialog).getByLabelText('Motivo / categoría *'),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('TT / referencia *')).toBeInTheDocument()
+    expect(
+      within(dialog).getByLabelText('Detalle / descripción *'),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Importe *')).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Pagado por *')).toHaveValue(
+      'Lucía Fernández',
+    )
+    expect(within(dialog).getByLabelText('Estado del gasto')).toHaveTextContent(
+      'Pendiente',
+    )
+    expect(within(dialog).getByLabelText('Recuperada')).toHaveTextContent('No')
+    expect(within(dialog).getByText('Mes')).toBeInTheDocument()
+    expect(within(dialog).getByText('Año')).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Observaciones')).toBeInTheDocument()
+    expect(
+      within(dialog).queryByLabelText('Unidad / VIN'),
+    ).not.toBeInTheDocument()
+    expect(within(dialog).queryByLabelText('Operación')).not.toBeInTheDocument()
+
+    const urls = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(urls.some((url) => url.includes('/inventory/units'))).toBe(false)
+    expect(urls.some((url) => url.includes('/sales/operations'))).toBe(false)
+
+    fireEvent.change(within(dialog).getByLabelText('Motivo / categoría *'), {
+      target: { value: 'Gestoría' },
+    })
+    fireEvent.change(within(dialog).getByLabelText('TT / referencia *'), {
+      target: { value: 'TT-700' },
+    })
+    fireEvent.change(within(dialog).getByLabelText('Detalle / descripción *'), {
+      target: { value: 'Informe de dominio' },
+    })
+    fireEvent.change(within(dialog).getByLabelText('Importe *'), {
+      target: { value: '25000' },
+    })
+    await user.selectOptions(within(dialog).getByLabelText('Recuperada'), 'true')
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Guardar gasto' }),
+    )
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url).endsWith('/expenses') && init?.method === 'POST',
+      )
+      expect(call).toBeDefined()
+      expect(JSON.parse(String(call?.[1]?.body))).toEqual({
+        expenseDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        category: 'Gestoría',
+        reference: 'TT-700',
+        description: 'Informe de dominio',
+        totalAmount: '25000.00',
+        paidBy: 'Lucía Fernández',
+        status: 'PENDIENTE',
+        recovered: true,
+        month: expect.any(Number),
+        year: expect.any(Number),
+        recoverable: true,
+      })
+    })
+  })
+
+  it('replica las columnas aprobadas de gastos sin reinterpretar recuperada', async () => {
+    openRoute('/gastos')
+    mockFinanceApi(authUser(['gastos.consultar']), { expenses: [expense] })
+
+    render(<App />)
+
+    const headers = await screen.findAllByRole('columnheader')
+    expect(headers.map((header) => header.textContent)).toEqual([
+      'Fecha',
+      'Motivo',
+      'TT',
+      'Detalle',
+      'Importe',
+      'Pagado por',
+      'Estado',
+      'Recuperada',
+      'Mes / año',
+      'Acciones',
+    ])
+    expect(screen.getByRole('cell', { name: 'Lucía Fernández' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'No' })).toBeInTheDocument()
+    expect(screen.queryByText('No recuperable')).not.toBeInTheDocument()
   })
 
   it('registra cobros parciales con cuenta e idempotencyKey', async () => {

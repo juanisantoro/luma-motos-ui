@@ -44,5 +44,5 @@ export function formatOperationDate(value: string) {
 
 export function vehicleLabel(operation: SalesOperation) {
   const { brand, name } = operation.vehicle.model
-  return [brand, name, operation.vehicle.versionName].filter(Boolean).join(' ')
+  return [brand.name, name, operation.vehicle.versionName].filter(Boolean).join(' ')
 }

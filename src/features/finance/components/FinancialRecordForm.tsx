@@ -14,6 +14,7 @@ import type {
   CreateIncomeInput,
   CreatePurchaseInput,
   FinancialKind,
+  FinancialVehicleType,
   BranchOption,
   SupplierOption,
   UnitOption,
@@ -25,6 +26,7 @@ import { hasPermission } from '../../auth/PermissionRoute'
 
 type FinancialRecordFormProps = {
   kind: FinancialKind
+  vehicleType?: FinancialVehicleType
   defaultBranchId?: string
   onClose: () => void
   onSaved: () => void
@@ -45,6 +47,7 @@ function decimal(value: string) {
 
 export function FinancialRecordForm({
   kind,
+  vehicleType,
   defaultBranchId,
   onClose,
   onSaved,
@@ -58,9 +61,21 @@ export function FinancialRecordForm({
   const [units, setUnits] = useState<UnitOption[]>([])
   const [versions, setVersions] = useState<VersionOption[]>([])
   const [operations, setOperations] = useState<SalesOperationOption[]>([])
+  const [recordDate, setRecordDate] = useState(() => {
+    const now = new Date()
+    return [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-')
+  })
   const dialogRef = useRef<HTMLDivElement>(null)
   const labels = financialLabels(kind)
   const { user } = useAuth()
+  const [paidBy, setPaidBy] = useState(
+    user?.name ?? user?.email ?? '',
+  )
+  const [recovered, setRecovered] = useState(false)
   const canViewOperations = hasPermission(
     user?.role.permissions,
     'ventas.consultar',
@@ -80,18 +95,21 @@ export function FinancialRecordForm({
 
   useEffect(() => {
     const controller = new AbortController()
-    const requests: Promise<void>[] = [
-      listInventoryBranches(controller.signal).then(setBranches),
-      listAllInventoryUnits(controller.signal).then(setUnits),
-    ]
+    const requests: Promise<void>[] = []
+    if (kind !== 'expense') {
+      requests.push(
+        listInventoryBranches(controller.signal).then(setBranches),
+        listAllInventoryUnits(vehicleType, controller.signal).then(setUnits),
+      )
+    }
     if (kind === 'purchase') {
       requests.push(
         listAllSuppliers(controller.signal).then(setSuppliers),
-        listAllCatalogVersions(controller.signal).then(setVersions),
+        listAllCatalogVersions(vehicleType, controller.signal).then(setVersions),
       )
-    } else if (canViewOperations) {
+    } else if (kind === 'income' && canViewOperations) {
       requests.push(
-        listAllSalesOperations(controller.signal).then(setOperations),
+        listAllSalesOperations(vehicleType, controller.signal).then(setOperations),
       )
     }
     void Promise.all(requests)
@@ -102,13 +120,13 @@ export function FinancialRecordForm({
         if (!controller.signal.aborted) setLoadingOptions(false)
       })
     return () => controller.abort()
-  }, [canViewOperations, kind])
+  }, [canViewOperations, kind, vehicleType])
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
     const data = new FormData(event.currentTarget)
-    const unitId = optional(data, 'unitId')
+    const unitId = kind === 'expense' ? undefined : optional(data, 'unitId')
     const versionId = optional(data, 'versionId')
     const documentNumber = optional(data, 'documentNumber')
     const additionalCosts = optional(data, 'additionalCosts')
@@ -151,17 +169,22 @@ export function FinancialRecordForm({
         ...(notes ? { notes } : {}),
       }
     } else {
+      const expenseDate = text(data, 'date')
+      const year = Number(expenseDate.slice(0, 4))
+      const month = Number(expenseDate.slice(5, 7))
       input = {
         ...(branchId ? { branchId } : {}),
-        expenseDate: text(data, 'date'),
+        expenseDate,
         category: text(data, 'category'),
         description: text(data, 'description'),
         totalAmount: decimal(text(data, 'totalAmount')),
-        currency: text(data, 'currency'),
-        recoverable: data.get('recoverable') === 'on',
-        ...(unitId ? { unitId } : {}),
-        ...(operationId ? { operationId } : {}),
-        ...(reference ? { reference } : {}),
+        reference: text(data, 'reference'),
+        paidBy: text(data, 'paidBy'),
+        status: 'PENDIENTE',
+        recovered,
+        month,
+        year,
+        ...(recovered ? { recoverable: true } : {}),
         ...(notes ? { notes } : {}),
       }
     }
@@ -177,12 +200,12 @@ export function FinancialRecordForm({
     }
   }
 
-  const now = new Date()
-  const today = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-')
+  const [recordYear, recordMonth] = recordDate.split('-')
+  const monthLabel = recordMonth
+    ? new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(
+        new Date(2026, Number(recordMonth) - 1, 1),
+      )
+    : '—'
   return (
     <div className="modal-backdrop" role="presentation">
       <div
@@ -195,7 +218,12 @@ export function FinancialRecordForm({
         <header className="client-modal__header">
           <div>
             <p className="eyebrow">{labels.eyebrow}</p>
-            <h2 id="financial-form-title">Nuevo {labels.singular}</h2>
+            <h2 id="financial-form-title">
+              Nuevo {labels.singular}
+              {vehicleType
+                ? ` de ${vehicleType === 'MOTO' ? 'moto' : 'auto'}`
+                : ''}
+            </h2>
           </div>
           <button
             className="icon-button"
@@ -212,15 +240,21 @@ export function FinancialRecordForm({
           <div className="financial-form-grid">
             <label className="field">
               <span>Fecha *</span>
-              <input name="date" type="date" defaultValue={today} required />
+              <input
+                name="date"
+                type="date"
+                value={recordDate}
+                onChange={(event) => setRecordDate(event.target.value)}
+                required
+              />
             </label>
-            <label className="field">
-              <span>Sucursal {kind === 'expense' ? '' : '*'}</span>
+            {kind !== 'expense' && <label className="field">
+              <span>Sucursal *</span>
               <select
                 name="branchId"
                 value={branchId}
                 onChange={(event) => setBranchId(event.target.value)}
-                required={kind !== 'expense'}
+                required
                 disabled={loadingOptions}
               >
                 <option value="">Seleccionar sucursal</option>
@@ -228,7 +262,7 @@ export function FinancialRecordForm({
                   <option key={branch.id} value={branch.id}>{branch.code} · {branch.name}</option>
                 ))}
               </select>
-            </label>
+            </label>}
             {kind === 'purchase' && (
               <>
                 <label className="field">
@@ -304,25 +338,63 @@ export function FinancialRecordForm({
                   <input name="category" maxLength={80} required />
                 </label>
                 <label className="field">
-                  <span>TT / referencia</span>
-                  <input name="reference" maxLength={120} />
+                  <span>TT / referencia *</span>
+                  <input name="reference" maxLength={160} required />
+                </label>
+                <label className="field field--wide">
+                  <span>Detalle / descripción *</span>
+                  <input name="description" maxLength={500} required />
                 </label>
                 <label className="field">
-                  <span>Unidad / VIN</span>
-                  <select name="unitId" disabled={loadingOptions}>
-                    <option value="">Sin unidad asociada</option>
-                    {units.map((unit) => (
-                      <option key={unit.id} value={unit.id}>{unit.vin} · {unit.version.model.name}</option>
-                    ))}
+                  <span>Importe *</span>
+                  <input
+                    name="totalAmount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span>Pagado por *</span>
+                  <input
+                    name="paidBy"
+                    maxLength={180}
+                    onChange={(event) => setPaidBy(event.target.value)}
+                    required
+                    value={paidBy}
+                  />
+                </label>
+                <div className="field">
+                  <span>Estado</span>
+                  <output className="operation-readonly" aria-label="Estado del gasto">
+                    Pendiente
+                  </output>
+                </div>
+                <label className="field">
+                  <span>Recuperada</span>
+                  <select
+                    aria-label="Recuperada"
+                    onChange={(event) => setRecovered(event.target.value === 'true')}
+                    value={String(recovered)}
+                  >
+                    <option value="false">No</option>
+                    <option value="true">Sí</option>
                   </select>
                 </label>
-                <label className="checkbox-field">
-                  <input name="recoverable" type="checkbox" />
-                  <span>Este gasto es recuperable</span>
-                </label>
+                <div className="field">
+                  <span>Mes</span>
+                  <div className="operation-readonly">
+                    {monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}
+                  </div>
+                </div>
+                <div className="field">
+                  <span>Año</span>
+                  <div className="operation-readonly">{recordYear || '—'}</div>
+                </div>
               </>
             )}
-            {kind !== 'purchase' && (
+            {kind === 'income' && (
               <>
                 <label className="field field--wide">
                   <span>Descripción *</span>
@@ -347,10 +419,10 @@ export function FinancialRecordForm({
                 )}
               </>
             )}
-            <label className="field">
+            {kind !== 'expense' && <label className="field">
               <span>Moneda *</span>
               <input name="currency" defaultValue="ARS" maxLength={3} required />
-            </label>
+            </label>}
             <label className="field field--wide">
               <span>Observaciones</span>
               <textarea name="notes" rows={3} maxLength={2000} />

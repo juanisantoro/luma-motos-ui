@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from '../features/auth/AuthContext'
 import { LoginPage } from '../features/auth/LoginPage'
 import { PermissionRoute } from '../features/auth/PermissionRoute'
@@ -60,24 +60,62 @@ export function App() {
               <Route
                 element={<PermissionRoute permission="ventas.consultar" />}
               >
-                <Route path="operaciones" element={<OperationsPage />} />
                 <Route
-                  path="mis-operaciones"
-                  element={<OperationsPage mine />}
+                  path="motos/operaciones"
+                  element={<OperationsPage vehicleType="MOTO" />}
+                />
+                <Route
+                  path="autos/operaciones"
+                  element={<OperationsPage vehicleType="AUTO" />}
+                />
+                <Route
+                  path="motos/mis-operaciones"
+                  element={<OperationsPage mine vehicleType="MOTO" />}
+                />
+                <Route
+                  path="autos/mis-operaciones"
+                  element={<OperationsPage mine vehicleType="AUTO" />}
                 />
                 <Route
                   element={<PermissionRoute permission="ventas.gestionar" />}
                 >
                   <Route
-                    path="operaciones/nueva"
-                    element={<NewOperationPage />}
+                    path="motos/operaciones/nueva"
+                    element={<NewOperationPage vehicleType="MOTO" />}
+                  />
+                  <Route
+                    path="autos/operaciones/nueva"
+                    element={<NewOperationPage vehicleType="AUTO" />}
                   />
                 </Route>
                 <Route
                   element={<PermissionRoute permission="ventas.aprobar" />}
                 >
-                  <Route path="aprobaciones" element={<ApprovalsPage />} />
+                  <Route
+                    path="motos/aprobaciones"
+                    element={<ApprovalsPage vehicleType="MOTO" />}
+                  />
+                  <Route
+                    path="autos/aprobaciones"
+                    element={<ApprovalsPage vehicleType="AUTO" />}
+                  />
                 </Route>
+                <Route
+                  path="operaciones"
+                  element={<Navigate replace to="/motos/operaciones" />}
+                />
+                <Route
+                  path="mis-operaciones"
+                  element={<Navigate replace to="/motos/mis-operaciones" />}
+                />
+                <Route
+                  path="operaciones/nueva"
+                  element={<Navigate replace to="/motos/operaciones/nueva" />}
+                />
+                <Route
+                  path="aprobaciones"
+                  element={<Navigate replace to="/motos/aprobaciones" />}
+                />
               </Route>
               <Route
                 element={
@@ -105,12 +143,34 @@ export function App() {
               <Route
                 element={<PermissionRoute permission="compras.consultar" />}
               >
-                <Route path="compras" element={<PurchasesPage />} />
+                <Route
+                  path="motos/compras"
+                  element={<PurchasesPage vehicleType="MOTO" />}
+                />
+                <Route
+                  path="autos/compras"
+                  element={<PurchasesPage vehicleType="AUTO" />}
+                />
+                <Route
+                  path="compras"
+                  element={<Navigate replace to="/motos/compras" />}
+                />
               </Route>
               <Route
                 element={<PermissionRoute permission="ingresos.consultar" />}
               >
-                <Route path="ingresos" element={<IncomesPage />} />
+                <Route
+                  path="motos/ingresos"
+                  element={<IncomesPage vehicleType="MOTO" />}
+                />
+                <Route
+                  path="autos/ingresos"
+                  element={<IncomesPage vehicleType="AUTO" />}
+                />
+                <Route
+                  path="ingresos"
+                  element={<Navigate replace to="/motos/ingresos" />}
+                />
               </Route>
               <Route
                 element={<PermissionRoute permission="gastos.consultar" />}

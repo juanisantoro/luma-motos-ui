@@ -1,5 +1,6 @@
 export type FinancialStatus = 'PENDIENTE' | 'PARCIAL' | 'PAGADO'
 export type FinancialKind = 'purchase' | 'income' | 'expense'
+export type FinancialVehicleType = 'MOTO' | 'AUTO'
 export type DecimalString = string
 
 export type PageResponse<T> = {
@@ -115,10 +116,10 @@ export type Income = FinancialBase & {
 
 export type Expense = FinancialBase & {
   expenseDate: string
+  month: number
+  year: number
   category: string
-  reference: string | null
-  unitId: string | null
-  operationId: string | null
+  reference: string
   description: string
   totalAmount: DecimalString
   paidAmount: DecimalString
@@ -127,12 +128,9 @@ export type Expense = FinancialBase & {
   recovered: boolean
   recoveredAmount: DecimalString
   recoverableBalance: DecimalString
-  vehicle: {
-    unit: (MinimalUnit & { licensePlate: string | null }) | null
-  } | null
-  operation: { id: string; number: string } | null
   createdBy: MinimalPersonnel
-  paidBy: MinimalPersonnel | null
+  paidBy: string
+  paymentRegisteredBy: MinimalPersonnel | null
   account: MinimalAccount | null
 }
 
@@ -157,6 +155,7 @@ export type FinancialListQuery = {
   category?: string
   recoverable?: boolean
   recovered?: boolean
+  vehicleType?: FinancialVehicleType
 }
 
 export type CreatePurchaseInput = {
@@ -192,11 +191,14 @@ export type CreateExpenseInput = {
   branchId?: string
   expenseDate: string
   category: string
-  reference?: string
-  unitId?: string
-  operationId?: string
+  reference: string
   description: string
   totalAmount: DecimalString
+  paidBy: string
+  status: 'PENDIENTE'
+  recovered: boolean
+  month: number
+  year: number
   currency?: string
   recoverable?: boolean
   notes?: string

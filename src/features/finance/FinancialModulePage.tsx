@@ -26,6 +26,7 @@ import type {
   FinancialKind,
   FinancialListQuery,
   FinancialRecord,
+  FinancialVehicleType,
   PageResponse,
   SupplierPurchase,
 } from './types'
@@ -50,7 +51,13 @@ const permissionByKind = {
   },
 } as const
 
-export function FinancialModulePage({ kind }: { kind: FinancialKind }) {
+export function FinancialModulePage({
+  kind,
+  vehicleType,
+}: {
+  kind: FinancialKind
+  vehicleType?: FinancialVehicleType
+}) {
   const { user } = useAuth()
   const labels = financialLabels(kind)
   const permissions = user?.role.permissions ?? []
@@ -67,6 +74,7 @@ export function FinancialModulePage({ kind }: { kind: FinancialKind }) {
   const [query, setQuery] = useState<FinancialListQuery>({
     page: 1,
     limit: PAGE_SIZE,
+    ...(vehicleType ? { vehicleType } : {}),
   })
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [result, setResult] = useState<PageResponse<FinancialRecord> | null>(null)
@@ -77,13 +85,17 @@ export function FinancialModulePage({ kind }: { kind: FinancialKind }) {
   const [settlement, setSettlement] = useState<{ record: FinancialRecord; recovery: boolean } | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
+  const effectiveQuery = useMemo(
+    () => (vehicleType ? { ...query, vehicleType } : query),
+    [query, vehicleType],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
     setStatus('loading')
     setForbidden(false)
     setLoadError('')
-    void listFinancialRecords(kind, query, controller.signal)
+    void listFinancialRecords(kind, effectiveQuery, controller.signal)
       .then((response) => {
         setResult(response as PageResponse<FinancialRecord>)
         setStatus('success')
@@ -95,7 +107,7 @@ export function FinancialModulePage({ kind }: { kind: FinancialKind }) {
         setStatus('error')
       })
     return () => controller.abort()
-  }, [kind, query, refreshKey])
+  }, [effectiveQuery, kind, refreshKey])
 
   const reload = (message?: string) => {
     if (message) setNotice(message)
@@ -127,7 +139,10 @@ export function FinancialModulePage({ kind }: { kind: FinancialKind }) {
       <header className="page-heading">
         <div>
           <p className="eyebrow">{labels.eyebrow}</p>
-          <h1>{labels.title}</h1>
+          <h1>
+            {labels.title}
+            {vehicleType ? ` de ${vehicleType === 'MOTO' ? 'motos' : 'autos'}` : ''}
+          </h1>
           <p>{labels.description}</p>
         </div>
         {canCreate && (
@@ -140,8 +155,16 @@ export function FinancialModulePage({ kind }: { kind: FinancialKind }) {
 
       <FinancialFilters
         kind={kind}
+        {...(vehicleType ? { vehicleType } : {})}
         value={query}
-        onApply={(next) => setQuery({ ...next, page: 1, limit: PAGE_SIZE })}
+        onApply={(next) =>
+          setQuery({
+            ...next,
+            page: 1,
+            limit: PAGE_SIZE,
+            ...(vehicleType ? { vehicleType } : {}),
+          })
+        }
       />
 
       {notice && (
@@ -194,7 +217,7 @@ export function FinancialModulePage({ kind }: { kind: FinancialKind }) {
           <StatePanel
             icon={WalletCards}
             title="No hay resultados"
-            description="No encontramos registros para los filtros seleccionados."
+            description={`No encontramos registros${vehicleType ? ` de ${vehicleType === 'MOTO' ? 'motos' : 'autos'}` : ''} para los filtros seleccionados.`}
           />
         )}
         {status === 'success' && result && result.items.length > 0 && (
@@ -239,6 +262,7 @@ export function FinancialModulePage({ kind }: { kind: FinancialKind }) {
       {showForm && (
         <FinancialRecordForm
           kind={kind}
+          {...(vehicleType ? { vehicleType } : {})}
           {...(user?.branch?.id ? { defaultBranchId: user.branch.id } : {})}
           onClose={() => setShowForm(false)}
           onSaved={() => {

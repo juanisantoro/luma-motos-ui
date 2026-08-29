@@ -5,13 +5,13 @@ import { ApprovalsPage } from './ApprovalsPage'
 import type { SalesOperation } from './types'
 
 const mocks = vi.hoisted(() => ({
-  listSalesOperations: vi.fn(),
+  listSalesApprovals: vi.fn(),
   approveSalesOperation: vi.fn(),
   rejectSalesOperation: vi.fn(),
 }))
 
 vi.mock('./api', () => ({
-  listSalesOperations: mocks.listSalesOperations,
+  listSalesApprovals: mocks.listSalesApprovals,
   approveSalesOperation: mocks.approveSalesOperation,
   rejectSalesOperation: mocks.rejectSalesOperation,
 }))
@@ -21,12 +21,19 @@ const operation = {
   number: '105',
   operationDate: '2026-08-29',
   status: 'PENDIENTE_APROBACION',
-  deliveryStatus: 'PENDIENTE',
+  deliveryStatus: 'NO_PROGRAMADA',
   documentationStatus: 'PENDIENTE',
+  papersDelivered: false,
+  papersDeliveredAt: null,
+  debt: 'NO',
+  month: '2026-08',
   listPrice: '5000000',
   minimumPrice: '4500000',
   agreedPrice: '4400000',
   currency: 'ARS',
+  paymentPlatform: 'EFECTIVO',
+  creditAmount: null,
+  guarantor: null,
   notes: null,
   rowVersion: 7,
   organizationId: 'org-1',
@@ -49,18 +56,28 @@ const operation = {
       vin: 'VIN-001',
       licensePlate: null,
       inventoryStatus: 'RESERVADO',
+      acquisitionOrigin: 'PROVEEDOR',
+      supplier: { id: 'supplier-1', legalName: 'Proveedor Uno' },
     },
+    chassis: 'VIN-001',
   },
   seller: { id: 'seller-1', fullName: 'Vendedor Uno' },
+  contact: null,
+  createdBy: { id: 'user-1', fullName: 'Usuario Uno' },
+  supply: null,
   reservation: {
     id: 'reservation-1',
     unitId: 'unit-1',
+    supplierAvailabilityId: null,
     status: 'ACTIVO',
     quantity: 1,
     expiresAt: null,
     releasedAt: null,
     releaseReason: null,
   },
+  paymentComponents: [],
+  tradeIns: [],
+  obligations: [],
   approval: {
     id: 'approval-1',
     decision: 'PENDIENTE',
@@ -75,7 +92,7 @@ const operation = {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.listSalesOperations.mockResolvedValue({
+  mocks.listSalesApprovals.mockResolvedValue({
     items: [operation],
     total: 1,
     page: 1,
@@ -96,7 +113,7 @@ beforeEach(() => {
 describe('Aprobaciones pendientes', () => {
   it('aprueba con rowVersion y vuelve a consultar la bandeja', async () => {
     const user = userEvent.setup()
-    render(<ApprovalsPage />)
+    render(<ApprovalsPage vehicleType="MOTO" />)
 
     await user.click(await screen.findByRole('button', { name: 'Aprobar' }))
 
@@ -104,13 +121,13 @@ describe('Aprobaciones pendientes', () => {
       expectedVersion: 7,
     })
     await waitFor(() =>
-      expect(mocks.listSalesOperations).toHaveBeenCalledTimes(2),
+      expect(mocks.listSalesApprovals).toHaveBeenCalledTimes(2),
     )
   })
 
   it('exige motivo al rechazar y refresca tras confirmar', async () => {
     const user = userEvent.setup()
-    render(<ApprovalsPage />)
+    render(<ApprovalsPage vehicleType="MOTO" />)
 
     await user.click(await screen.findByRole('button', { name: 'Rechazar' }))
     const confirm = screen.getByRole('button', {
@@ -128,7 +145,7 @@ describe('Aprobaciones pendientes', () => {
       reason: 'Precio fuera de política',
     })
     await waitFor(() =>
-      expect(mocks.listSalesOperations).toHaveBeenCalledTimes(2),
+      expect(mocks.listSalesApprovals).toHaveBeenCalledTimes(2),
     )
   })
 })

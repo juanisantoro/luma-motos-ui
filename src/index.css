@@ -1565,6 +1565,9 @@ a {
   }
 
   .sales-panel {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: 13px;
@@ -1607,12 +1610,19 @@ a {
   }
 
   .sales-content {
+    min-width: 0;
+    max-width: 100%;
     min-height: 270px;
+    overflow: hidden;
   }
 
   .sales-table-wrap {
+    width: 100%;
+    min-width: 0;
     max-width: 100%;
+    contain: inline-size paint;
     overflow-x: auto;
+    overscroll-behavior-inline: contain;
   }
 
   .sales-table {
@@ -2076,6 +2086,179 @@ a {
     backdrop-filter: blur(8px);
   }
 
+  .operation-form-card {
+    width: min(100%, 1180px);
+    margin: 0 auto;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: white;
+    box-shadow: 0 1px 2px #00000008;
+  }
+
+  .operation-form-card fieldset {
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+  }
+
+  .operation-compact-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    padding: 20px;
+  }
+
+  .operation-compact-grid .field {
+    min-width: 0;
+    margin: 0;
+  }
+
+  .operation-compact-grid .field > small,
+  .sales-card small {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .operation-span-2 {
+    grid-column: span 2;
+  }
+
+  .operation-span-3 {
+    grid-column: 1 / -1;
+  }
+
+  .operation-form-card .condition-switch {
+    max-width: 560px;
+  }
+
+  .operation-form-card .condition-switch button {
+    min-height: 44px;
+  }
+
+  .operation-vehicle-search {
+    position: relative;
+  }
+
+  .operation-vehicle-search svg {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    color: var(--muted);
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+
+  .operation-vehicle-search input {
+    padding-left: 38px;
+  }
+
+  .operation-readonly {
+    display: flex;
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+    padding: 0 12px;
+    overflow-wrap: anywhere;
+    border: 1px solid #e1e4e8;
+    border-radius: 9px;
+    color: #4b535d;
+    background: #f5f6f7;
+    font-size: 12px;
+  }
+
+  .operation-check {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    align-self: end;
+    gap: 9px;
+    padding: 0 2px;
+    font-size: 12px;
+    font-weight: 750;
+  }
+
+  .operation-check input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--red);
+  }
+
+  .operation-form-card .operation-form__actions {
+    position: static;
+    margin: 0;
+    padding: 14px 20px;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .operation-warning {
+    display: flex;
+    width: min(100%, 1180px);
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0 auto 12px;
+    padding: 12px 14px;
+    border: 1px solid #efd391;
+    border-radius: 10px;
+    color: #76500c;
+    background: #fff8e7;
+  }
+
+  .operation-warning > svg {
+    flex: 0 0 auto;
+  }
+
+  .operation-warning strong {
+    font-size: 12px;
+  }
+
+  .operation-warning p {
+    margin: 3px 0 0;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .sales-table--operations {
+    min-width: 1540px;
+  }
+
+  .sales-table--approvals {
+    min-width: 1020px;
+  }
+
+  .sales-row--below-list {
+    background: #fff2f2;
+  }
+
+  .sales-card.sales-row--below-list {
+    border-color: #efc7ca;
+    background: #fff7f7;
+  }
+
+  .sales-price-difference {
+    color: var(--red);
+    font-weight: 850;
+  }
+
+  .approval-table-actions {
+    display: flex;
+    gap: 7px;
+  }
+
+  .approval-table-actions .button {
+    min-height: 38px;
+    padding: 0 11px;
+    font-size: 11px;
+  }
+
   @media (max-width: 1200px) {
     .sales-filters {
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2101,6 +2284,14 @@ a {
 
     .operation-form-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .operation-compact-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .operation-span-3 {
+      grid-column: 1 / -1;
     }
 
     .operation-form-grid .field:last-child {
@@ -2161,6 +2352,20 @@ a {
     .operation-form-grid,
     .source-selector {
       grid-template-columns: 1fr;
+    }
+
+    .operation-compact-grid {
+      grid-template-columns: 1fr;
+      padding: 15px;
+    }
+
+    .operation-span-2,
+    .operation-span-3 {
+      grid-column: auto;
+    }
+
+    .operation-form-card .operation-form__actions {
+      padding: 13px 15px;
     }
 
     .operation-form-grid .field:last-child {

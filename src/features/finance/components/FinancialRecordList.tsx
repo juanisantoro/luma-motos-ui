@@ -47,8 +47,13 @@ function recordMeta(kind: FinancialKind, record: FinancialRecord) {
       ?? purchase.vehicle.version?.model.name
     return [vehicle, purchase.documentNumber].filter(Boolean).join(' · ') || 'Sin referencia'
   }
-  const item = record as Income | Expense
-  return [item.reference, item.vehicle?.unit?.vin].filter(Boolean).join(' · ') || 'Sin referencia'
+  if (kind === 'income') {
+    const income = record as Income
+    return [income.reference, income.vehicle?.unit?.vin]
+      .filter(Boolean)
+      .join(' · ') || 'Sin referencia'
+  }
+  return (record as Expense).reference || 'Sin referencia'
 }
 
 function recordAmount(
@@ -75,11 +80,18 @@ function settlementMeta(kind: FinancialKind, record: FinancialRecord) {
   }
   if (kind === 'expense') {
     const expense = record as Expense
-    return [expense.account?.name, expense.paidBy?.fullName]
+    return [expense.account?.name, expense.paidBy]
       .filter(Boolean)
       .join(' · ') || 'Sin movimientos'
   }
   return ''
+}
+
+function expensePeriod(expense: Expense) {
+  const month = new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(
+    new Date(2026, expense.month - 1, 1),
+  )
+  return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${expense.year}`
 }
 
 function RecordActions({
@@ -136,6 +148,35 @@ export function FinancialRecordList(props: FinancialRecordListProps) {
   } = props
   const isCardLayout = useMediaQuery('(max-width: 768px)')
 
+  if (kind === 'expense' && isCardLayout) {
+    return (
+      <div className="financial-card-list">
+        {(records as Expense[]).map((expense) => (
+          <article className="financial-card" key={expense.id}>
+            <header>
+              <div>
+                <strong>{expense.category}</strong>
+                <span>{expense.reference}</span>
+              </div>
+              <span className={`status-badge${statusTone(expense.paymentStatus)}`}>
+                {statusLabel(expense.paymentStatus)}
+              </span>
+            </header>
+            <dl>
+              <div><dt>Fecha</dt><dd>{formatDate(expense.expenseDate)}</dd></div>
+              <div><dt>Detalle</dt><dd>{expense.description}</dd></div>
+              <div><dt>Importe</dt><dd>{formatMoney(expense.totalAmount, expense.currency)}</dd></div>
+              <div><dt>Pagado por</dt><dd>{expense.paidBy}</dd></div>
+              <div><dt>Recuperada</dt><dd>{expense.recovered ? 'Sí' : 'No'}</dd></div>
+              <div><dt>Mes / año</dt><dd>{expensePeriod(expense)}</dd></div>
+            </dl>
+            <RecordActions {...props} record={expense} />
+          </article>
+        ))}
+      </div>
+    )
+  }
+
   if (isCardLayout) {
     return (
       <div className="financial-card-list">
@@ -183,27 +224,58 @@ export function FinancialRecordList(props: FinancialRecordListProps) {
     <div className="financial-table-wrap">
       <table className="financial-table">
         <thead>
+          {kind === 'expense' ? (
+            <tr>
+              <th>Fecha</th>
+              <th>Motivo</th>
+              <th>TT</th>
+              <th>Detalle</th>
+              <th>Importe</th>
+              <th>Pagado por</th>
+              <th>Estado</th>
+              <th>Recuperada</th>
+              <th>Mes / año</th>
+              <th><span className="sr-only">Acciones</span></th>
+            </tr>
+          ) : (
           <tr>
             <th>Fecha</th>
-            <th>{kind === 'purchase' ? 'Proveedor' : kind === 'expense' ? 'Categoría / detalle' : 'Tipo / descripción'}</th>
+            <th>{kind === 'purchase' ? 'Proveedor' : 'Tipo / descripción'}</th>
             <th>Referencia / unidad</th>
             <th>Sucursal</th>
             {kind !== 'purchase' || canViewCosts ? <th>Total</th> : null}
             {kind !== 'purchase' && <th>Cuenta / responsable</th>}
             <th>Estado</th>
-            {kind === 'expense' && <th>Recuperable</th>}
             <th><span className="sr-only">Acciones</span></th>
           </tr>
+          )}
         </thead>
         <tbody>
-          {records.map((record) => (
+          {kind === 'expense'
+            ? (records as Expense[]).map((expense) => (
+              <tr key={expense.id}>
+                <td>{formatDate(expense.expenseDate)}</td>
+                <td>{expense.category}</td>
+                <td>{expense.reference}</td>
+                <td><strong>{expense.description}</strong></td>
+                <td>{formatMoney(expense.totalAmount, expense.currency)}</td>
+                <td>{expense.paidBy}</td>
+                <td>
+                  <span className={`status-badge${statusTone(expense.paymentStatus)}`}>
+                    {statusLabel(expense.paymentStatus)}
+                  </span>
+                </td>
+                <td>{expense.recovered ? 'Sí' : 'No'}</td>
+                <td>{expensePeriod(expense)}</td>
+                <td><RecordActions {...props} record={expense} /></td>
+              </tr>
+            ))
+            : records.map((record) => (
             <tr key={record.id}>
               <td>{formatDate(recordDate(kind, record))}</td>
               <td>
                 <strong>{recordTitle(kind, record)}</strong>
-                {kind !== 'purchase' && (
-                  <small>{kind === 'income' ? (record as Income).type : (record as Expense).category}</small>
-                )}
+                {kind !== 'purchase' && <small>{(record as Income).type}</small>}
               </td>
               <td>{recordMeta(kind, record)}</td>
               <td>{record.branch?.name ?? 'General'}</td>
@@ -216,9 +288,6 @@ export function FinancialRecordList(props: FinancialRecordListProps) {
                   {statusLabel(record.paymentStatus)}
                 </span>
               </td>
-              {kind === 'expense' && (
-                <td>{(record as Expense).recoverable ? ((record as Expense).recovered ? 'Recuperada' : 'Pendiente') : 'No'}</td>
-              )}
               <td><RecordActions {...props} record={record} /></td>
             </tr>
           ))}

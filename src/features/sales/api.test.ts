@@ -4,6 +4,7 @@ import {
   createSalesOperation,
   createLinkedSupplyRequest,
   getSalesPricePolicy,
+  listSalesApprovals,
   listSalesOperations,
   listSalesSellers,
   rejectSalesOperation,
@@ -31,6 +32,7 @@ describe('contrato API de operaciones', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await listSalesOperations({
+      vehicleType: 'MOTO',
       status: 'PENDIENTE_APROBACION',
       search: 'Ana',
       from: '2026-08-01',
@@ -40,7 +42,7 @@ describe('contrato API de operaciones', () => {
 
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe(
-      'http://localhost:3000/api/sales/operations?status=PENDIENTE_APROBACION&search=Ana&from=2026-08-01&page=2&limit=20',
+      'http://localhost:3000/api/sales/operations?vehicleType=MOTO&status=PENDIENTE_APROBACION&search=Ana&from=2026-08-01&page=2&limit=20',
     )
     expect(new Headers(request.headers).get('Authorization')).toBe(
       'Bearer sales-token',
@@ -53,25 +55,37 @@ describe('contrato API de operaciones', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await createSalesOperation({
+      vehicleType: 'MOTO',
       branchId: 'branch-1',
       clientId: 'client-1',
       versionId: 'version-1',
       condition: 'NUEVO',
       agreedPrice: 4_500_000,
+      paymentPlatform: 'EFECTIVO',
       unitId: 'unit-1',
       sellerId: 'seller-1',
+      deliveryStatus: 'NO_PROGRAMADA',
+      papersDelivered: false,
+      debt: 'NO',
+      submit: true,
     })
 
     const [, request] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(request.method).toBe('POST')
     expect(JSON.parse(String(request.body))).toEqual({
+      vehicleType: 'MOTO',
       branchId: 'branch-1',
       clientId: 'client-1',
       versionId: 'version-1',
       condition: 'NUEVO',
       agreedPrice: 4_500_000,
+      paymentPlatform: 'EFECTIVO',
       unitId: 'unit-1',
       sellerId: 'seller-1',
+      deliveryStatus: 'NO_PROGRAMADA',
+      papersDelivered: false,
+      debt: 'NO',
+      submit: true,
     })
   })
 
@@ -125,19 +139,43 @@ describe('contrato API de operaciones', () => {
         )
       vi.stubGlobal('fetch', fetchMock)
 
-      await listSalesOperations({ mine: true, page: 1, limit: 20 })
+      await listSalesOperations({
+        vehicleType: 'MOTO',
+        mine: true,
+        page: 1,
+        limit: 20,
+      })
       await listSalesSellers({ branchId: 'branch-1', limit: 100 })
       await getSalesPricePolicy({
         branchId: 'branch-1',
         versionId: 'version-1',
+        vehicleType: 'MOTO',
         operationDate: '2026-08-29',
       })
 
       expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-        'http://localhost:3000/api/sales/operations?mine=true&page=1&limit=20',
+        'http://localhost:3000/api/sales/operations?vehicleType=MOTO&mine=true&page=1&limit=20',
         'http://localhost:3000/api/sales/operations/sellers?branchId=branch-1&limit=100',
-        'http://localhost:3000/api/sales/operations/price-policy?branchId=branch-1&versionId=version-1&operationDate=2026-08-29',
+        'http://localhost:3000/api/sales/operations/price-policy?branchId=branch-1&versionId=version-1&vehicleType=MOTO&operationDate=2026-08-29',
       ])
+    })
+
+    it('usa la bandeja dedicada de aprobaciones con tipo obligatorio', async () => {
+      sessionStorage.setItem(AUTH_TOKEN_KEY, 'sales-token')
+      const fetchMock = vi.fn().mockResolvedValueOnce(
+        json({ items: [], total: 0, page: 1, limit: 100 }),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+
+      await listSalesApprovals({
+        vehicleType: 'AUTO',
+        page: 1,
+        limit: 100,
+      })
+
+      expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+        'http://localhost:3000/api/sales/operations/approvals?vehicleType=AUTO&page=1&limit=100',
+      )
     })
 
     it('vincula el abastecimiento proveedor a la operación borrador', async () => {

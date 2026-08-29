@@ -45,6 +45,20 @@ export function listSalesOperations(
   )
 }
 
+export function listSalesApprovals(
+  query: SalesOperationQuery,
+  signal?: AbortSignal,
+) {
+  const search = new URLSearchParams()
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') search.set(key, String(value))
+  })
+  return request<SalesOperationPage>(
+    `/sales/operations/approvals?${search.toString()}`,
+    signal ? { signal } : {},
+  )
+}
+
 export function getSalesOperation(id: string, signal?: AbortSignal) {
   return request<SalesOperation>(
     `/sales/operations/${id}`,
@@ -77,6 +91,7 @@ export function getSalesPricePolicy(
   query: {
     branchId: string
     versionId: string
+    vehicleType: 'MOTO' | 'AUTO'
     operationDate?: string
     organizationId?: string
   },

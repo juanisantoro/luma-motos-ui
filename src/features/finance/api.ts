@@ -6,6 +6,7 @@ import type {
   FinancialCreateInput,
   FinancialKind,
   FinancialListQuery,
+  FinancialVehicleType,
   FinancialRecord,
   Income,
   PageResponse,
@@ -169,9 +170,13 @@ export function listInventoryBranches(signal?: AbortSignal) {
   })
 }
 
-export function listCatalogVersions(signal?: AbortSignal) {
+export function listCatalogVersions(
+  vehicleType?: FinancialVehicleType,
+  signal?: AbortSignal,
+) {
+  const typeQuery = vehicleType ? `&vehicleType=${vehicleType}` : ''
   return apiRequest<PageResponse<VersionOption>>(
-    '/catalog/versions?page=1&limit=100&active=true',
+    `/catalog/versions?page=1&limit=100&active=true${typeQuery}`,
     {
       token: authToken(),
       ...(signal ? { signal } : {}),
@@ -179,11 +184,15 @@ export function listCatalogVersions(signal?: AbortSignal) {
   )
 }
 
-export async function listAllCatalogVersions(signal?: AbortSignal) {
-  const first = await listCatalogVersions(signal)
+export async function listAllCatalogVersions(
+  vehicleType?: FinancialVehicleType,
+  signal?: AbortSignal,
+) {
+  const typeQuery = vehicleType ? `&vehicleType=${vehicleType}` : ''
+  const first = await listCatalogVersions(vehicleType, signal)
   return collectAllPages(first, (page) =>
     apiRequest<PageResponse<VersionOption>>(
-      `/catalog/versions?page=${page}&limit=100&active=true`,
+      `/catalog/versions?page=${page}&limit=100&active=true${typeQuery}`,
       {
         token: authToken(),
         ...(signal ? { signal } : {}),
@@ -192,9 +201,13 @@ export async function listAllCatalogVersions(signal?: AbortSignal) {
   )
 }
 
-export function listInventoryUnits(signal?: AbortSignal) {
+export function listInventoryUnits(
+  vehicleType?: FinancialVehicleType,
+  signal?: AbortSignal,
+) {
+  const typeQuery = vehicleType ? `&vehicleType=${vehicleType}` : ''
   return apiRequest<PageResponse<UnitOption>>(
-    '/inventory/units?page=1&limit=100',
+    `/inventory/units?page=1&limit=100${typeQuery}`,
     {
       token: authToken(),
       ...(signal ? { signal } : {}),
@@ -202,11 +215,15 @@ export function listInventoryUnits(signal?: AbortSignal) {
   )
 }
 
-export async function listAllInventoryUnits(signal?: AbortSignal) {
-  const first = await listInventoryUnits(signal)
+export async function listAllInventoryUnits(
+  vehicleType?: FinancialVehicleType,
+  signal?: AbortSignal,
+) {
+  const typeQuery = vehicleType ? `&vehicleType=${vehicleType}` : ''
+  const first = await listInventoryUnits(vehicleType, signal)
   return collectAllPages(first, (page) =>
     apiRequest<PageResponse<UnitOption>>(
-      `/inventory/units?page=${page}&limit=100`,
+      `/inventory/units?page=${page}&limit=100${typeQuery}`,
       {
         token: authToken(),
         ...(signal ? { signal } : {}),
@@ -215,9 +232,13 @@ export async function listAllInventoryUnits(signal?: AbortSignal) {
   )
 }
 
-export function listSalesOperations(signal?: AbortSignal) {
+export function listSalesOperations(
+  vehicleType?: FinancialVehicleType,
+  signal?: AbortSignal,
+) {
+  const typeQuery = vehicleType ? `&vehicleType=${vehicleType}` : ''
   return apiRequest<PageResponse<SalesOperationOption>>(
-    '/sales/operations?page=1&limit=100',
+    `/sales/operations?page=1&limit=100${typeQuery}`,
     {
       token: authToken(),
       ...(signal ? { signal } : {}),
@@ -225,11 +246,15 @@ export function listSalesOperations(signal?: AbortSignal) {
   )
 }
 
-export async function listAllSalesOperations(signal?: AbortSignal) {
-  const first = await listSalesOperations(signal)
+export async function listAllSalesOperations(
+  vehicleType?: FinancialVehicleType,
+  signal?: AbortSignal,
+) {
+  const typeQuery = vehicleType ? `&vehicleType=${vehicleType}` : ''
+  const first = await listSalesOperations(vehicleType, signal)
   return collectAllPages(first, (page) =>
     apiRequest<PageResponse<SalesOperationOption>>(
-      `/sales/operations?page=${page}&limit=100`,
+      `/sales/operations?page=${page}&limit=100${typeQuery}`,
       {
         token: authToken(),
         ...(signal ? { signal } : {}),

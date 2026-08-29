@@ -22,17 +22,47 @@ export type SalesApprovalDecision =
   | 'APROBADA'
   | 'RECHAZADA'
 
+export type SalesPaymentPlatform =
+  | 'EFECTIVO'
+  | 'CREDITO'
+  | 'EFECTIVO_CREDITO'
+  | 'MOTO_EFECTIVO'
+  | 'MOTO_CREDITO'
+  | 'MOTO_EFECTIVO_CREDITO'
+
+export type SalesDeliveryStatus =
+  | 'NO_PROGRAMADA'
+  | 'PROGRAMADA'
+  | 'LISTA'
+  | 'ENTREGADO'
+  | 'CANCELADA'
+
+export type SalesDebt =
+  | 'NO'
+  | 'RESERVA'
+  | 'CUOTA_INICIAL'
+  | 'PAPELES'
+  | 'ACCESORIOS'
+  | 'OTRO'
+
 export type SalesOperation = {
   id: string
   number: string
   operationDate: string
   status: SalesOperationStatus
-  deliveryStatus: string
+  deliveryStatus: SalesDeliveryStatus
   documentationStatus: string
+  papersDelivered: boolean
+  papersDeliveredAt: string | null
+  debt: SalesDebt
+  month: string
   listPrice: string | null
   minimumPrice: string | null
   agreedPrice: string
   currency: string
+  paymentPlatform: SalesPaymentPlatform | null
+  creditAmount: string | null
+  guarantor: string | null
   notes: string | null
   rowVersion: number
   organizationId: string
@@ -42,6 +72,9 @@ export type SalesOperation = {
     id: string
     fullName: string
     active: boolean
+    documentType?: string | null
+    documentNumber?: string | null
+    phone?: string | null
   }
   branch: {
     id: string
@@ -66,21 +99,68 @@ export type SalesOperation = {
       vin: string
       licensePlate: string | null
       inventoryStatus: string
+      acquisitionOrigin: string
+      supplier: { id: string; legalName: string } | null
     } | null
+    chassis: string | null
   }
   seller: {
     id: string
     fullName: string
   } | null
+  contact: {
+    id: string
+    fullName: string
+  } | null
+  createdBy: {
+    id: string
+    fullName: string
+  } | null
+  supply: {
+    id: string
+    status: string
+    supplier: { id: string; legalName: string }
+    destinationBranch: { id: string; code: string; name: string }
+    supplierReference: string | null
+    notes: string | null
+  } | null
   reservation: {
     id: string
-    unitId: string
+    unitId: string | null
+    supplierAvailabilityId: string | null
     status: SalesReservationStatus
     quantity: number
     expiresAt: string | null
     releasedAt: string | null
     releaseReason: string | null
   } | null
+  paymentComponents: Array<{
+    id: string
+    type: string
+    expectedAmount: string
+    dueDate: string | null
+    financialInstitutionId: string | null
+    creditInquiryId: string | null
+    tradeInVehicleId: string | null
+    paymentStatus: string
+    notes: string | null
+  }>
+  tradeIns: Array<{
+    id: string
+    description: string
+    appraisedAmount: string
+    acceptedAmount: string | null
+    status: string
+  }>
+  obligations: Array<{
+    id: string
+    type: string
+    status: string
+    amount: string | null
+    dueDate: string | null
+    fulfilledAt: string | null
+    notes: string | null
+  }>
   approval: {
     id: string
     decision: SalesApprovalDecision
@@ -101,6 +181,7 @@ export type SalesOperationPage = {
 }
 
 export type SalesOperationQuery = {
+  vehicleType: VehicleKind
   status?: SalesOperationStatus
   branchId?: string
   clientId?: string
@@ -159,25 +240,59 @@ export type LinkedSupplyRequest = {
   status: string
 }
 
-export type CreateSalesOperationInput = {
+type CreateSalesOperationBase = {
+  vehicleType: VehicleKind
   branchId: string
-  clientId: string
   versionId: string
   condition: VehicleCondition
   agreedPrice: number
   unitId?: string
+  supplierAvailabilityId?: string
   sellerId?: string
+  contactId?: string
+  paymentPlatform: SalesPaymentPlatform
+  creditAmount?: number
+  guarantor?: string
   operationDate?: string
   reservationExpiresAt?: string
+  deliveryStatus?: SalesDeliveryStatus
+  papersDelivered?: boolean
+  debt?: SalesDebt
+  submit?: boolean
   notes?: string
   organizationId?: string
 }
+
+export type CreateSalesOperationInput = CreateSalesOperationBase &
+  (
+    | {
+        clientId: string
+        client?: never
+      }
+    | {
+        clientId?: never
+        client: {
+          documentType: 'DNI' | 'CI'
+          documentNumber: string
+          fullName: string
+          phone?: string
+        }
+      }
+  )
 
 export type UpdateSalesOperationInput = {
   expectedVersion: number
   branchId?: string
   clientId?: string
   sellerId?: string
+  contactId?: string | null
   agreedPrice?: number
+  paymentPlatform?: SalesPaymentPlatform
+  creditAmount?: number | null
+  guarantor?: string | null
+  operationDate?: string
+  deliveryStatus?: SalesDeliveryStatus
+  papersDelivered?: boolean
+  debt?: SalesDebt
   notes?: string | null
 }

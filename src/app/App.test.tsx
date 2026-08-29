@@ -323,6 +323,8 @@ describe('navegación de stock', () => {
         ...baseUser,
         role: {
           ...baseUser.role,
+          code: 'VENDEDOR',
+          name: 'Vendedor',
           permissions: ['ventas.consultar'],
         },
       }
@@ -336,7 +338,9 @@ describe('navegación de stock', () => {
       render(<App />)
 
       expect(
-        await screen.findByRole('heading', { name: 'Mis operaciones' }),
+        await screen.findByRole('heading', {
+          name: 'Mis operaciones de motos',
+        }),
       ).toBeInTheDocument()
       expect(
         screen.queryByRole('link', { name: /Nueva operación/ }),
@@ -344,7 +348,16 @@ describe('navegación de stock', () => {
       expect(
         screen.queryByRole('link', { name: /Aprobaciones/ }),
       ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('link', { name: /^Operaciones de motos/ }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('link', { name: /^Mis operaciones de motos/ }),
+      ).toBeInTheDocument()
       expect(String(fetchMock.mock.calls[1]?.[0])).toContain('mine=true')
+      expect(String(fetchMock.mock.calls[1]?.[0])).toContain(
+        'vehicleType=MOTO',
+      )
     })
   })
 

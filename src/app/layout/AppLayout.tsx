@@ -31,6 +31,7 @@ type NavItem = {
   to: string
   icon: LucideIcon
   permissions?: string[]
+  excludeRoles?: string[]
 }
 
 const navigation: NavItem[] = [
@@ -55,6 +56,35 @@ const navigation: NavItem[] = [
     permissions: ['inventario.consultar'],
   },
   {
+    label: 'Nueva operación de moto',
+    description: 'Venta y reserva de moto',
+    to: '/motos/operaciones/nueva',
+    icon: PlusCircle,
+    permissions: ['ventas.consultar', 'ventas.gestionar'],
+  },
+  {
+    label: 'Mis operaciones de motos',
+    description: 'Seguimiento personal de motos',
+    to: '/motos/mis-operaciones',
+    icon: ReceiptText,
+    permissions: ['ventas.consultar'],
+  },
+  {
+    label: 'Operaciones de motos',
+    description: 'Ventas y reservas de motos',
+    to: '/motos/operaciones',
+    icon: ShoppingCart,
+    permissions: ['ventas.consultar'],
+    excludeRoles: ['VENDEDOR'],
+  },
+  {
+    label: 'Aprobaciones de motos',
+    description: 'Control comercial de motos',
+    to: '/motos/aprobaciones',
+    icon: CheckCheck,
+    permissions: ['ventas.consultar', 'ventas.aprobar'],
+  },
+  {
     label: 'Stock de autos',
     description: 'Inventario y proveedores',
     to: '/stock/autos',
@@ -62,30 +92,31 @@ const navigation: NavItem[] = [
     permissions: ['inventario.consultar'],
   },
   {
-    label: 'Nueva operación',
-    description: 'Venta y reserva',
-    to: '/operaciones/nueva',
+    label: 'Nueva operación de auto',
+    description: 'Venta y reserva de auto',
+    to: '/autos/operaciones/nueva',
     icon: PlusCircle,
     permissions: ['ventas.consultar', 'ventas.gestionar'],
   },
   {
-    label: 'Mis operaciones',
-    description: 'Seguimiento personal',
-    to: '/mis-operaciones',
+    label: 'Mis operaciones de autos',
+    description: 'Seguimiento personal de autos',
+    to: '/autos/mis-operaciones',
     icon: ReceiptText,
     permissions: ['ventas.consultar'],
   },
   {
-    label: 'Operaciones',
-    description: 'Ventas y reservas',
-    to: '/operaciones',
+    label: 'Operaciones de autos',
+    description: 'Ventas y reservas de autos',
+    to: '/autos/operaciones',
     icon: ShoppingCart,
     permissions: ['ventas.consultar'],
+    excludeRoles: ['VENDEDOR'],
   },
   {
-    label: 'Aprobaciones',
-    description: 'Control comercial',
-    to: '/aprobaciones',
+    label: 'Aprobaciones de autos',
+    description: 'Control comercial de autos',
+    to: '/autos/aprobaciones',
     icon: CheckCheck,
     permissions: ['ventas.consultar', 'ventas.aprobar'],
   },
@@ -97,16 +128,30 @@ const navigation: NavItem[] = [
     permissions: ['consultas_crediticias.consultar'],
   },
   {
-    label: 'Compras',
-    description: 'Proveedores y unidades',
-    to: '/compras',
+    label: 'Compras de motos',
+    description: 'Proveedores y motos',
+    to: '/motos/compras',
     icon: ShoppingCart,
     permissions: ['compras.consultar'],
   },
   {
-    label: 'Ingresos',
-    description: 'Cobros e ingresos',
-    to: '/ingresos',
+    label: 'Compras de autos',
+    description: 'Proveedores y autos',
+    to: '/autos/compras',
+    icon: ShoppingCart,
+    permissions: ['compras.consultar'],
+  },
+  {
+    label: 'Ingresos de motos',
+    description: 'Cobros vinculados a motos',
+    to: '/motos/ingresos',
+    icon: CircleDollarSign,
+    permissions: ['ingresos.consultar'],
+  },
+  {
+    label: 'Ingresos de autos',
+    description: 'Cobros vinculados a autos',
+    to: '/autos/ingresos',
     icon: CircleDollarSign,
     permissions: ['ingresos.consultar'],
   },
@@ -200,17 +245,18 @@ export function AppLayout() {
 
   const items = navigation.filter(
     (item) =>
-      !item.permissions ||
-      item.permissions.every((permission) =>
-        hasPermission(user.role.permissions, permission),
-      ),
+      !item.excludeRoles?.includes(user.role.code) &&
+      (!item.permissions ||
+        item.permissions.every((permission) =>
+          hasPermission(user.role.permissions, permission),
+        )),
   )
   const activeItem =
-    navigation.find((item) =>
+    items.find((item) =>
       item.to === '/'
         ? location.pathname === '/'
         : location.pathname.startsWith(item.to),
-    ) ?? navigation[0]
+    ) ?? items[0]
   const sidebarCompact = collapsed && !isMobile
 
   return (
@@ -250,7 +296,7 @@ export function AppLayout() {
               className={({ isActive }) =>
                 `nav-item ${isActive ? 'nav-item--active' : ''}`
               }
-              end={item.to === '/' || item.to === '/operaciones'}
+              end={item.to === '/' || item.to.endsWith('/operaciones')}
               key={item.to}
               title={sidebarCompact ? item.label : undefined}
               to={item.to}
