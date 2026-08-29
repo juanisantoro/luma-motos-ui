@@ -6,6 +6,9 @@ import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { ClientsPage } from '../features/clients/ClientsPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { ModulePlaceholder } from '../features/placeholders/ModulePlaceholder'
+import { ApprovalsPage } from '../features/sales/ApprovalsPage'
+import { OperationsPage } from '../features/sales/OperationsPage'
+import { NewOperationPage } from '../features/sales/NewOperationPage'
 import { stockApiGateway } from '../features/stock/api'
 import { StockPage } from '../features/stock/StockPage'
 import { AppLayout } from './layout/AppLayout'
@@ -49,6 +52,28 @@ export function App() {
                     />
                   }
                 />
+              </Route>
+              <Route
+                element={<PermissionRoute permission="ventas.consultar" />}
+              >
+                <Route path="operaciones" element={<OperationsPage />} />
+                <Route
+                  path="mis-operaciones"
+                  element={<OperationsPage mine />}
+                />
+                <Route
+                  element={<PermissionRoute permission="ventas.gestionar" />}
+                >
+                  <Route
+                    path="operaciones/nueva"
+                    element={<NewOperationPage />}
+                  />
+                </Route>
+                <Route
+                  element={<PermissionRoute permission="ventas.aprobar" />}
+                >
+                  <Route path="aprobaciones" element={<ApprovalsPage />} />
+                </Route>
               </Route>
               <Route
                 element={<PermissionRoute permission="usuarios.consultar" />}

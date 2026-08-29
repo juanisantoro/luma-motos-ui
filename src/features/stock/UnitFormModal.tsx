@@ -6,7 +6,7 @@ import {
   X,
 } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
-import { useDialogFocus } from './dialog'
+import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import type {
   CatalogModel,
   CatalogModelDraft,

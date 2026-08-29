@@ -2,12 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import {
   Bike,
   CarFront,
+  CheckCheck,
   ClipboardList,
   LayoutDashboard,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  PlusCircle,
+  ReceiptText,
+  ShoppingCart,
   ScrollText,
   UsersRound,
   X,
@@ -24,7 +28,7 @@ type NavItem = {
   description: string
   to: string
   icon: LucideIcon
-  permission?: string
+  permissions?: string[]
 }
 
 const navigation: NavItem[] = [
@@ -39,35 +43,63 @@ const navigation: NavItem[] = [
     description: 'Gestión comercial',
     to: '/clientes',
     icon: UsersRound,
-    permission: 'clientes.consultar',
+    permissions: ['clientes.consultar'],
   },
   {
     label: 'Stock de motos',
     description: 'Inventario y proveedores',
     to: '/stock/motos',
     icon: Bike,
-    permission: 'inventario.consultar',
+    permissions: ['inventario.consultar'],
   },
   {
     label: 'Stock de autos',
     description: 'Inventario y proveedores',
     to: '/stock/autos',
     icon: CarFront,
-    permission: 'inventario.consultar',
+    permissions: ['inventario.consultar'],
+  },
+  {
+    label: 'Nueva operación',
+    description: 'Venta y reserva',
+    to: '/operaciones/nueva',
+    icon: PlusCircle,
+    permissions: ['ventas.consultar', 'ventas.gestionar'],
+  },
+  {
+    label: 'Mis operaciones',
+    description: 'Seguimiento personal',
+    to: '/mis-operaciones',
+    icon: ReceiptText,
+    permissions: ['ventas.consultar'],
+  },
+  {
+    label: 'Operaciones',
+    description: 'Ventas y reservas',
+    to: '/operaciones',
+    icon: ShoppingCart,
+    permissions: ['ventas.consultar'],
+  },
+  {
+    label: 'Aprobaciones',
+    description: 'Control comercial',
+    to: '/aprobaciones',
+    icon: CheckCheck,
+    permissions: ['ventas.consultar', 'ventas.aprobar'],
   },
   {
     label: 'Usuarios',
     description: 'Accesos y permisos',
     to: '/usuarios',
     icon: ClipboardList,
-    permission: 'usuarios.consultar',
+    permissions: ['usuarios.consultar'],
   },
   {
     label: 'Auditoría',
     description: 'Actividad del sistema',
     to: '/auditoria',
     icon: ScrollText,
-    permission: 'auditoria.consultar',
+    permissions: ['auditoria.consultar'],
   },
 ]
 
@@ -138,8 +170,10 @@ export function AppLayout() {
 
   const items = navigation.filter(
     (item) =>
-      !item.permission ||
-      hasPermission(user.role.permissions, item.permission),
+      !item.permissions ||
+      item.permissions.every((permission) =>
+        hasPermission(user.role.permissions, permission),
+      ),
   )
   const activeItem =
     navigation.find((item) =>

@@ -1,6 +1,6 @@
 import { LoaderCircle, PackageCheck, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { useDialogFocus } from './dialog'
+import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import type { ReceiveSupplyInput, SupplyOrder } from './types'
 
 type ReceiveSupplyModalProps = {

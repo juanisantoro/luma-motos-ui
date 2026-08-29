@@ -2,7 +2,7 @@ import {
   ArrowRight,
   Bike,
   CheckCircle2,
-  Clock3,
+  ShoppingCart,
   UsersRound,
   Warehouse,
 } from 'lucide-react'
@@ -20,6 +20,10 @@ export function DashboardPage() {
   const canViewStock = hasPermission(
     user.role.permissions,
     'inventario.consultar',
+  )
+  const canViewSales = hasPermission(
+    user.role.permissions,
+    'ventas.consultar',
   )
 
   return (
@@ -41,11 +45,11 @@ export function DashboardPage() {
           <span className="hero-card__icon" aria-hidden="true">
             <Bike />
           </span>
-          <p className="eyebrow">SEGUNDO CORTE PRODUCTIVO</p>
-          <h2>Inventario y abastecimiento conectados</h2>
+          <p className="eyebrow">TERCER CORTE PRODUCTIVO</p>
+          <h2>Gestión comercial integrada</h2>
           <p>
-            Catálogo, unidades físicas y disponibilidad de proveedores con
-            permisos reales.
+            Clientes, stock, reservas, operaciones y aprobaciones con permisos
+            reales.
           </p>
         </div>
         <div className="hero-card__meta">
@@ -104,15 +108,24 @@ export function DashboardPage() {
               </Link>
             )}
           </article>
-          <article className="module-card module-card--muted">
+          <article className="module-card">
             <span className="module-card__icon">
-              <Clock3 />
+              <ShoppingCart />
             </span>
             <div>
-              <span className="status-badge">Próximamente</span>
+              <span
+                className={`status-badge ${canViewSales ? 'status-badge--success' : ''}`}
+              >
+                {canViewSales ? 'Disponible' : 'Sin permiso'}
+              </span>
               <h3>Operaciones comerciales</h3>
-              <p>Ventas, reservas y documentación se incorporarán más adelante.</p>
+              <p>Ventas, reservas de unidades y circuito de aprobación.</p>
             </div>
+            {canViewSales && (
+              <Link to="/operaciones" className="text-link">
+                Abrir módulo <ArrowRight size={16} />
+              </Link>
+            )}
           </article>
         </div>
       </section>

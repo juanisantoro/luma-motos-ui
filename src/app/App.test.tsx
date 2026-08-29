@@ -317,6 +317,37 @@ describe('navegación de stock', () => {
     ])
   })
 
+  describe('navegación de ventas', () => {
+    it('consulta Mis operaciones con mine=true y oculta acciones sin permisos', async () => {
+      const salesUser: AuthUser = {
+        ...baseUser,
+        role: {
+          ...baseUser.role,
+          permissions: ['ventas.consultar'],
+        },
+      }
+      window.history.replaceState({}, '', '/mis-operaciones')
+      sessionStorage.setItem(AUTH_TOKEN_KEY, 'sales-token')
+      const fetchMock = mockFetch(
+        jsonResponse(salesUser),
+        jsonResponse({ items: [], total: 0, page: 1, limit: 20 }),
+      )
+
+      render(<App />)
+
+      expect(
+        await screen.findByRole('heading', { name: 'Mis operaciones' }),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('link', { name: /Nueva operación/ }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('link', { name: /Aprobaciones/ }),
+      ).not.toBeInTheDocument()
+      expect(String(fetchMock.mock.calls[1]?.[0])).toContain('mine=true')
+    })
+  })
+
   it('bloquea la ruta directa de stock sin inventario.consultar', async () => {
     const restrictedUser: AuthUser = {
       ...baseUser,
