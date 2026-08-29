@@ -6,10 +6,11 @@ const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').re
 export const AUTH_TOKEN_KEY = 'luma.auth.token'
 export const UNAUTHORIZED_EVENT = 'luma:unauthorized'
 
-type ApiErrorPayload = {
+export type ApiErrorPayload = {
   message?: string | string[]
   error?: string
   code?: string
+  details?: Record<string, unknown>
 }
 
 export class ApiError extends Error {

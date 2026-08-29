@@ -31,6 +31,7 @@ type NavItem = {
   to: string
   icon: LucideIcon
   permissions?: string[]
+  anyPermissions?: string[]
 }
 
 const navigation: NavItem[] = [
@@ -118,11 +119,11 @@ const navigation: NavItem[] = [
     permissions: ['gastos.consultar'],
   },
   {
-    label: 'Usuarios',
+    label: 'Usuarios y permisos',
     description: 'Accesos y permisos',
     to: '/usuarios',
     icon: ClipboardList,
-    permissions: ['usuarios.consultar'],
+    anyPermissions: ['usuarios.consultar', 'roles.consultar'],
   },
   {
     label: 'Auditoría',
@@ -198,13 +199,27 @@ export function AppLayout() {
 
   if (!user) return null
 
-  const items = navigation.filter(
-    (item) =>
-      !item.permissions ||
-      item.permissions.every((permission) =>
-        hasPermission(user.role.permissions, permission),
-      ),
-  )
+  const items = navigation
+    .filter(
+      (item) =>
+        !item.permissions ||
+        item.permissions.every((permission) =>
+          hasPermission(user.role.permissions, permission),
+        ),
+    )
+    .filter(
+      (item) =>
+        !item.anyPermissions ||
+        item.anyPermissions.some((permission) =>
+          hasPermission(user.role.permissions, permission),
+        ),
+    )
+    .map((item) =>
+      item.to === '/usuarios' &&
+      !hasPermission(user.role.permissions, 'usuarios.consultar')
+        ? { ...item, to: '/usuarios/roles' }
+        : item,
+    )
   const activeItem =
     navigation.find((item) =>
       item.to === '/'

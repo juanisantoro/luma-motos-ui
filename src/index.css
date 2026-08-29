@@ -1491,6 +1491,739 @@ a {
   gap: 9px;
 }
 
+.password-card {
+  width: min(540px, 100%);
+}
+
+.challenge-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.challenge-summary div {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #f8f9fa;
+}
+
+.challenge-summary dt {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.challenge-summary dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.password-input {
+  position: relative;
+  display: block;
+}
+
+.password-input input {
+  padding-right: 50px;
+}
+
+.password-input button {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+}
+
+.password-strength {
+  display: grid;
+  gap: 7px;
+  margin-top: -5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.password-strength > div {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+
+.password-strength i {
+  height: 4px;
+  border-radius: 4px;
+  background: #e2e5e9;
+}
+
+.password-strength .password-strength__passed {
+  background: var(--red);
+}
+
+.password-rules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 0;
+  margin: 14px 0;
+  list-style: none;
+}
+
+.password-rules li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.password-rules .password-rule--passed {
+  color: var(--success);
+}
+
+.password-card__cancel {
+  width: 100%;
+  margin-top: 7px;
+  color: var(--muted);
+  background: transparent;
+}
+
+.access-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 17px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+}
+
+.access-tab {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  padding: 0 15px;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.access-tab--active {
+  border-color: var(--red);
+  color: var(--red-dark);
+}
+
+.access-panel,
+.access-form-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: white;
+  box-shadow: 0 1px 2px #00000008;
+}
+
+.access-filters {
+  display: grid;
+  grid-template-columns:
+    minmax(210px, 1fr)
+    repeat(4, minmax(138px, 0.3fr))
+    auto;
+  gap: 9px;
+  padding: 13px;
+  border-bottom: 1px solid var(--line);
+  background: #fafbfc;
+}
+
+.role-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.3fr) auto;
+  gap: 9px;
+  padding: 13px;
+  border-bottom: 1px solid var(--line);
+  background: #fafbfc;
+}
+
+.access-content {
+  min-height: 270px;
+}
+
+.access-loading {
+  display: grid;
+  min-height: 270px;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.access-loading--page {
+  min-height: calc(100vh - 150px);
+}
+
+.access-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.access-table {
+  width: 100%;
+  min-width: 1040px;
+  border-collapse: collapse;
+}
+
+.access-table th {
+  padding: 11px 14px;
+  color: #707986;
+  background: #fafbfc;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.55px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.access-table td {
+  padding: 13px 14px;
+  border-top: 1px solid #eceef1;
+  color: #4c5562;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.access-table td > strong,
+.access-table td > small {
+  display: block;
+}
+
+.access-table td > small {
+  max-width: 280px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-table {
+  min-width: 900px;
+}
+
+.access-actions,
+.page-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.access-actions a {
+  text-decoration: none;
+}
+
+.access-card-list {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+}
+
+.access-card {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.access-card > header,
+.access-user-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.access-card > header > div,
+.access-user-summary > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.access-card > header span:not(.status-badge),
+.access-user-summary span:not(.status-badge) {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.access-card dl {
+  display: grid;
+  gap: 9px;
+  margin: 14px 0 8px;
+  padding: 13px 0;
+  border-block: 1px solid #eceef1;
+}
+
+.access-card dl > div {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.36fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.access-card dt {
+  color: #77808d;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.access-card dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.access-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 15px;
+  padding: 12px 14px;
+  border: 1px solid #bbdfcc;
+  border-radius: 9px;
+  color: #0a6847;
+  background: #eef9f4;
+  font-size: 13px;
+}
+
+.access-notice--error {
+  border-color: #ffc2c8;
+  color: #991824;
+  background: var(--red-soft);
+}
+
+.access-notice button {
+  min-height: 44px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font-weight: 850;
+}
+
+.access-confirm {
+  width: min(500px, 100%);
+  max-height: calc(100svh - 36px);
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 24px 80px #0008;
+}
+
+.access-confirm > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.access-confirm h2 {
+  margin: 4px 0 8px;
+  font-size: 20px;
+}
+
+.access-confirm > p {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.access-confirm footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 20px;
+}
+
+.back-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.access-form-card {
+  padding: 22px;
+}
+
+.access-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+
+.access-user-summary {
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.email-delivery-note,
+.access-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid #bddccb;
+  border-radius: 10px;
+  color: #176044;
+  background: #eff9f4;
+}
+
+.email-delivery-note > svg,
+.access-warning > svg {
+  flex: 0 0 auto;
+}
+
+.email-delivery-note p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.access-warning {
+  border-color: #f2d08f;
+  color: #775107;
+  background: #fff8e9;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.access-scope {
+  grid-column: 1 / -1;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fafbfc;
+}
+
+.access-scope span {
+  display: grid;
+  gap: 3px;
+}
+
+.access-scope small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.access-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 20px;
+  padding-top: 17px;
+  border-top: 1px solid var(--line);
+}
+
+.access-form-actions > div {
+  display: flex;
+  gap: 9px;
+}
+
+.permission-editor {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.permission-editor > header,
+.detail-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+
+.permission-editor h2,
+.detail-section-heading h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.permission-editor header p,
+.detail-section-heading > span {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.permission-search {
+  margin-bottom: 14px;
+}
+
+.permission-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.permission-group {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.permission-group > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.permission-group > header > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.permission-group h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.permission-group header span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.permission-group > header > div:last-child {
+  display: flex;
+  gap: 3px;
+}
+
+.permission-group header button {
+  min-height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--red-dark);
+  background: var(--red-soft);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.permission-list {
+  display: grid;
+  gap: 7px;
+}
+
+.permission-item {
+  display: flex;
+  min-height: 50px;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+
+.permission-item input {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  accent-color: var(--red);
+}
+
+.permission-item span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.permission-item strong {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+
+.permission-item small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.permission-empty {
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.role-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.role-detail-summary article {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+}
+
+.role-detail-summary small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.role-detail-summary strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.role-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+  gap: 15px;
+  align-items: start;
+}
+
+.role-detail-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.detail-section-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-permission-matrix {
+  display: grid;
+  gap: 10px;
+}
+
+.role-permission-matrix > article {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.role-permission-matrix article > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.role-permission-matrix article > header span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.role-permission-matrix ul {
+  display: grid;
+  gap: 7px;
+  padding: 10px 0 0;
+  margin: 10px 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.role-permission-matrix li {
+  display: grid;
+  gap: 3px;
+}
+
+.role-permission-matrix li strong {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+
+.role-permission-matrix li span,
+.role-permission-matrix article > p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.role-permission-group--empty {
+  background: #fafbfc;
+  opacity: 0.72;
+}
+
+.assigned-user-list {
+  display: grid;
+  gap: 7px;
+}
+
+.assigned-user-list > a {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  text-decoration: none;
+}
+
+.assigned-user-list > a > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.assigned-user-list small {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@media (max-width: 1250px) {
+  .access-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .access-filters .search-field {
+    grid-column: span 2;
+  }
+}
+
 @media (max-width: 900px) {
   .sidebar {
     width: min(300px, 86vw);
@@ -3233,5 +3966,94 @@ a {
     min-width: 0;
     flex: 1;
     padding-inline: 10px;
+  }
+}
+
+@media (max-width: 900px) {
+  .access-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .access-filters .search-field {
+    grid-column: 1 / -1;
+  }
+
+  .permission-groups,
+  .role-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .role-detail-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .password-card {
+    min-height: 100svh;
+    padding: 24px 18px;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .challenge-summary,
+  .password-rules,
+  .access-filters,
+  .role-filters,
+  .access-form-grid,
+  .role-detail-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .access-filters .search-field {
+    grid-column: auto;
+  }
+
+  .access-filters > *,
+  .role-filters > * {
+    width: 100%;
+  }
+
+  .access-form-card {
+    padding: 16px;
+  }
+
+  .access-form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .access-form-actions > div,
+  .access-form-actions .button,
+  .page-actions,
+  .page-actions .button {
+    width: 100%;
+  }
+
+  .access-form-actions > div {
+    flex-wrap: wrap;
+  }
+
+  .access-form-actions .button,
+  .page-actions .button {
+    flex: 1;
+  }
+
+  .access-form-actions__secondary {
+    order: 2;
+  }
+
+  .permission-group > header {
+    flex-direction: column;
+  }
+
+  .permission-group > header > div:last-child,
+  .permission-group header button {
+    width: 100%;
+  }
+
+  .access-confirm {
+    width: 100%;
+    padding: 18px;
   }
 }

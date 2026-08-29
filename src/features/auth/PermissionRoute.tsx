@@ -8,9 +8,20 @@ export function hasPermission(
   return permissions?.includes(required) ?? false
 }
 
-export function PermissionRoute({ permission }: { permission: string }) {
+export function PermissionRoute({
+  permission,
+  anyOf,
+}: {
+  permission?: string
+  anyOf?: string[]
+}) {
   const { user } = useAuth()
-  return hasPermission(user?.role.permissions, permission) ? (
+  const allowed = permission
+    ? hasPermission(user?.role.permissions, permission)
+    : anyOf?.some((candidate) =>
+        hasPermission(user?.role.permissions, candidate),
+      ) ?? false
+  return allowed ? (
     <Outlet />
   ) : (
     <Navigate to="/sin-permiso" replace />

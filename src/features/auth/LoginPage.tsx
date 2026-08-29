@@ -10,6 +10,9 @@ function loginError(error: unknown) {
     return 'No pudimos conectar con el servidor. Revisá tu conexión e intentá nuevamente.'
   }
   if (error instanceof ApiError) {
+    if (error.details?.code === 'TEMPORARY_PASSWORD_EXPIRED') {
+      return 'La contraseña temporal venció. Pedile a un administrador que reenvíe la invitación.'
+    }
     if (error.status === 401) {
       return 'Los datos ingresados no son válidos.'
     }
@@ -34,6 +37,9 @@ export function LoginPage() {
       (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ??
       '/'
     return <Navigate to={destination} replace />
+  }
+  if (status === 'password-change-required') {
+    return <Navigate to="/configurar-contrasena" replace />
   }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {

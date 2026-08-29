@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AUTH_TOKEN_KEY } from '../shared/api/client'
@@ -19,8 +19,10 @@ const baseUser: AuthUser = {
     type: 'CASA_CENTRAL',
   },
   role: {
+    id: 'role-admin',
     code: 'ADMINISTRADOR',
     name: 'Administrador',
+    system: true,
     permissions: [
       'clientes.consultar',
       'clientes.gestionar',
@@ -83,6 +85,103 @@ afterEach(() => {
 })
 
 describe('autenticación y autorización', () => {
+  it('obliga a cambiar la contraseña temporal antes de entrar al layout', async () => {
+    const fetchMock = mockFetch(
+      jsonResponse(
+        {
+          statusCode: 403,
+          code: 'PASSWORD_CHANGE_REQUIRED',
+          message: 'Password change required',
+          details: {
+            organizationCode: 'LUMA',
+            email: 'admin@lumamotos.com.ar',
+            expiresAt: '2026-08-30T12:00:00.000Z',
+          },
+        },
+        403,
+      ),
+      jsonResponse(undefined, 204),
+      jsonResponse(loginResponse()),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Organización'), {
+      target: { value: 'LUMA' },
+    })
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), {
+      target: { value: 'admin@lumamotos.com.ar' },
+    })
+    fireEvent.change(screen.getByLabelText('Contraseña'), {
+      target: { value: 'Temporal#2026' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Ingresar al sistema' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Configurá tu contraseña' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: /Buen día/ }),
+    ).not.toBeInTheDocument()
+    expect(sessionStorage.getItem(AUTH_TOKEN_KEY)).toBeNull()
+    fireEvent.change(screen.getByLabelText('Nueva contraseña'), {
+      target: { value: 'NuevaClave#2026' },
+    })
+    fireEvent.change(screen.getByLabelText('Confirmar nueva contraseña'), {
+      target: { value: 'NuevaClave#2026' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Configurar contraseña' }))
+    expect(
+      await screen.findByText(
+        'Contraseña configurada. Ya podés ingresar con tu nueva contraseña.',
+      ),
+    ).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Organización'), {
+      target: { value: 'LUMA' },
+    })
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), {
+      target: { value: 'admin@lumamotos.com.ar' },
+    })
+    fireEvent.change(screen.getByLabelText('Contraseña'), {
+      target: { value: 'NuevaClave#2026' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Ingresar al sistema' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Buen día, Lucía' }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('informa la expiración temporal sin filtrar datos sensibles', async () => {
+    mockFetch(
+      jsonResponse(
+        {
+          statusCode: 403,
+          code: 'TEMPORARY_PASSWORD_EXPIRED',
+          message: 'Temporary password expired for internal user 13',
+        },
+        403,
+      ),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Organización'), {
+      target: { value: 'LUMA' },
+    })
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), {
+      target: { value: 'admin@lumamotos.com.ar' },
+    })
+    fireEvent.change(screen.getByLabelText('Contraseña'), {
+      target: { value: 'Temporal#2026' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Ingresar al sistema' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'La contraseña temporal venció',
+    )
+    expect(screen.getByRole('alert')).not.toHaveTextContent('internal user 13')
+  })
+
   it('inicia sesión contra el contrato real y conserva el token en la pestaña', async () => {
     const fetchMock = mockFetch(jsonResponse(loginResponse()))
     const user = userEvent.setup()
@@ -191,6 +290,58 @@ describe('autenticación y autorización', () => {
     )
   })
 
+  it('lleva a roles desde el menú cuando sólo tiene permisos de roles', async () => {
+    const rolesUser: AuthUser = {
+      ...baseUser,
+      role: {
+        ...baseUser.role,
+        permissions: ['roles.consultar'],
+      },
+    }
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'roles-token')
+    mockFetch(jsonResponse(rolesUser))
+    render(<App />)
+
+    expect(
+      await screen.findByRole('link', { name: /Usuarios y permisos/ }),
+    ).toHaveAttribute('href', '/usuarios/roles')
+  })
+
+  it('expulsa una sesión revocada antes de permitir más navegación', async () => {
+    const usersUser: AuthUser = {
+      ...baseUser,
+      role: {
+        ...baseUser.role,
+        permissions: ['usuarios.consultar'],
+      },
+    }
+    window.history.replaceState({}, '', '/usuarios')
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'revoked-token')
+    const fetchMock = vi.fn((input: string | URL | Request) => {
+      const url = String(input)
+      if (url.endsWith('/auth/me')) return Promise.resolve(jsonResponse(usersUser))
+      if (url.includes('/roles')) {
+        return Promise.resolve(
+          jsonResponse({ items: [], total: 0, page: 1, limit: 100 }),
+        )
+      }
+      if (url.includes('/branches')) return Promise.resolve(jsonResponse([]))
+      return Promise.resolve(
+        jsonResponse(
+          { statusCode: 401, code: 'INVALID_CREDENTIALS', message: 'revoked' },
+          401,
+        ),
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<App />)
+
+    expect(
+      await screen.findByText('Tu sesión venció. Ingresá nuevamente.'),
+    ).toBeInTheDocument()
+    expect(sessionStorage.getItem(AUTH_TOKEN_KEY)).toBeNull()
+  })
+
   it('expone un 403 claro si se navega directo sin permiso', async () => {
     const restrictedUser: AuthUser = {
       ...baseUser,
@@ -200,6 +351,26 @@ describe('autenticación y autorización', () => {
     sessionStorage.setItem(AUTH_TOKEN_KEY, 'persisted-token')
     mockFetch(jsonResponse(restrictedUser))
 
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'No tenés permiso para ingresar',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('bloquea la creación de usuarios sin usuarios.gestionar', async () => {
+    const readOnlyUser: AuthUser = {
+      ...baseUser,
+      role: {
+        ...baseUser.role,
+        permissions: ['usuarios.consultar'],
+      },
+    }
+    window.history.replaceState({}, '', '/usuarios/nuevo')
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'read-only-token')
+    mockFetch(jsonResponse(readOnlyUser))
     render(<App />)
 
     expect(
@@ -344,6 +515,7 @@ describe('navegación de stock', () => {
       expect(
         screen.queryByRole('link', { name: /Aprobaciones/ }),
       ).not.toBeInTheDocument()
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
       expect(String(fetchMock.mock.calls[1]?.[0])).toContain('mine=true')
     })
   })
@@ -488,6 +660,7 @@ describe('gestión de clientes', () => {
     const user = userEvent.setup()
 
     render(<App />)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
     await user.click(
       await screen.findByRole('button', { name: 'Desactivar a Ana Cliente' }),
     )

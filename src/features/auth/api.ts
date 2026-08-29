@@ -19,3 +19,15 @@ export function getCurrentUser(token: string, signal?: AbortSignal) {
 export function logoutRequest(token: string) {
   return apiRequest<void>('/auth/logout', { method: 'POST', token })
 }
+
+export function changeTemporaryPasswordRequest(input: {
+  organizationCode: string
+  email: string
+  temporaryPassword: string
+  newPassword: string
+}) {
+  return apiRequest<void>('/auth/change-temporary-password', {
+    method: 'POST',
+    body: input,
+  })
+}

@@ -17,8 +17,10 @@ const authorizedUser: AuthUser = {
     type: 'CASA_CENTRAL',
   },
   role: {
+    id: 'role-admin',
     code: 'ADMINISTRADOR',
     name: 'Administrador',
+    system: true,
     permissions: ['consultas_crediticias.consultar'],
   },
   branch: null,
