@@ -33,7 +33,7 @@ const unit: PhysicalUnit = {
   licensePlate: null,
   acquisitionOrigin: 'PROVEEDOR',
   supplier,
-  status: 'AVAILABLE',
+  status: 'EN_STOCK',
   branch,
   receivedAt: '2026-08-29T12:00:00.000Z',
 }
@@ -48,6 +48,7 @@ const supply: SupplyOrder = {
   destinationBranch: branch,
   requestedAt: '2026-08-29T12:00:00.000Z',
   receivedUnit: null,
+  receivedUnitId: null,
 }
 const data: StockWorkspaceData = {
   branches: [branch],
@@ -252,12 +253,18 @@ describe('workspace de stock', () => {
       data: {
         ...data,
         supplies: [
-          { ...supply, status: 'EN_TRANSITO', receivedUnit: null },
+          {
+            ...supply,
+            status: 'EN_TRANSITO',
+            receivedUnit: null,
+            receivedUnitId: null,
+          },
           {
             ...supply,
             id: 'supply-received',
-            status: 'RECIBIDA',
+            status: 'RECIBIDO',
             receivedUnit: received,
+            receivedUnitId: received.id,
           },
         ],
       },

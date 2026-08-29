@@ -292,6 +292,7 @@ describe('navegación de stock', () => {
       jsonResponse(stockUser),
       jsonResponse(emptyPage),
       jsonResponse(emptyPage),
+      jsonResponse([]),
       jsonResponse(emptyPage),
     )
 
@@ -309,9 +310,10 @@ describe('navegación de stock', () => {
     expect(
       fetchMock.mock.calls.slice(1).map(([url]) => String(url)),
     ).toEqual([
-      'http://localhost:3000/api/catalog/versions?vehicleType=MOTO&active=true&page=1&limit=100',
-      'http://localhost:3000/api/catalog/models?vehicleType=MOTO&active=true&page=1&limit=100',
-      'http://localhost:3000/api/inventory/units?vehicleType=MOTO&page=1&limit=100',
+      'http://localhost:3000/api/catalog/versions?vehicleType=MOTO&organizationId=30a522d2-93bb-46f5-b291-84dd96962576&active=true&page=1&limit=100',
+      'http://localhost:3000/api/catalog/models?vehicleType=MOTO&organizationId=30a522d2-93bb-46f5-b291-84dd96962576&active=true&page=1&limit=100',
+      'http://localhost:3000/api/inventory/branches?organizationId=30a522d2-93bb-46f5-b291-84dd96962576',
+      'http://localhost:3000/api/inventory/units?vehicleType=MOTO&organizationId=30a522d2-93bb-46f5-b291-84dd96962576&page=1&limit=100',
     ])
   })
 

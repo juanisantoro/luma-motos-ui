@@ -7,10 +7,14 @@ export type AcquisitionOrigin =
   | 'OTRO'
 
 export type UnitStatus =
-  | 'AVAILABLE'
-  | 'RESERVED'
-  | 'SOLD'
-  | 'TRADE_IN'
+  | 'EN_STOCK'
+  | 'RESERVADO'
+  | 'EN_TRASLADO'
+  | 'EN_ACONDICIONAMIENTO'
+  | 'VENDIDO'
+  | 'ENTREGADO'
+  | 'BLOQUEADO'
+  | 'DADO_DE_BAJA'
 
 export type SupplyStatus =
   | 'PENDIENTE_APROBACION'
@@ -18,7 +22,8 @@ export type SupplyStatus =
   | 'CONFIRMADO'
   | 'PEDIDO'
   | 'EN_TRANSITO'
-  | 'RECIBIDA'
+  | 'RECIBIDO'
+  | 'ASIGNADO'
   | 'CANCELADA'
 
 export type BranchOption = {
@@ -94,6 +99,7 @@ export type SupplyOrder = {
   destinationBranch: BranchOption
   requestedAt: string | null
   receivedUnit: PhysicalUnit | null
+  receivedUnitId: string | null
 }
 
 export type StockWorkspaceData = {

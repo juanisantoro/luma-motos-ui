@@ -44,11 +44,24 @@ type ModelDto = {
   brand: BrandDto
 }
 
-type VersionDto = {
+type EmbeddedModelDto = {
+  id: string
+  vehicleType: VehicleKind
+  name: string
+  brand: {
+    id: string
+    name: string
+  }
+}
+
+type VersionSummaryDto = {
   id: string
   name: string
+  model: EmbeddedModelDto
+}
+
+type VersionDto = VersionSummaryDto & {
   active: boolean
-  model: ModelDto
 }
 
 type BranchDto = {
@@ -58,7 +71,7 @@ type BranchDto = {
 
 type SupplierDto = {
   id: string
-  name: string
+  legalName: string
 }
 
 type UnitDto = {
@@ -70,9 +83,9 @@ type UnitDto = {
   mileageKm: number | null
   licensePlate: string | null
   acquisitionOrigin: AcquisitionOrigin
-  inventoryStatus: string
+  inventoryStatus: UnitStatus
   receivedAt: string
-  version: VersionDto
+  version: VersionSummaryDto
   branch: BranchDto
   supplier: SupplierDto | null
 }
@@ -83,7 +96,7 @@ type AvailabilityDto = {
   reportedQuantity: number
   notes: string | null
   reportedAt: string
-  version: VersionDto
+  version: VersionSummaryDto
   supplier: SupplierDto
 }
 
@@ -91,11 +104,11 @@ type SupplyRequestDto = {
   id: string
   condition: VehicleCondition
   status: SupplyStatus
-  createdAt: string
-  version: VersionDto
+  requestedAt: string
+  version: VersionSummaryDto
   supplier: SupplierDto
-  arrivalBranch: BranchDto
-  receivedUnit: UnitDto | null
+  branch: BranchDto
+  receivedUnitId: string | null
 }
 
 type ReceiveResponseDto = {
@@ -116,7 +129,7 @@ function listPath(
   Object.entries(query).forEach(([key, value]) => {
     if (value !== undefined) search.set(key, String(value))
   })
-  return `${path}?${search.toString()}` as `/${string}`
+  return (search.size ? `${path}?${search.toString()}` : path) as `/${string}`
 }
 
 function request<T>(
@@ -133,7 +146,7 @@ async function requestAll<T>(
 ) {
   const items: T[] = []
   let page = 1
-  let total = 0
+  let total: number | null = null
   do {
     const response = await request<Page<T>>(
       listPath(path, {
@@ -144,10 +157,10 @@ async function requestAll<T>(
       signal ? { signal } : {},
     )
     items.push(...response.items)
-    total = response.total
+    total ??= response.total
     if (response.items.length === 0) break
     page += 1
-  } while (items.length < total)
+  } while (total !== null && items.length < total)
   return items
 }
 
@@ -165,7 +178,10 @@ function vehicleModel(dto: ModelDto): CatalogVehicleModel {
   }
 }
 
-function catalogVersion(dto: VersionDto): CatalogModel {
+function catalogVersion(
+  dto: VersionSummaryDto,
+  active = true,
+): CatalogModel {
   return {
     id: dto.id,
     brandId: dto.model.brand.id,
@@ -174,7 +190,7 @@ function catalogVersion(dto: VersionDto): CatalogModel {
     brand: dto.model.brand.name,
     model: dto.model.name,
     version: dto.name,
-    active: dto.active && dto.model.active && dto.model.brand.active,
+    active,
   }
 }
 
@@ -183,23 +199,7 @@ function branch(dto: BranchDto): BranchOption {
 }
 
 function supplier(dto: SupplierDto): SupplierOption {
-  return { id: dto.id, name: dto.name }
-}
-
-function unitStatus(status: string): UnitStatus {
-  const statuses: Record<string, UnitStatus> = {
-    DISPONIBLE: 'AVAILABLE',
-    EN_STOCK: 'AVAILABLE',
-    RESERVADA: 'RESERVED',
-    RESERVADO: 'RESERVED',
-    VENDIDA: 'SOLD',
-    VENDIDO: 'SOLD',
-    PARTE_PAGO: 'TRADE_IN',
-    TOMA_PARTE_PAGO: 'TRADE_IN',
-  }
-  const mapped = statuses[status]
-  if (!mapped) throw new Error(`Estado de inventario no soportado: ${status}`)
-  return mapped
+  return { id: dto.id, name: dto.legalName }
 }
 
 function physicalUnit(dto: UnitDto): PhysicalUnit {
@@ -214,7 +214,7 @@ function physicalUnit(dto: UnitDto): PhysicalUnit {
     licensePlate: dto.licensePlate,
     acquisitionOrigin: dto.acquisitionOrigin,
     supplier: dto.supplier ? supplier(dto.supplier) : null,
-    status: unitStatus(dto.inventoryStatus),
+    status: dto.inventoryStatus,
     branch: branch(dto.branch),
     receivedAt: dto.receivedAt,
   }
@@ -244,9 +244,10 @@ function supplyRequest(dto: SupplyRequestDto): SupplyOrder {
     supplier: supplier(dto.supplier),
     quantity: 1,
     status: dto.status,
-    destinationBranch: branch(dto.arrivalBranch),
-    requestedAt: dto.createdAt,
-    receivedUnit: dto.receivedUnit ? physicalUnit(dto.receivedUnit) : null,
+    destinationBranch: branch(dto.branch),
+    requestedAt: dto.requestedAt,
+    receivedUnit: null,
+    receivedUnitId: dto.receivedUnitId,
   }
 }
 
@@ -254,7 +255,11 @@ function uniqueById<T extends { id: string }>(items: T[]) {
   return [...new Map(items.map((item) => [item.id, item])).values()]
 }
 
-function unitInput(versionId: string, input: CreateUnitsInput) {
+function unitInput(
+  versionId: string,
+  input: CreateUnitsInput,
+  organizationId?: string,
+) {
   return input.units.map((item) => ({
     versionId,
     vin: item.vin,
@@ -266,10 +271,14 @@ function unitInput(versionId: string, input: CreateUnitsInput) {
     supplierId: item.supplierId,
     acquisitionOrigin: item.acquisitionOrigin,
     receivedAt: item.receivedAt,
+    organizationId,
   }))
 }
 
-async function createVersion(input: CreateUnitsInput) {
+async function createVersion(
+  input: CreateUnitsInput,
+  organizationId?: string,
+) {
   const draft = input.catalogModel
   if (!draft) {
     if (!input.catalogModelId) throw new Error('Falta la versión del catálogo.')
@@ -278,23 +287,71 @@ async function createVersion(input: CreateUnitsInput) {
 
   let modelId = draft.modelId
   if (!modelId) {
-    if (!draft.brandName || !draft.modelName) {
+    const brandName = draft.brandName
+    const modelName = draft.modelName
+    if (!brandName || !modelName) {
       throw new Error('Faltan la marca o el modelo.')
     }
-    const createdBrand = await request<BrandDto>('/catalog/brands', {
-      method: 'POST',
-      body: { name: draft.brandName },
+    const existingBrands = await requestAll<BrandDto>('/catalog/brands', {
+      search: brandName,
+      active: true,
     })
-    const createdModel = await request<ModelDto>('/catalog/models', {
-      method: 'POST',
-      body: {
-        brandId: createdBrand.id,
-        vehicleType: input.vehicleType,
-        name: draft.modelName,
-      },
+    const matchingBrand = existingBrands.find(
+      (item) =>
+        item.name.localeCompare(brandName, 'es', {
+          sensitivity: 'base',
+        }) === 0,
+    )
+    const selectedBrand =
+      matchingBrand ??
+      (await request<BrandDto>('/catalog/brands', {
+        method: 'POST',
+        body: { name: brandName },
+      }))
+
+    const existingModels = await requestAll<ModelDto>('/catalog/models', {
+      vehicleType: input.vehicleType,
+      brandId: selectedBrand.id,
+      search: modelName,
+      active: true,
     })
-    modelId = createdModel.id
+    const matchingModel = existingModels.find(
+      (item) =>
+        item.name.localeCompare(modelName, 'es', {
+          sensitivity: 'base',
+        }) === 0,
+    )
+    const selectedModel =
+      matchingModel ??
+      (await request<ModelDto>('/catalog/models', {
+        method: 'POST',
+        body: {
+          brandId: selectedBrand.id,
+          vehicleType: input.vehicleType,
+          name: modelName,
+        },
+      }))
+    modelId = selectedModel.id
   }
+
+  const existingVersions = await requestAll<VersionDto>(
+    '/catalog/versions',
+    {
+      vehicleType: input.vehicleType,
+      modelId,
+      search: draft.versionName,
+      active: true,
+      scope: draft.scope,
+      organizationId,
+    },
+  )
+  const matchingVersion = existingVersions.find(
+    (item) =>
+      item.name.localeCompare(draft.versionName, 'es', {
+        sensitivity: 'base',
+      }) === 0,
+  )
+  if (matchingVersion) return matchingVersion.id
 
   const version = await request<VersionDto>('/catalog/versions', {
     method: 'POST',
@@ -302,6 +359,9 @@ async function createVersion(input: CreateUnitsInput) {
       modelId,
       name: draft.versionName,
       scope: draft.scope,
+      ...(draft.scope === 'RESTRINGIDO' && organizationId
+        ? { organizationId }
+        : {}),
     },
   })
   return version.id
@@ -310,10 +370,10 @@ async function createVersion(input: CreateUnitsInput) {
 async function loadWorkspace(
   vehicleType: VehicleKind,
   capabilities: StockCapabilities,
-  currentBranch: BranchOption | null,
+  organizationId: string | undefined,
   signal?: AbortSignal,
 ) {
-  const baseQuery = { vehicleType }
+  const baseQuery = { vehicleType, organizationId }
   const versionsPromise =
     capabilities.viewCatalog || capabilities.createUnits
       ? requestAll<VersionDto>(
@@ -332,17 +392,25 @@ async function loadWorkspace(
       : Promise.resolve([])
   const suppliersPromise =
     capabilities.viewAvailability ||
-    capabilities.manageAvailability ||
-    capabilities.createUnits
-      ? requestAll<SupplierDto>('/suppliers', { active: true }, signal)
+    capabilities.manageAvailability
+      ? requestAll<SupplierDto>(
+          '/suppliers',
+          { active: true, organizationId },
+          signal,
+        )
       : Promise.resolve([])
+  const branchesPromise = request<BranchDto[]>(
+    listPath('/inventory/branches', { organizationId }),
+    signal ? { signal } : {},
+  )
 
-  const [unitDtos, versionDtos, modelDtos, supplierDtos, availabilityDtos, supplyDtos] =
+  const [unitDtos, versionDtos, modelDtos, supplierDtos, branchDtos, availabilityDtos, supplyDtos] =
     await Promise.all([
       requestAll<UnitDto>('/inventory/units', baseQuery, signal),
       versionsPromise,
       modelsPromise,
       suppliersPromise,
+      branchesPromise,
       capabilities.viewAvailability
         ? requestAll<AvailabilityDto>(
             '/supplier-availability',
@@ -361,18 +429,13 @@ async function loadWorkspace(
 
   const units = unitDtos.map(physicalUnit)
   const supplies = supplyDtos.map(supplyRequest)
-  const branches = uniqueById([
-    ...(currentBranch ? [currentBranch] : []),
-    ...units.map((item) => item.branch),
-    ...supplies
-      .map((item) => item.destinationBranch)
-  ])
+  const branches = uniqueById(branchDtos.map(branch))
 
   return {
     branches,
     suppliers: supplierDtos.map(supplier),
     models: modelDtos.map(vehicleModel),
-    catalog: versionDtos.map(catalogVersion),
+    catalog: versionDtos.map((item) => catalogVersion(item, item.active)),
     units,
     availability: availabilityDtos.map(availability),
     supplies,
@@ -381,9 +444,9 @@ async function loadWorkspace(
 
 export const stockApiGateway: StockGateway = {
   loadWorkspace,
-  async createUnits(input) {
-    const versionId = await createVersion(input)
-    const units = unitInput(versionId, input)
+  async createUnits(input, organizationId) {
+    const versionId = await createVersion(input, organizationId)
+    const units = unitInput(versionId, input, organizationId)
     if (units.length === 1) {
       await request<UnitDto>('/inventory/units', {
         method: 'POST',
@@ -391,9 +454,9 @@ export const stockApiGateway: StockGateway = {
       })
       return
     }
-    await request<UnitDto[]>('/inventory/units/bulk', {
+    await request<{ items: UnitDto[]; count: number }>('/inventory/units/bulk', {
       method: 'POST',
-      body: units,
+      body: { units },
     })
   },
   async upsertAvailability(input: UpsertAvailabilityInput) {
@@ -421,6 +484,7 @@ export const stockApiGateway: StockGateway = {
         method: 'POST',
         body: {
           vin: input.vin,
+          branchId: input.branchId,
           manufactureYear: input.year,
           mileageKm: input.mileage,
           licensePlate: input.licensePlate,

@@ -76,7 +76,7 @@ describe('contenedor de stock', () => {
         createUnits: true,
         manageSupply: false,
       }),
-      null,
+      undefined,
       expect.any(AbortSignal),
     )
   })

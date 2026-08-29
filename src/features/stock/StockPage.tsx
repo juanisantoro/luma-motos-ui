@@ -27,52 +27,35 @@ export function StockPage({
   const [loadError, setLoadError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const capabilities = useMemo<StockCapabilities>(
-    () => ({
-      viewCatalog: hasPermission(
-        user?.role.permissions,
-        'catalogo.consultar',
-      ),
-      viewAvailability: hasPermission(
-        user?.role.permissions,
-        'proveedores.consultar',
-      ),
-      viewSupply: hasPermission(
-        user?.role.permissions,
-        'abastecimiento.consultar',
-      ),
-      createUnits: hasPermission(
-        user?.role.permissions,
-        'inventario.gestionar',
-      ),
-      createCatalog: hasPermission(
-        user?.role.permissions,
-        'catalogo.gestionar',
-      ),
-      createSharedCatalog:
-        Boolean(user?.globalAccess) &&
-        hasPermission(user?.role.permissions, 'catalogo.gestionar'),
-      manageAvailability: hasPermission(
-        user?.role.permissions,
-        'proveedores.gestionar',
-      ),
-      manageSupply: hasPermission(
-        user?.role.permissions,
-        'abastecimiento.gestionar',
-      ),
-      receiveSupply: hasPermission(
-        user?.role.permissions,
-        'abastecimiento.recibir',
-      ),
-    }),
+    () => {
+      const can = (permission: string) =>
+        hasPermission(user?.role.permissions, permission)
+      const catalogRead = can('catalogo.consultar')
+      const suppliersRead = can('proveedores.consultar')
+      const supplyRead = can('abastecimiento.consultar')
+      return {
+        viewCatalog: catalogRead,
+        viewAvailability: suppliersRead,
+        viewSupply: supplyRead,
+        createUnits: can('inventario.gestionar') && catalogRead,
+        createCatalog: can('catalogo.gestionar') && catalogRead,
+        createSharedCatalog:
+          Boolean(user?.globalAccess) &&
+          can('catalogo.gestionar') &&
+          catalogRead,
+        manageAvailability:
+          can('proveedores.gestionar') &&
+          suppliersRead &&
+          catalogRead,
+        manageSupply: can('abastecimiento.gestionar') && supplyRead,
+        receiveSupply: can('abastecimiento.recibir') && supplyRead,
+      }
+    },
     [user],
   )
-  const currentBranch = useMemo(
-    () =>
-      user?.branch
-        ? { id: user.branch.id, name: user.branch.name }
-        : null,
-    [user],
-  )
+  const targetOrganizationId = user?.globalAccess
+    ? user.organization.id
+    : undefined
 
   useEffect(() => {
     const controller = new AbortController()
@@ -82,7 +65,7 @@ export function StockPage({
       .loadWorkspace(
         vehicleType,
         capabilities,
-        currentBranch,
+        targetOrganizationId,
         controller.signal,
       )
       .then((workspace) => {
@@ -104,7 +87,13 @@ export function StockPage({
         setStatus('error')
       })
     return () => controller.abort()
-  }, [capabilities, currentBranch, gateway, refreshKey, vehicleType])
+  }, [
+    capabilities,
+    gateway,
+    refreshKey,
+    targetOrganizationId,
+    vehicleType,
+  ])
 
   const reload = () => setRefreshKey((current) => current + 1)
   const mutateAndReload = async (mutation: () => Promise<void>) => {
@@ -162,7 +151,9 @@ export function StockPage({
       capabilities={capabilities}
       data={data}
       onCreateUnits={(input) =>
-        mutateAndReload(() => gateway.createUnits(input))
+        mutateAndReload(() =>
+          gateway.createUnits(input, targetOrganizationId),
+        )
       }
       onReceiveSupply={(supplyId, input) =>
         mutateAndReload(() => gateway.receiveSupply(supplyId, input))

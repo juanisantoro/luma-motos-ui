@@ -32,7 +32,7 @@ const version = {
   model,
 }
 const branch = { id: 'branch-1', name: 'San Miguel' }
-const supplier = { id: 'supplier-1', name: 'Proveedor Norte' }
+const supplier = { id: 'supplier-1', legalName: 'Proveedor Norte' }
 const unit = {
   id: 'unit-1',
   vehicleType: 'MOTO',
@@ -42,7 +42,7 @@ const unit = {
   mileageKm: 0,
   licensePlate: null,
   acquisitionOrigin: 'PROVEEDOR',
-  inventoryStatus: 'DISPONIBLE',
+  inventoryStatus: 'EN_STOCK',
   receivedAt: '2026-08-29T12:00:00.000Z',
   version,
   branch,
@@ -73,6 +73,7 @@ describe('contrato API de stock', () => {
       .mockResolvedValueOnce(json(page([version])))
       .mockResolvedValueOnce(json(page([model])))
       .mockResolvedValueOnce(json(page([supplier])))
+      .mockResolvedValueOnce(json([branch]))
       .mockResolvedValueOnce(json(page([unit])))
       .mockResolvedValueOnce(
         json(
@@ -96,11 +97,11 @@ describe('contrato API de stock', () => {
               id: 'supply-1',
               condition: 'NUEVO',
               status: 'EN_TRANSITO',
-              createdAt: '2026-08-29T12:00:00.000Z',
+              requestedAt: '2026-08-29T12:00:00.000Z',
               version,
               supplier,
-              arrivalBranch: branch,
-              receivedUnit: null,
+              branch,
+              receivedUnitId: null,
             },
           ]),
         ),
@@ -110,13 +111,13 @@ describe('contrato API de stock', () => {
     const result = await stockApiGateway.loadWorkspace(
       'MOTO',
       capabilities,
-      null,
+      undefined,
     )
 
     expect(result.units[0]).toEqual(
       expect.objectContaining({
         vin: 'VIN-001',
-        status: 'AVAILABLE',
+        status: 'EN_STOCK',
         branch,
       }),
     )
@@ -134,6 +135,7 @@ describe('contrato API de stock', () => {
       'http://localhost:3000/api/catalog/versions?vehicleType=MOTO&active=true&page=1&limit=100',
       'http://localhost:3000/api/catalog/models?vehicleType=MOTO&active=true&page=1&limit=100',
       'http://localhost:3000/api/suppliers?active=true&page=1&limit=100',
+      'http://localhost:3000/api/inventory/branches',
       'http://localhost:3000/api/inventory/units?vehicleType=MOTO&page=1&limit=100',
       'http://localhost:3000/api/supplier-availability?vehicleType=MOTO&page=1&limit=100',
       'http://localhost:3000/api/supply-requests?vehicleType=MOTO&page=1&limit=100',
@@ -142,7 +144,9 @@ describe('contrato API de stock', () => {
 
   it('usa el alta bulk atómica y el DTO de inventario', async () => {
     sessionStorage.setItem(AUTH_TOKEN_KEY, 'stock-token')
-    const fetchMock = vi.fn().mockResolvedValueOnce(json([unit, unit], 201))
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json({ items: [unit, unit], count: 2 }, 201))
     vi.stubGlobal('fetch', fetchMock)
     const input: CreateUnitsInput = {
       vehicleType: 'MOTO',
@@ -174,8 +178,8 @@ describe('contrato API de stock', () => {
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('http://localhost:3000/api/inventory/units/bulk')
     expect(request.method).toBe('POST')
-    expect(JSON.parse(String(request.body))).toEqual([
-      {
+    expect(JSON.parse(String(request.body))).toEqual({
+      units: [{
         versionId: 'version-1',
         vin: 'VIN-001',
         condition: 'NUEVO',
@@ -185,8 +189,7 @@ describe('contrato API de stock', () => {
         supplierId: 'supplier-1',
         acquisitionOrigin: 'PROVEEDOR',
         receivedAt: '2026-08-29',
-      },
-      {
+      }, {
         versionId: 'version-1',
         vin: 'VIN-002',
         condition: 'NUEVO',
@@ -195,8 +198,61 @@ describe('contrato API de stock', () => {
         branchId: 'branch-1',
         acquisitionOrigin: 'OTRO',
         receivedAt: '2026-08-29',
+      }],
+    })
+  })
+
+  it('crea marca, modelo y versión sólo por el flujo de catálogo', async () => {
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'stock-token')
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json(page([])))
+      .mockResolvedValueOnce(json(brand, 201))
+      .mockResolvedValueOnce(json(page([])))
+      .mockResolvedValueOnce(json(model, 201))
+      .mockResolvedValueOnce(json(page([])))
+      .mockResolvedValueOnce(json(version, 201))
+      .mockResolvedValueOnce(json(unit, 201))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await stockApiGateway.createUnits({
+      vehicleType: 'MOTO',
+      condition: 'NUEVO',
+      catalogModel: {
+        brandName: 'Honda',
+        modelName: 'Wave',
+        versionName: '110 S',
+        scope: 'GLOBAL',
       },
+      units: [
+        {
+          vin: 'VIN-001',
+          branchId: branch.id,
+          year: 2026,
+          mileage: 0,
+          receivedAt: '2026-08-29',
+          acquisitionOrigin: 'OTRO',
+        },
+      ],
+    })
+
+    expect(
+      fetchMock.mock.calls.map(([url]) => String(url)),
+    ).toEqual([
+      'http://localhost:3000/api/catalog/brands?search=Honda&active=true&page=1&limit=100',
+      'http://localhost:3000/api/catalog/brands',
+      'http://localhost:3000/api/catalog/models?vehicleType=MOTO&brandId=brand-1&search=Wave&active=true&page=1&limit=100',
+      'http://localhost:3000/api/catalog/models',
+      'http://localhost:3000/api/catalog/versions?vehicleType=MOTO&modelId=model-1&search=110+S&active=true&scope=GLOBAL&page=1&limit=100',
+      'http://localhost:3000/api/catalog/versions',
+      'http://localhost:3000/api/inventory/units',
     ])
+    const versionRequest = fetchMock.mock.calls[5]?.[1] as RequestInit
+    expect(JSON.parse(String(versionRequest.body))).toEqual({
+      modelId: 'model-1',
+      name: '110 S',
+      scope: 'GLOBAL',
+    })
   })
 
   it('envía transición y recepción idempotente con los DTOs acordados', async () => {
@@ -229,6 +285,7 @@ describe('contrato API de stock', () => {
     const receiveRequest = fetchMock.mock.calls[1]?.[1] as RequestInit
     expect(JSON.parse(String(receiveRequest.body))).toEqual({
       vin: 'VIN-RECIBIDO',
+      branchId: 'branch-1',
       manufactureYear: 2026,
       mileageKm: 0,
       idempotencyKey: 'receive-key-1',

@@ -54,10 +54,14 @@ type StockWorkspaceProps = {
 }
 
 const unitStatusLabels: Record<UnitStatus, string> = {
-  AVAILABLE: 'Disponible',
-  RESERVED: 'Reservada',
-  SOLD: 'Vendida',
-  TRADE_IN: 'Parte de pago',
+  EN_STOCK: 'En stock',
+  RESERVADO: 'Reservado',
+  EN_TRASLADO: 'En traslado',
+  EN_ACONDICIONAMIENTO: 'En acondicionamiento',
+  VENDIDO: 'Vendido',
+  ENTREGADO: 'Entregado',
+  BLOQUEADO: 'Bloqueado',
+  DADO_DE_BAJA: 'Dado de baja',
 }
 
 const supplyStatusLabels: Record<SupplyStatus, string> = {
@@ -66,7 +70,8 @@ const supplyStatusLabels: Record<SupplyStatus, string> = {
   CONFIRMADO: 'Confirmado',
   PEDIDO: 'Pedido',
   EN_TRANSITO: 'En tránsito',
-  RECIBIDA: 'Recibida',
+  RECIBIDO: 'Recibido',
+  ASIGNADO: 'Asignado',
   CANCELADA: 'Cancelada',
 }
 
@@ -146,7 +151,7 @@ function UnitCards({ units }: { units: PhysicalUnit[] }) {
               <span>{unit.vin}</span>
             </div>
             <Badge
-              tone={unit.status === 'AVAILABLE' ? 'success' : 'neutral'}
+              tone={unit.status === 'EN_STOCK' ? 'success' : 'neutral'}
             >
               {unitStatusLabels[unit.status]}
             </Badge>
@@ -220,7 +225,7 @@ function PhysicalUnits({ units }: { units: PhysicalUnit[] }) {
                 <td>
                   <Badge
                     tone={
-                      unit.status === 'AVAILABLE' ? 'success' : 'neutral'
+                      unit.status === 'EN_STOCK' ? 'success' : 'neutral'
                     }
                   >
                     {unitStatusLabels[unit.status]}
@@ -381,7 +386,8 @@ function SuppliesList({
                 </div>
                 <Badge
                   tone={
-                    supply.status === 'RECIBIDA'
+                    supply.status === 'RECIBIDO' ||
+                    supply.status === 'ASIGNADO'
                       ? 'success'
                       : supply.status === 'CANCELADA'
                         ? 'danger'
@@ -443,6 +449,14 @@ function SuppliesList({
                   <span>
                     Unidad creada: <strong>{supply.receivedUnit.vin}</strong> ·{' '}
                     {supply.receivedUnit.branch.name}
+                  </span>
+                </div>
+              )}
+              {!supply.receivedUnit && supply.receivedUnitId && (
+                <div className="received-unit">
+                  <PackageCheck size={18} aria-hidden="true" />
+                  <span>
+                    Unidad física creada · disponible en la vista de unidades.
                   </span>
                 </div>
               )}
@@ -673,7 +687,7 @@ export function StockWorkspace({
                     (unit) =>
                       unit.vehicleType === vehicleType &&
                       unit.branch.id === branch.id &&
-                      unit.status === 'AVAILABLE',
+                      unit.status === 'EN_STOCK',
                   ).length
                 }
               </strong>
@@ -689,7 +703,7 @@ export function StockWorkspace({
                 data.units.filter(
                   (unit) =>
                     unit.vehicleType === vehicleType &&
-                    unit.status === 'RESERVED',
+                    unit.status === 'RESERVADO',
                 ).length
               }
             </strong>

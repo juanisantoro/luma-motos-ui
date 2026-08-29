@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Clock3,
   UsersRound,
+  Warehouse,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
@@ -15,6 +16,10 @@ export function DashboardPage() {
   const canViewClients = hasPermission(
     user.role.permissions,
     'clientes.consultar',
+  )
+  const canViewStock = hasPermission(
+    user.role.permissions,
+    'inventario.consultar',
   )
 
   return (
@@ -36,11 +41,11 @@ export function DashboardPage() {
           <span className="hero-card__icon" aria-hidden="true">
             <Bike />
           </span>
-          <p className="eyebrow">PRIMER CORTE PRODUCTIVO</p>
-          <h2>Una base segura para operar y crecer</h2>
+          <p className="eyebrow">SEGUNDO CORTE PRODUCTIVO</p>
+          <h2>Inventario y abastecimiento conectados</h2>
           <p>
-            Acceso conectado al backend, permisos reales y módulos incorporados
-            de forma progresiva.
+            Catálogo, unidades físicas y disponibilidad de proveedores con
+            permisos reales.
           </p>
         </div>
         <div className="hero-card__meta">
@@ -78,14 +83,35 @@ export function DashboardPage() {
               </Link>
             )}
           </article>
+          <article className="module-card">
+            <span className="module-card__icon">
+              <Warehouse />
+            </span>
+            <div>
+              <span
+                className={`status-badge ${canViewStock ? 'status-badge--success' : ''}`}
+              >
+                {canViewStock ? 'Disponible' : 'Sin permiso'}
+              </span>
+              <h3>Stock y abastecimiento</h3>
+              <p>
+                Motos, autos, proveedores y recepciones en un único circuito.
+              </p>
+            </div>
+            {canViewStock && (
+              <Link to="/stock/motos" className="text-link">
+                Abrir módulo <ArrowRight size={16} />
+              </Link>
+            )}
+          </article>
           <article className="module-card module-card--muted">
             <span className="module-card__icon">
               <Clock3 />
             </span>
             <div>
               <span className="status-badge">Próximamente</span>
-              <h3>Operaciones y stock</h3>
-              <p>Se incorporará cuando sus contratos estén disponibles.</p>
+              <h3>Operaciones comerciales</h3>
+              <p>Ventas, reservas y documentación se incorporarán más adelante.</p>
             </div>
           </article>
         </div>
