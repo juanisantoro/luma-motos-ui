@@ -419,6 +419,11 @@ function SuppliesList({
                     Recibir
                   </button>
                 )}
+              {supply.status === 'PENDIENTE_APROBACION' && (
+                <p className="supply-card__note">
+                  La gestión se habilitará cuando la solicitud sea aprobada.
+                </p>
+              )}
               {supply.receivedUnit && (
                 <div className="received-unit">
                   <PackageCheck size={18} aria-hidden="true" />
@@ -594,6 +599,19 @@ export function StockWorkspace({
     }
   }
 
+  const openUnitModal = () => {
+    setActionError(null)
+    setUnitModal(true)
+  }
+  const openProviderModal = () => {
+    setActionError(null)
+    setProviderModal(true)
+  }
+  const openReception = (supply: SupplyOrder) => {
+    setActionError(null)
+    setReceiving(supply)
+  }
+
   return (
     <>
       <header className="page-heading stock-heading">
@@ -609,7 +627,7 @@ export function StockWorkspace({
           {capabilities.manageAvailability && (
             <button
               className="button button--secondary"
-              onClick={() => setProviderModal(true)}
+              onClick={openProviderModal}
               type="button"
             >
               <Store size={18} />
@@ -619,7 +637,7 @@ export function StockWorkspace({
           {capabilities.createUnits && (
             <button
               className="button button--primary"
-              onClick={() => setUnitModal(true)}
+              onClick={openUnitModal}
               type="button"
             >
               <Plus size={18} />
@@ -686,7 +704,9 @@ export function StockWorkspace({
           {tabs.map(([value, label]) => (
             <button
               aria-selected={tab === value}
+              aria-controls={`stock-${vehicleType.toLocaleLowerCase()}-panel`}
               className={tab === value ? 'is-active' : ''}
+              id={`stock-${vehicleType.toLocaleLowerCase()}-${value}-tab`}
               key={value}
               onClick={() => setTab(value)}
               role="tab"
@@ -814,7 +834,12 @@ export function StockWorkspace({
           </div>
         )}
 
-        <div className="stock-panel__content" role="tabpanel">
+        <div
+          aria-labelledby={`stock-${vehicleType.toLocaleLowerCase()}-${tab}-tab`}
+          className="stock-panel__content"
+          id={`stock-${vehicleType.toLocaleLowerCase()}-panel`}
+          role="tabpanel"
+        >
           {tab === 'physical' && <PhysicalUnits units={units} />}
           {tab === 'catalog' && <CatalogList catalog={catalog} />}
           {tab === 'providers' && (
@@ -828,7 +853,7 @@ export function StockWorkspace({
               onTransition={(supply, status) =>
                 void transitionSupply(supply, status)
               }
-              onReceive={setReceiving}
+              onReceive={openReception}
             />
           )}
         </div>

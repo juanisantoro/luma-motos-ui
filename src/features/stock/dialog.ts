@@ -3,10 +3,15 @@ import { useEffect, useRef } from 'react'
 export function useDialogFocus(onClose: () => void, blocked = false) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const blockedRef = useRef(blocked)
+  const onCloseRef = useRef(onClose)
 
   useEffect(() => {
     blockedRef.current = blocked
   }, [blocked])
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   useEffect(() => {
     const previousFocus =
@@ -23,7 +28,7 @@ export function useDialogFocus(onClose: () => void, blocked = false) {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !blockedRef.current) {
-        onClose()
+        onCloseRef.current()
         return
       }
       if (event.key !== 'Tab') return
@@ -48,7 +53,7 @@ export function useDialogFocus(onClose: () => void, blocked = false) {
       document.removeEventListener('keydown', handleKeyDown)
       previousFocus?.focus()
     }
-  }, [onClose])
+  }, [])
 
   return dialogRef
 }

@@ -1761,6 +1761,13 @@ a {
   font-size: 11px;
 }
 
+.supply-card__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .stock-modal {
   width: min(700px, 100%);
   max-height: calc(100svh - 36px);
