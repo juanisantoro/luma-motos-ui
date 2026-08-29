@@ -64,7 +64,7 @@ export function StockPage({
         'abastecimiento.recibir',
       ),
     }),
-    [user?.role.permissions],
+    [user],
   )
 
   useEffect(() => {
