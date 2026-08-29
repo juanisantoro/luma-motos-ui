@@ -88,7 +88,7 @@ describe('autenticación y autorización', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.type(screen.getByLabelText('Organización'), ' luma ')
+    await user.type(screen.getByLabelText('Organización'), ' luma_central ')
     await user.type(
       screen.getByLabelText('Correo electrónico'),
       ' ADMIN@LUMAMOTOS.COM.AR ',
@@ -107,7 +107,7 @@ describe('autenticación y autorización', () => {
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('http://localhost:3000/api/auth/login')
     expect(JSON.parse(String(request.body))).toEqual({
-      organizationCode: 'LUMA',
+      organizationCode: 'LUMA_CENTRAL',
       email: 'admin@lumamotos.com.ar',
       password: 'clave-segura',
     })

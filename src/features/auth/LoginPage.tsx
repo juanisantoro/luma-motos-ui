@@ -85,7 +85,7 @@ export function LoginPage() {
               maxLength={40}
               required
               autoFocus
-              placeholder="LUMA"
+              placeholder="LUMA_CENTRAL"
             />
           </label>
           <label className="field">
