@@ -6,8 +6,10 @@ export type Organization = {
 }
 
 export type UserRole = {
+  id: string
   code: string
   name: string
+  system: boolean
   permissions: string[]
 }
 
@@ -39,4 +41,18 @@ export type LoginResponse = {
   user: AuthUser
 }
 
-export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated' | 'error'
+export type TemporaryPasswordChallenge = {
+  organizationCode: string
+  email: string
+  temporaryPassword: string
+  expiresAt: string | null
+}
+
+export type LoginResult = 'authenticated' | 'password-change-required'
+
+export type AuthStatus =
+  | 'loading'
+  | 'authenticated'
+  | 'unauthenticated'
+  | 'password-change-required'
+  | 'error'

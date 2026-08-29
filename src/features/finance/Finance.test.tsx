@@ -29,7 +29,13 @@ function authUser(permissions: string[]): AuthUser {
     active: true,
     globalAccess: true,
     organization,
-    role: { code: 'ADMINISTRATIVA', name: 'Administrativa', permissions },
+    role: {
+      id: 'role-1',
+      code: 'ADMINISTRATIVA',
+      name: 'Administrativa',
+      system: false,
+      permissions,
+    },
     branch,
   }
 }

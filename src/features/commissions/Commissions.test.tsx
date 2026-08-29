@@ -250,7 +250,13 @@ describe('permisos y vista propia', () => {
     active: true,
     globalAccess: false,
     organization: { id: 'org-1', code: 'LUMA', name: 'Luma Motos', type: 'CASA_CENTRAL' },
-    role: { code: 'VENDEDOR', name: 'Vendedor', permissions: ['comisiones.propias'] },
+    role: {
+      id: 'seller-role',
+      code: 'VENDEDOR',
+      name: 'Vendedor',
+      system: true,
+      permissions: ['comisiones.propias'],
+    },
     branch: { id: 'branch-1', code: 'SM', name: 'San Miguel' },
   }
 

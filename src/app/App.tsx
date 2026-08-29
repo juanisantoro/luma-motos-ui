@@ -1,6 +1,12 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from '../features/auth/AuthContext'
+import { RoleDetailPage } from '../features/access/RoleDetailPage'
+import { RoleFormPage } from '../features/access/RoleFormPage'
+import { RolesPage } from '../features/access/RolesPage'
+import { UserFormPage } from '../features/access/UserFormPage'
+import { UsersPage } from '../features/access/UsersPage'
 import { LoginPage } from '../features/auth/LoginPage'
+import { InitialPasswordPage } from '../features/auth/InitialPasswordPage'
 import { PermissionRoute } from '../features/auth/PermissionRoute'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { ClientsPage } from '../features/clients/ClientsPage'
@@ -33,6 +39,10 @@ export function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/configurar-contrasena"
+            element={<InitialPasswordPage />}
+          />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route index element={<DashboardPage />} />
@@ -139,15 +149,37 @@ export function App() {
               <Route
                 element={<PermissionRoute permission="usuarios.consultar" />}
               >
+                <Route path="usuarios" element={<UsersPage />} />
                 <Route
-                  path="usuarios"
-                  element={
-                    <ModulePlaceholder
-                      title="Usuarios"
-                      description="Administración de accesos y permisos."
-                    />
-                  }
+                  element={<PermissionRoute permission="usuarios.gestionar" />}
+                >
+                  <Route path="usuarios/nuevo" element={<UserFormPage />} />
+                  <Route
+                    path="usuarios/:id/editar"
+                    element={<UserFormPage />}
+                  />
+                </Route>
+              </Route>
+              <Route
+                element={<PermissionRoute permission="roles.consultar" />}
+              >
+                <Route path="usuarios/roles" element={<RolesPage />} />
+                <Route
+                  path="usuarios/roles/:id"
+                  element={<RoleDetailPage />}
                 />
+                <Route
+                  element={<PermissionRoute permission="roles.gestionar" />}
+                >
+                  <Route
+                    path="usuarios/roles/nuevo"
+                    element={<RoleFormPage />}
+                  />
+                  <Route
+                    path="usuarios/roles/:id/editar"
+                    element={<RoleFormPage />}
+                  />
+                </Route>
               </Route>
               <Route
                 element={<PermissionRoute permission="compras.consultar" />}
