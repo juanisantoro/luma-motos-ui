@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ClipboardList,
+  CircleDollarSign,
   LayoutDashboard,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   ScrollText,
+  ShoppingCart,
+  ReceiptText,
   UsersRound,
   X,
   type LucideIcon,
@@ -38,6 +41,27 @@ const navigation: NavItem[] = [
     to: '/clientes',
     icon: UsersRound,
     permission: 'clientes.consultar',
+  },
+  {
+    label: 'Compras',
+    description: 'Proveedores y unidades',
+    to: '/compras',
+    icon: ShoppingCart,
+    permission: 'compras.consultar',
+  },
+  {
+    label: 'Ingresos',
+    description: 'Cobros e ingresos',
+    to: '/ingresos',
+    icon: CircleDollarSign,
+    permission: 'ingresos.consultar',
+  },
+  {
+    label: 'Gastos',
+    description: 'Egresos generales',
+    to: '/gastos',
+    icon: ReceiptText,
+    permission: 'gastos.consultar',
   },
   {
     label: 'Usuarios',
