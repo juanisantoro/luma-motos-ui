@@ -6,6 +6,15 @@ import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { ClientsPage } from '../features/clients/ClientsPage'
 import { CreditInquiriesPage } from '../features/credit-inquiries'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import {
+  commissionApiGateway,
+  CommissionPaymentsPage,
+  CommissionScalesPage,
+  MyCommissionsPage,
+  PaidCommissionsPage,
+  SellerMeetingPage,
+  SuggestedCommissionsPage,
+} from '../features/commissions'
 import { ExpensesPage } from '../features/finance/ExpensesPage'
 import { IncomesPage } from '../features/finance/IncomesPage'
 import { PurchasesPage } from '../features/finance/PurchasesPage'
@@ -189,6 +198,27 @@ export function App() {
                     />
                   }
                 />
+              </Route>
+              <Route element={<PermissionRoute permission="comisiones.consultar" />}>
+                <Route path="comisiones/sugerido/motos" element={<SuggestedCommissionsPage vehicleType="MOTO" gateway={commissionApiGateway} />} />
+                <Route path="comisiones/sugerido/autos" element={<SuggestedCommissionsPage vehicleType="AUTO" gateway={commissionApiGateway} />} />
+                <Route path="comisiones/reunion/motos" element={<SellerMeetingPage vehicleType="MOTO" gateway={commissionApiGateway} />} />
+                <Route path="comisiones/reunion/autos" element={<SellerMeetingPage vehicleType="AUTO" gateway={commissionApiGateway} />} />
+              </Route>
+              <Route element={<PermissionRoute permission="comisiones.pagar" />}>
+                <Route path="comisiones/pagar/motos" element={<CommissionPaymentsPage vehicleType="MOTO" gateway={commissionApiGateway} />} />
+                <Route path="comisiones/pagar/autos" element={<CommissionPaymentsPage vehicleType="AUTO" gateway={commissionApiGateway} />} />
+              </Route>
+              <Route element={<PermissionRoute permission="comisiones.historial" />}>
+                <Route path="comisiones/pagadas/motos" element={<PaidCommissionsPage vehicleType="MOTO" gateway={commissionApiGateway} />} />
+                <Route path="comisiones/pagadas/autos" element={<PaidCommissionsPage vehicleType="AUTO" gateway={commissionApiGateway} />} />
+              </Route>
+              <Route element={<PermissionRoute permission="comisiones.configurar" />}>
+                <Route path="comisiones/escalas/motos" element={<CommissionScalesPage vehicleType="MOTO" gateway={commissionApiGateway} />} />
+                <Route path="comisiones/escalas/autos" element={<CommissionScalesPage vehicleType="AUTO" gateway={commissionApiGateway} />} />
+              </Route>
+              <Route element={<PermissionRoute permission="comisiones.propias" />}>
+                <Route path="mis-comisiones" element={<MyCommissionsPage gateway={commissionApiGateway} />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Route>

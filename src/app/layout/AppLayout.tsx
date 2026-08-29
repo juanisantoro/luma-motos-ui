@@ -1,20 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Bike,
+  BadgeDollarSign,
   CarFront,
   CheckCheck,
   ClipboardList,
   CircleDollarSign,
+  HandCoins,
+  History,
   LayoutDashboard,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   PlusCircle,
+  Presentation,
   ReceiptText,
   ShoppingCart,
   ScrollText,
   ShieldAlert,
+  Settings2,
   UsersRound,
   X,
   type LucideIcon,
@@ -32,6 +37,7 @@ type NavItem = {
   icon: LucideIcon
   permissions?: string[]
   excludeRoles?: string[]
+  activePrefix?: string
 }
 
 const navigation: NavItem[] = [
@@ -163,6 +169,53 @@ const navigation: NavItem[] = [
     permissions: ['gastos.consultar'],
   },
   {
+    label: 'Sugerido de comisiones',
+    description: 'Cálculo por escala',
+    to: '/comisiones/sugerido/motos',
+    activePrefix: '/comisiones/sugerido/',
+    icon: BadgeDollarSign,
+    permissions: ['comisiones.consultar'],
+  },
+  {
+    label: 'Visualizar con vendedor',
+    description: 'Reunión y acuerdo',
+    to: '/comisiones/reunion/motos',
+    activePrefix: '/comisiones/reunion/',
+    icon: Presentation,
+    permissions: ['comisiones.consultar'],
+  },
+  {
+    label: 'Pagar comisiones',
+    description: 'Liquidaciones pendientes',
+    to: '/comisiones/pagar/motos',
+    activePrefix: '/comisiones/pagar/',
+    icon: HandCoins,
+    permissions: ['comisiones.pagar'],
+  },
+  {
+    label: 'Comisiones pagadas',
+    description: 'Histórico y auditoría',
+    to: '/comisiones/pagadas/motos',
+    activePrefix: '/comisiones/pagadas/',
+    icon: History,
+    permissions: ['comisiones.historial'],
+  },
+  {
+    label: 'Configuración de escalas',
+    description: 'Montos y vigencias',
+    to: '/comisiones/escalas/motos',
+    activePrefix: '/comisiones/escalas/',
+    icon: Settings2,
+    permissions: ['comisiones.configurar'],
+  },
+  {
+    label: 'Mis comisiones',
+    description: 'Progreso personal',
+    to: '/mis-comisiones',
+    icon: BadgeDollarSign,
+    permissions: ['comisiones.propias'],
+  },
+  {
     label: 'Usuarios',
     description: 'Accesos y permisos',
     to: '/usuarios',
@@ -251,12 +304,13 @@ export function AppLayout() {
           hasPermission(user.role.permissions, permission),
         )),
   )
-  const activeItem =
-    items.find((item) =>
-      item.to === '/'
-        ? location.pathname === '/'
-        : location.pathname.startsWith(item.to),
-    ) ?? items[0]
+  const isItemActive = (item: Pick<NavItem, 'to' | 'activePrefix'>) =>
+    item.to === '/'
+      ? location.pathname === '/'
+      : item.activePrefix
+        ? location.pathname.startsWith(item.activePrefix)
+        : location.pathname.startsWith(item.to)
+  const activeItem = items.find(isItemActive) ?? items[0]
   const sidebarCompact = collapsed && !isMobile
 
   return (
@@ -293,8 +347,8 @@ export function AppLayout() {
           {!sidebarCompact && <p className="sidebar__group">GESTIÓN</p>}
           {items.map(({ icon: Icon, ...item }) => (
             <NavLink
-              className={({ isActive }) =>
-                `nav-item ${isActive ? 'nav-item--active' : ''}`
+              className={() =>
+                `nav-item ${isItemActive(item) ? 'nav-item--active' : ''}`
               }
               end={item.to === '/' || item.to.endsWith('/operaciones')}
               key={item.to}
