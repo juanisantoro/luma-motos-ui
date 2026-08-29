@@ -10,6 +10,7 @@ import { useDialogFocus } from './dialog'
 import type {
   CatalogModel,
   CatalogModelDraft,
+  CatalogVehicleModel,
   CreateUnitsInput,
   UnitDraft,
   VehicleCondition,
@@ -19,9 +20,11 @@ import type {
 type UnitFormModalProps = {
   vehicleType: VehicleKind
   catalog: CatalogModel[]
+  models: CatalogVehicleModel[]
   branches: { id: string; name: string }[]
   suppliers: { id: string; name: string }[]
   canCreateCatalog: boolean
+  canCreateSharedCatalog: boolean
   submitting: boolean
   error: string | null
   onClose: () => void
@@ -55,9 +58,11 @@ function emptyUnit(key: number, branchId = ''): UnitRow {
 export function UnitFormModal({
   vehicleType,
   catalog,
+  models,
   branches,
   suppliers,
   canCreateCatalog,
+  canCreateSharedCatalog,
   submitting,
   error,
   onClose,
@@ -71,9 +76,11 @@ export function UnitFormModal({
   const [createCatalog, setCreateCatalog] = useState(false)
   const [catalogModelId, setCatalogModelId] = useState('')
   const [catalogDraft, setCatalogDraft] = useState<CatalogModelDraft>({
-    brand: '',
-    model: '',
-    version: '',
+    brandName: '',
+    modelId: '',
+    modelName: '',
+    versionName: '',
+    scope: canCreateSharedCatalog ? 'GLOBAL' : 'RESTRINGIDO',
   })
   const [units, setUnits] = useState<UnitRow[]>([
     emptyUnit(1, branches[0]?.id),
@@ -99,8 +106,19 @@ export function UnitFormModal({
       setValidationError('Cada unidad debe tener un VIN o chasis diferente.')
       return
     }
-    if (createCatalog && (!catalogDraft.brand.trim() || !catalogDraft.model.trim())) {
-      setValidationError('Completá marca y modelo para crear el modelo.')
+    if (
+      createCatalog &&
+      (!catalogDraft.versionName.trim() ||
+        (canCreateSharedCatalog
+          ? !catalogDraft.brandName?.trim() ||
+            !catalogDraft.modelName?.trim()
+          : !catalogDraft.modelId))
+    ) {
+      setValidationError(
+        canCreateSharedCatalog
+          ? 'Completá marca, modelo y versión.'
+          : 'Seleccioná un modelo y completá la nueva versión.',
+      )
       return
     }
     if (!createCatalog && !catalogModelId) {
@@ -128,11 +146,14 @@ export function UnitFormModal({
       ...(createCatalog
         ? {
             catalogModel: {
-              brand: catalogDraft.brand.trim(),
-              model: catalogDraft.model.trim(),
-              ...(catalogDraft.version?.trim()
-                ? { version: catalogDraft.version.trim() }
-                : {}),
+              ...(canCreateSharedCatalog
+                ? {
+                    brandName: catalogDraft.brandName?.trim(),
+                    modelName: catalogDraft.modelName?.trim(),
+                  }
+                : { modelId: catalogDraft.modelId }),
+              versionName: catalogDraft.versionName.trim(),
+              scope: catalogDraft.scope,
             },
           }
         : { catalogModelId }),
@@ -221,17 +242,17 @@ export function UnitFormModal({
                   ))}
                 </select>
               </label>
-            ) : (
+            ) : canCreateSharedCatalog ? (
               <div className="stock-form-grid">
                 <label className="field">
                   <span>Marca *</span>
                   <input
                     aria-label="Nueva marca"
-                    value={catalogDraft.brand}
+                    value={catalogDraft.brandName}
                     onChange={(event) =>
                       setCatalogDraft((current) => ({
                         ...current,
-                        brand: event.target.value,
+                        brandName: event.target.value,
                       }))
                     }
                     required
@@ -241,27 +262,87 @@ export function UnitFormModal({
                   <span>Modelo *</span>
                   <input
                     aria-label="Nuevo modelo"
-                    value={catalogDraft.model}
+                    value={catalogDraft.modelName}
                     onChange={(event) =>
                       setCatalogDraft((current) => ({
                         ...current,
-                        model: event.target.value,
+                        modelName: event.target.value,
                       }))
                     }
                     required
                   />
                 </label>
                 <label className="field">
-                  <span>Versión</span>
+                  <span>Versión *</span>
                   <input
                     aria-label="Nueva versión"
-                    value={catalogDraft.version}
+                    value={catalogDraft.versionName}
                     onChange={(event) =>
                       setCatalogDraft((current) => ({
                         ...current,
-                        version: event.target.value,
+                        versionName: event.target.value,
                       }))
                     }
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span>Alcance *</span>
+                  <select
+                    aria-label="Alcance de la versión"
+                    value={catalogDraft.scope}
+                    onChange={(event) =>
+                      setCatalogDraft((current) => ({
+                        ...current,
+                        scope: event.target.value as CatalogModelDraft['scope'],
+                      }))
+                    }
+                  >
+                    <option value="GLOBAL">Global</option>
+                    <option value="RESTRINGIDO">Organización actual</option>
+                  </select>
+                </label>
+              </div>
+            ) : (
+              <div className="stock-form-grid">
+                <label className="field">
+                  <span>Marca y modelo existentes *</span>
+                  <select
+                    aria-label="Modelo para nueva versión"
+                    value={catalogDraft.modelId}
+                    onChange={(event) =>
+                      setCatalogDraft((current) => ({
+                        ...current,
+                        modelId: event.target.value,
+                      }))
+                    }
+                    required
+                  >
+                    <option value="">Seleccionar</option>
+                    {models
+                      .filter(
+                        (item) =>
+                          item.vehicleType === vehicleType && item.active,
+                      )
+                      .map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.brand.name} {item.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Nueva versión *</span>
+                  <input
+                    aria-label="Nueva versión"
+                    value={catalogDraft.versionName}
+                    onChange={(event) =>
+                      setCatalogDraft((current) => ({
+                        ...current,
+                        versionName: event.target.value,
+                      }))
+                    }
+                    required
                   />
                 </label>
               </div>

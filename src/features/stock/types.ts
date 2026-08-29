@@ -31,8 +31,24 @@ export type SupplierOption = {
   name: string
 }
 
+export type CatalogBrand = {
+  id: string
+  name: string
+  active: boolean
+}
+
+export type CatalogVehicleModel = {
+  id: string
+  vehicleType: VehicleKind
+  name: string
+  active: boolean
+  brand: CatalogBrand
+}
+
 export type CatalogModel = {
   id: string
+  brandId: string
+  modelId: string
   vehicleType: VehicleKind
   brand: string
   model: string
@@ -83,6 +99,7 @@ export type SupplyOrder = {
 export type StockWorkspaceData = {
   branches: BranchOption[]
   suppliers: SupplierOption[]
+  models: CatalogVehicleModel[]
   catalog: CatalogModel[]
   units: PhysicalUnit[]
   availability: SupplierAvailability[]
@@ -90,9 +107,11 @@ export type StockWorkspaceData = {
 }
 
 export type CatalogModelDraft = {
-  brand: string
-  model: string
-  version?: string
+  brandName?: string
+  modelId?: string
+  modelName?: string
+  versionName: string
+  scope: 'GLOBAL' | 'RESTRINGIDO'
 }
 
 export type UnitDraft = {
@@ -137,6 +156,7 @@ export type StockCapabilities = {
   viewSupply: boolean
   createUnits: boolean
   createCatalog: boolean
+  createSharedCatalog: boolean
   manageAvailability: boolean
   manageSupply: boolean
   receiveSupply: boolean

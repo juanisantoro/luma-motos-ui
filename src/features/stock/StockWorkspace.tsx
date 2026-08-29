@@ -838,6 +838,7 @@ export function StockWorkspace({
         <UnitFormModal
           branches={data.branches}
           canCreateCatalog={capabilities.createCatalog}
+          canCreateSharedCatalog={capabilities.createSharedCatalog}
           catalog={data.catalog}
           error={actionError}
           onClose={() => setUnitModal(false)}
@@ -849,6 +850,7 @@ export function StockWorkspace({
           }
           submitting={busy}
           suppliers={data.suppliers}
+          models={data.models}
           vehicleType={vehicleType}
         />
       )}

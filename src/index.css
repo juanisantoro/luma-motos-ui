@@ -1338,6 +1338,16 @@ a {
   align-items: flex-end;
 }
 
+.stock-page-state {
+  display: grid;
+  min-height: calc(100svh - 122px);
+  place-content: center;
+  justify-items: center;
+  gap: 11px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .stock-heading__actions {
   display: flex;
   flex-wrap: wrap;

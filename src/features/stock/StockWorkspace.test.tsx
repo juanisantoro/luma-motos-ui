@@ -14,6 +14,8 @@ const branch = { id: 'branch-1', name: 'San Miguel' }
 const supplier = { id: 'supplier-1', name: 'Proveedor Norte' }
 const model: CatalogModel = {
   id: 'version-1',
+  brandId: 'brand-1',
+  modelId: 'model-1',
   vehicleType: 'MOTO',
   brand: 'Honda',
   model: 'Wave',
@@ -50,6 +52,15 @@ const supply: SupplyOrder = {
 const data: StockWorkspaceData = {
   branches: [branch],
   suppliers: [supplier],
+  models: [
+    {
+      id: 'model-1',
+      vehicleType: 'MOTO',
+      name: 'Wave',
+      active: true,
+      brand: { id: 'brand-1', name: 'Honda', active: true },
+    },
+  ],
   catalog: [
     model,
     {
@@ -81,6 +92,7 @@ const capabilities: StockCapabilities = {
   viewSupply: true,
   createUnits: true,
   createCatalog: false,
+  createSharedCatalog: false,
   manageAvailability: true,
   manageSupply: true,
   receiveSupply: true,
@@ -254,6 +266,7 @@ describe('workspace de stock', () => {
         viewSupply: false,
         createUnits: false,
         createCatalog: false,
+        createSharedCatalog: false,
         manageAvailability: false,
         manageSupply: false,
         receiveSupply: false,
