@@ -21,4 +21,3 @@ export function stockErrorMessage(error: unknown) {
   }
   return 'Ocurrió un error inesperado. Intentá nuevamente.'
 }
-
