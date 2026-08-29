@@ -4,6 +4,7 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { PermissionRoute } from '../features/auth/PermissionRoute'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { ClientsPage } from '../features/clients/ClientsPage'
+import { CreditInquiriesPage } from '../features/credit-inquiries'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { ModulePlaceholder } from '../features/placeholders/ModulePlaceholder'
 import { ApprovalsPage } from '../features/sales/ApprovalsPage'
@@ -74,6 +75,16 @@ export function App() {
                 >
                   <Route path="aprobaciones" element={<ApprovalsPage />} />
                 </Route>
+              </Route>
+              <Route
+                element={
+                  <PermissionRoute permission="consultas_crediticias.consultar" />
+                }
+              >
+                <Route
+                  path="consultas-crediticias"
+                  element={<CreditInquiriesPage />}
+                />
               </Route>
               <Route
                 element={<PermissionRoute permission="usuarios.consultar" />}

@@ -13,6 +13,7 @@ import {
   ReceiptText,
   ShoppingCart,
   ScrollText,
+  ShieldAlert,
   UsersRound,
   X,
   type LucideIcon,
@@ -86,6 +87,13 @@ const navigation: NavItem[] = [
     to: '/aprobaciones',
     icon: CheckCheck,
     permissions: ['ventas.consultar', 'ventas.aprobar'],
+  },
+  {
+    label: 'Clientes en rojo',
+    description: 'Consultas crediticias',
+    to: '/consultas-crediticias',
+    icon: ShieldAlert,
+    permissions: ['consultas_crediticias.consultar'],
   },
   {
     label: 'Usuarios',
