@@ -1,0 +1,156 @@
+.credit-check {
+  display: grid;
+  min-height: 52px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  padding: 13px 14px;
+  border: 1px solid #d9dde2;
+  border-radius: 10px;
+  color: #4e5865;
+  background: #f8f9fa;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.credit-check > svg {
+  margin-top: 1px;
+  flex: 0 0 auto;
+}
+
+.credit-check strong {
+  color: #20242b;
+}
+
+.credit-check p {
+  margin: 3px 0 0;
+}
+
+.credit-check--loading {
+  grid-template-columns: auto auto;
+  justify-content: start;
+  color: #68717f;
+}
+
+.credit-check--clear {
+  grid-template-columns: auto auto;
+  justify-content: start;
+  border-color: #bbdfcc;
+  color: #0a6847;
+  background: #eef9f4;
+}
+
+.credit-check--warning {
+  border-color: #f1bd72;
+  color: #70450c;
+  background: #fff8e8;
+}
+
+.credit-check--warning > svg {
+  color: #b66a00;
+}
+
+.credit-check--blocking,
+.credit-check--error {
+  border-color: #ffc2c8;
+  color: #991824;
+  background: #fff0f2;
+}
+
+.credit-check--blocking > svg,
+.credit-check--error > svg {
+  color: #bd1927;
+}
+
+.credit-check--error {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.credit-check--error button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 1px solid #ffc2c8;
+  border-radius: 8px;
+  color: #991824;
+  background: white;
+  font-weight: 750;
+}
+
+.credit-check dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
+  margin: 12px 0 0;
+}
+
+.credit-check dl > div {
+  display: grid;
+  gap: 2px;
+}
+
+.credit-check dt {
+  color: #8a5a18;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.credit-check dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #3c3123;
+  font-weight: 700;
+}
+
+.credit-check__reason {
+  grid-column: 1 / -1;
+}
+
+.credit-check__note {
+  padding-top: 9px;
+  border-top: 1px solid #edcf9f;
+  font-size: 12px;
+}
+
+.credit-check__spin {
+  animation: credit-check-spin 0.85s linear infinite;
+}
+
+@keyframes credit-check-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .credit-check--error {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .credit-check--error button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .credit-check dl {
+    grid-template-columns: 1fr;
+  }
+
+  .credit-check__reason {
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .credit-check__spin {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+

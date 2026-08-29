@@ -4,11 +4,17 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { PermissionRoute } from '../features/auth/PermissionRoute'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { ClientsPage } from '../features/clients/ClientsPage'
+import { CreditInquiriesPage } from '../features/credit-inquiries'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { ExpensesPage } from '../features/finance/ExpensesPage'
 import { IncomesPage } from '../features/finance/IncomesPage'
 import { PurchasesPage } from '../features/finance/PurchasesPage'
 import { ModulePlaceholder } from '../features/placeholders/ModulePlaceholder'
+import { ApprovalsPage } from '../features/sales/ApprovalsPage'
+import { OperationsPage } from '../features/sales/OperationsPage'
+import { NewOperationPage } from '../features/sales/NewOperationPage'
+import { stockApiGateway } from '../features/stock/api'
+import { StockPage } from '../features/stock/StockPage'
 import { AppLayout } from './layout/AppLayout'
 import { ForbiddenPage, NotFoundPage } from './pages/ErrorPages'
 
@@ -26,6 +32,62 @@ export function App() {
                 element={<PermissionRoute permission="clientes.consultar" />}
               >
                 <Route path="clientes" element={<ClientsPage />} />
+              </Route>
+              <Route
+                element={
+                  <PermissionRoute permission="inventario.consultar" />
+                }
+              >
+                <Route
+                  path="stock/motos"
+                  element={
+                    <StockPage
+                      gateway={stockApiGateway}
+                      vehicleType="MOTO"
+                    />
+                  }
+                />
+                <Route
+                  path="stock/autos"
+                  element={
+                    <StockPage
+                      gateway={stockApiGateway}
+                      vehicleType="AUTO"
+                    />
+                  }
+                />
+              </Route>
+              <Route
+                element={<PermissionRoute permission="ventas.consultar" />}
+              >
+                <Route path="operaciones" element={<OperationsPage />} />
+                <Route
+                  path="mis-operaciones"
+                  element={<OperationsPage mine />}
+                />
+                <Route
+                  element={<PermissionRoute permission="ventas.gestionar" />}
+                >
+                  <Route
+                    path="operaciones/nueva"
+                    element={<NewOperationPage />}
+                  />
+                </Route>
+                <Route
+                  element={<PermissionRoute permission="ventas.aprobar" />}
+                >
+                  <Route path="aprobaciones" element={<ApprovalsPage />} />
+                </Route>
+              </Route>
+              <Route
+                element={
+                  <PermissionRoute permission="consultas_crediticias.consultar" />
+                }
+              >
+                <Route
+                  path="consultas-crediticias"
+                  element={<CreditInquiriesPage />}
+                />
               </Route>
               <Route
                 element={<PermissionRoute permission="usuarios.consultar" />}

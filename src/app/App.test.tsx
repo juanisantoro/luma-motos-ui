@@ -276,6 +276,100 @@ describe('navegación responsive', () => {
   })
 })
 
+describe('navegación de stock', () => {
+  it('expone rutas separadas para motos y autos sólo con permiso real', async () => {
+    const stockUser: AuthUser = {
+      ...baseUser,
+      role: {
+        ...baseUser.role,
+        permissions: ['inventario.consultar', 'catalogo.consultar'],
+      },
+    }
+    const emptyPage = { items: [], total: 0, page: 1, limit: 100 }
+    window.history.replaceState({}, '', '/stock/motos')
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'stock-token')
+    const fetchMock = mockFetch(
+      jsonResponse(stockUser),
+      jsonResponse(emptyPage),
+      jsonResponse(emptyPage),
+      jsonResponse([]),
+      jsonResponse(emptyPage),
+    )
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Stock de motos' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /Stock de motos/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /Stock de autos/ }),
+    ).toBeInTheDocument()
+    expect(
+      fetchMock.mock.calls.slice(1).map(([url]) => String(url)),
+    ).toEqual([
+      'http://localhost:3000/api/catalog/versions?vehicleType=MOTO&organizationId=30a522d2-93bb-46f5-b291-84dd96962576&active=true&page=1&limit=100',
+      'http://localhost:3000/api/catalog/models?vehicleType=MOTO&organizationId=30a522d2-93bb-46f5-b291-84dd96962576&active=true&page=1&limit=100',
+      'http://localhost:3000/api/inventory/branches?organizationId=30a522d2-93bb-46f5-b291-84dd96962576',
+      'http://localhost:3000/api/inventory/units?vehicleType=MOTO&organizationId=30a522d2-93bb-46f5-b291-84dd96962576&page=1&limit=100',
+    ])
+  })
+
+  describe('navegación de ventas', () => {
+    it('consulta Mis operaciones con mine=true y oculta acciones sin permisos', async () => {
+      const salesUser: AuthUser = {
+        ...baseUser,
+        role: {
+          ...baseUser.role,
+          permissions: ['ventas.consultar'],
+        },
+      }
+      window.history.replaceState({}, '', '/mis-operaciones')
+      sessionStorage.setItem(AUTH_TOKEN_KEY, 'sales-token')
+      const fetchMock = mockFetch(
+        jsonResponse(salesUser),
+        jsonResponse({ items: [], total: 0, page: 1, limit: 20 }),
+      )
+
+      render(<App />)
+
+      expect(
+        await screen.findByRole('heading', { name: 'Mis operaciones' }),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('link', { name: /Nueva operación/ }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('link', { name: /Aprobaciones/ }),
+      ).not.toBeInTheDocument()
+      expect(String(fetchMock.mock.calls[1]?.[0])).toContain('mine=true')
+    })
+  })
+
+  it('bloquea la ruta directa de stock sin inventario.consultar', async () => {
+    const restrictedUser: AuthUser = {
+      ...baseUser,
+      role: { ...baseUser.role, permissions: [] },
+    }
+    window.history.replaceState({}, '', '/stock/autos')
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'stock-token')
+    mockFetch(jsonResponse(restrictedUser))
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'No tenés permiso para ingresar',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /Stock de autos/ }),
+    ).not.toBeInTheDocument()
+  })
+})
+
 describe('gestión de clientes', () => {
   it('carga el listado real en tabla y respeta el permiso de gestión', async () => {
     Object.defineProperty(window, 'innerWidth', {

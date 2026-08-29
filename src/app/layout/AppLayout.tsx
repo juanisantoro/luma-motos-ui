@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  Bike,
+  CarFront,
+  CheckCheck,
   ClipboardList,
   CircleDollarSign,
   LayoutDashboard,
@@ -7,9 +10,11 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  ScrollText,
-  ShoppingCart,
+  PlusCircle,
   ReceiptText,
+  ShoppingCart,
+  ScrollText,
+  ShieldAlert,
   UsersRound,
   X,
   type LucideIcon,
@@ -25,7 +30,7 @@ type NavItem = {
   description: string
   to: string
   icon: LucideIcon
-  permission?: string
+  permissions?: string[]
 }
 
 const navigation: NavItem[] = [
@@ -40,42 +45,91 @@ const navigation: NavItem[] = [
     description: 'Gestión comercial',
     to: '/clientes',
     icon: UsersRound,
-    permission: 'clientes.consultar',
+    permissions: ['clientes.consultar'],
+  },
+  {
+    label: 'Stock de motos',
+    description: 'Inventario y proveedores',
+    to: '/stock/motos',
+    icon: Bike,
+    permissions: ['inventario.consultar'],
+  },
+  {
+    label: 'Stock de autos',
+    description: 'Inventario y proveedores',
+    to: '/stock/autos',
+    icon: CarFront,
+    permissions: ['inventario.consultar'],
+  },
+  {
+    label: 'Nueva operación',
+    description: 'Venta y reserva',
+    to: '/operaciones/nueva',
+    icon: PlusCircle,
+    permissions: ['ventas.consultar', 'ventas.gestionar'],
+  },
+  {
+    label: 'Mis operaciones',
+    description: 'Seguimiento personal',
+    to: '/mis-operaciones',
+    icon: ReceiptText,
+    permissions: ['ventas.consultar'],
+  },
+  {
+    label: 'Operaciones',
+    description: 'Ventas y reservas',
+    to: '/operaciones',
+    icon: ShoppingCart,
+    permissions: ['ventas.consultar'],
+  },
+  {
+    label: 'Aprobaciones',
+    description: 'Control comercial',
+    to: '/aprobaciones',
+    icon: CheckCheck,
+    permissions: ['ventas.consultar', 'ventas.aprobar'],
+  },
+  {
+    label: 'Clientes en rojo',
+    description: 'Consultas crediticias',
+    to: '/consultas-crediticias',
+    icon: ShieldAlert,
+    permissions: ['consultas_crediticias.consultar'],
   },
   {
     label: 'Compras',
     description: 'Proveedores y unidades',
     to: '/compras',
     icon: ShoppingCart,
-    permission: 'compras.consultar',
+    permissions: ['compras.consultar'],
   },
   {
     label: 'Ingresos',
     description: 'Cobros e ingresos',
     to: '/ingresos',
     icon: CircleDollarSign,
-    permission: 'ingresos.consultar',
+    permissions: ['ingresos.consultar'],
   },
   {
     label: 'Gastos',
     description: 'Egresos generales',
     to: '/gastos',
     icon: ReceiptText,
-    permission: 'gastos.consultar',
+    permissions: ['gastos.consultar'],
   },
   {
     label: 'Usuarios',
     description: 'Accesos y permisos',
     to: '/usuarios',
     icon: ClipboardList,
-    permission: 'usuarios.consultar',
+    permissions: ['usuarios.consultar'],
   },
   {
     label: 'Auditoría',
     description: 'Actividad del sistema',
     to: '/auditoria',
     icon: ScrollText,
-    permission: 'auditoria.consultar',
+    permissions: ['auditoria.consultar'],
   },
 ]
 
@@ -146,8 +200,10 @@ export function AppLayout() {
 
   const items = navigation.filter(
     (item) =>
-      !item.permission ||
-      hasPermission(user.role.permissions, item.permission),
+      !item.permissions ||
+      item.permissions.every((permission) =>
+        hasPermission(user.role.permissions, permission),
+      ),
   )
   const activeItem =
     navigation.find((item) =>
@@ -194,7 +250,7 @@ export function AppLayout() {
               className={({ isActive }) =>
                 `nav-item ${isActive ? 'nav-item--active' : ''}`
               }
-              end={item.to === '/'}
+              end={item.to === '/' || item.to === '/operaciones'}
               key={item.to}
               title={sidebarCompact ? item.label : undefined}
               to={item.to}

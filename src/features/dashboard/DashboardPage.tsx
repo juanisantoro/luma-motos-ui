@@ -2,8 +2,9 @@ import {
   ArrowRight,
   Bike,
   CheckCircle2,
-  Clock3,
+  ShoppingCart,
   UsersRound,
+  Warehouse,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
@@ -15,6 +16,14 @@ export function DashboardPage() {
   const canViewClients = hasPermission(
     user.role.permissions,
     'clientes.consultar',
+  )
+  const canViewStock = hasPermission(
+    user.role.permissions,
+    'inventario.consultar',
+  )
+  const canViewSales = hasPermission(
+    user.role.permissions,
+    'ventas.consultar',
   )
 
   return (
@@ -36,11 +45,11 @@ export function DashboardPage() {
           <span className="hero-card__icon" aria-hidden="true">
             <Bike />
           </span>
-          <p className="eyebrow">PRIMER CORTE PRODUCTIVO</p>
-          <h2>Una base segura para operar y crecer</h2>
+          <p className="eyebrow">TERCER CORTE PRODUCTIVO</p>
+          <h2>Gestión comercial integrada</h2>
           <p>
-            Acceso conectado al backend, permisos reales y módulos incorporados
-            de forma progresiva.
+            Clientes, stock, reservas, operaciones y aprobaciones con permisos
+            reales.
           </p>
         </div>
         <div className="hero-card__meta">
@@ -78,15 +87,45 @@ export function DashboardPage() {
               </Link>
             )}
           </article>
-          <article className="module-card module-card--muted">
+          <article className="module-card">
             <span className="module-card__icon">
-              <Clock3 />
+              <Warehouse />
             </span>
             <div>
-              <span className="status-badge">Próximamente</span>
-              <h3>Operaciones y stock</h3>
-              <p>Se incorporará cuando sus contratos estén disponibles.</p>
+              <span
+                className={`status-badge ${canViewStock ? 'status-badge--success' : ''}`}
+              >
+                {canViewStock ? 'Disponible' : 'Sin permiso'}
+              </span>
+              <h3>Stock y abastecimiento</h3>
+              <p>
+                Motos, autos, proveedores y recepciones en un único circuito.
+              </p>
             </div>
+            {canViewStock && (
+              <Link to="/stock/motos" className="text-link">
+                Abrir módulo <ArrowRight size={16} />
+              </Link>
+            )}
+          </article>
+          <article className="module-card">
+            <span className="module-card__icon">
+              <ShoppingCart />
+            </span>
+            <div>
+              <span
+                className={`status-badge ${canViewSales ? 'status-badge--success' : ''}`}
+              >
+                {canViewSales ? 'Disponible' : 'Sin permiso'}
+              </span>
+              <h3>Operaciones comerciales</h3>
+              <p>Ventas, reservas de unidades y circuito de aprobación.</p>
+            </div>
+            {canViewSales && (
+              <Link to="/operaciones" className="text-link">
+                Abrir módulo <ArrowRight size={16} />
+              </Link>
+            )}
           </article>
         </div>
       </section>
