@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AUTH_TOKEN_KEY } from '../shared/api/client'
 import type { AuthUser, LoginResponse } from '../features/auth/types'
+import type { Client, ClientListResponse } from '../features/clients/types'
 import { App } from './App'
 
 const baseUser: AuthUser = {
@@ -22,6 +23,7 @@ const baseUser: AuthUser = {
     name: 'Administrador',
     permissions: [
       'clientes.consultar',
+      'clientes.gestionar',
       'usuarios.consultar',
       'auditoria.consultar',
     ],
@@ -50,6 +52,25 @@ function loginResponse(user = baseUser): LoginResponse {
     idleTimeoutSeconds: 3600,
     user,
   }
+}
+
+const client: Client = {
+  id: 'e5ba3e66-d128-4238-b588-8daa74c30283',
+  documentType: 'DNI',
+  documentNumber: '12.345.678',
+  fullName: 'Ana Cliente',
+  phone: '11 5555-0000',
+  email: 'ana@example.com',
+  address: 'Av. Principal 123',
+  notes: null,
+  active: true,
+  createdAt: '2026-08-20T12:00:00.000Z',
+  updatedAt: '2026-08-28T15:30:00.000Z',
+  organization: baseUser.organization,
+}
+
+function clientsResponse(items: Client[]): ClientListResponse {
+  return { items, total: items.length, page: 1, limit: 20 }
 }
 
 afterEach(() => {
@@ -252,5 +273,165 @@ describe('navegación responsive', () => {
     await user.keyboard('{Escape}')
     await waitFor(() => expect(menu).toHaveAttribute('aria-expanded', 'false'))
     expect(menu).toHaveFocus()
+  })
+})
+
+describe('gestión de clientes', () => {
+  it('carga el listado real en tabla y respeta el permiso de gestión', async () => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 1366,
+    })
+    window.history.replaceState({}, '', '/clientes')
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'clients-token')
+    const fetchMock = mockFetch(
+      jsonResponse(baseUser),
+      jsonResponse(clientsResponse([client])),
+    )
+
+    render(<App />)
+
+    expect(await screen.findByText('Ana Cliente')).toBeInTheDocument()
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Nuevo cliente' }),
+    ).toBeInTheDocument()
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      'http://localhost:3000/api/clients?page=1&limit=20',
+    )
+  })
+
+  it('presenta clientes como tarjetas en 393 px', async () => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 393,
+    })
+    window.history.replaceState({}, '', '/clientes')
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'clients-token')
+    mockFetch(jsonResponse(baseUser), jsonResponse(clientsResponse([client])))
+
+    render(<App />)
+
+    expect(await screen.findByRole('article')).toHaveTextContent('Ana Cliente')
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  it('expone estados vacío y error sin fallos silenciosos', async () => {
+    window.history.replaceState({}, '', '/clientes')
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'clients-token')
+    mockFetch(jsonResponse(baseUser), jsonResponse(clientsResponse([])))
+
+    const firstRender = render(<App />)
+    expect(
+      await screen.findByRole('heading', { name: 'Todavía no hay clientes' }),
+    ).toBeInTheDocument()
+    firstRender.unmount()
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'clients-token')
+
+    const failedFetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(baseUser))
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+    vi.stubGlobal('fetch', failedFetch)
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'No pudimos cargar los clientes',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/No pudimos conectar/)).toBeInTheDocument()
+  })
+
+  it('crea un cliente con el DTO definitivo y vuelve a cargar el listado', async () => {
+    window.history.replaceState({}, '', '/clientes')
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'clients-token')
+    const fetchMock = mockFetch(
+      jsonResponse(baseUser),
+      jsonResponse(clientsResponse([])),
+      jsonResponse(client, 201),
+      jsonResponse(clientsResponse([client])),
+    )
+    const user = userEvent.setup()
+
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Todavía no hay clientes' })
+    await user.click(screen.getByRole('button', { name: 'Nuevo cliente' }))
+    await user.type(screen.getByLabelText('Nombre completo *'), 'Ana Cliente')
+    await user.selectOptions(screen.getByLabelText('Tipo de documento'), 'DNI')
+    await user.type(
+      screen.getByLabelText('Número de documento'),
+      '12.345.678',
+    )
+    await user.type(
+      screen.getByLabelText('Correo electrónico'),
+      'ana@example.com',
+    )
+    await user.click(screen.getByRole('button', { name: 'Guardar cliente' }))
+
+    expect(await screen.findByText('Ana Cliente')).toBeInTheDocument()
+    const [url, request] = fetchMock.mock.calls[2] as [string, RequestInit]
+    expect(url).toBe('http://localhost:3000/api/clients')
+    expect(request.method).toBe('POST')
+    expect(JSON.parse(String(request.body))).toEqual({
+      fullName: 'Ana Cliente',
+      documentType: 'DNI',
+      documentNumber: '12.345.678',
+      email: 'ana@example.com',
+    })
+  })
+
+  it('activa y desactiva mediante el endpoint de estado', async () => {
+    const inactiveClient = { ...client, active: false }
+    window.history.replaceState({}, '', '/clientes')
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'clients-token')
+    const fetchMock = mockFetch(
+      jsonResponse(baseUser),
+      jsonResponse(clientsResponse([client])),
+      jsonResponse(inactiveClient),
+      jsonResponse(clientsResponse([inactiveClient])),
+    )
+    const user = userEvent.setup()
+
+    render(<App />)
+    await user.click(
+      await screen.findByRole('button', { name: 'Desactivar a Ana Cliente' }),
+    )
+
+    expect(
+      await screen.findByRole('button', { name: 'Activar a Ana Cliente' }),
+    ).toBeInTheDocument()
+    const [url, request] = fetchMock.mock.calls[2] as [string, RequestInit]
+    expect(url).toBe(
+      `http://localhost:3000/api/clients/${client.id}/status`,
+    )
+    expect(request.method).toBe('PATCH')
+    expect(JSON.parse(String(request.body))).toEqual({ active: false })
+  })
+
+  it('oculta todas las mutaciones sin clientes.gestionar', async () => {
+    const readOnlyUser: AuthUser = {
+      ...baseUser,
+      role: {
+        ...baseUser.role,
+        permissions: ['clientes.consultar'],
+      },
+    }
+    window.history.replaceState({}, '', '/clientes')
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'clients-token')
+    mockFetch(
+      jsonResponse(readOnlyUser),
+      jsonResponse(clientsResponse([client])),
+    )
+
+    render(<App />)
+    await screen.findByText('Ana Cliente')
+
+    expect(
+      screen.queryByRole('button', { name: 'Nuevo cliente' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Editar a Ana Cliente' }),
+    ).not.toBeInTheDocument()
   })
 })
