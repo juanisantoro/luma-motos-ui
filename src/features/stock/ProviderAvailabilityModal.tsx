@@ -1,8 +1,9 @@
-import { LoaderCircle, X } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { LoaderCircle, ShieldCheck, X } from 'lucide-react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import type {
   CatalogModel,
+  CatalogModelDraft,
   SupplierAvailability,
   SupplierOption,
   UpsertAvailabilityInput,
@@ -14,6 +15,7 @@ type ProviderAvailabilityModalProps = {
   vehicleType: VehicleKind
   catalog: CatalogModel[]
   suppliers: SupplierOption[]
+  canCreateCatalog: boolean
   submitting: boolean
   error: string | null
   availability?: SupplierAvailability
@@ -21,10 +23,13 @@ type ProviderAvailabilityModalProps = {
   onSubmit: (input: UpsertAvailabilityInput) => void
 }
 
+const today = () => new Date().toISOString().slice(0, 10)
+
 export function ProviderAvailabilityModal({
   vehicleType,
   catalog,
   suppliers,
+  canCreateCatalog,
   submitting,
   error,
   availability,
@@ -35,17 +40,69 @@ export function ProviderAvailabilityModal({
   const [condition, setCondition] = useState<VehicleCondition>(
     availability?.condition ?? 'NUEVO',
   )
+  const [createCatalog, setCreateCatalog] = useState(false)
+  const [catalogModelId, setCatalogModelId] = useState(
+    availability?.catalogModel.id ?? '',
+  )
+  const [draft, setDraft] = useState<CatalogModelDraft>({
+    brandName: '',
+    modelName: '',
+    versionName: '',
+    scope: 'RESTRINGIDO',
+    listPrice: 0,
+    minimumPrice: 0,
+  })
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const noun = vehicleType === 'AUTO' ? 'autos' : 'motos'
+  const pricedCatalog = useMemo(
+    () =>
+      catalog.filter(
+        (item) =>
+          item.vehicleType === vehicleType && item.active && item.pricePolicy,
+      ),
+    [catalog, vehicleType],
+  )
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setValidationError(null)
     const data = new FormData(event.currentTarget)
+    if (createCatalog) {
+      if (!draft.brandName?.trim() || !draft.modelName?.trim()) {
+        setValidationError('Completá marca y modelo.')
+        return
+      }
+      if (
+        draft.listPrice <= 0 ||
+        draft.minimumPrice <= 0 ||
+        draft.minimumPrice > draft.listPrice
+      ) {
+        setValidationError(
+          'Configurá un precio sugerido y un precio mínimo válidos.',
+        )
+        return
+      }
+    } else if (!catalogModelId) {
+      setValidationError('Seleccioná una marca y modelo con precio vigente.')
+      return
+    }
     const notes = String(data.get('notes') ?? '').trim()
     onSubmit({
       vehicleType,
       condition,
-      catalogModelId: String(data.get('catalogModelId')),
+      ...(createCatalog
+        ? {
+            catalogModel: {
+              ...draft,
+              brandName: draft.brandName!.trim(),
+              modelName: draft.modelName!.trim(),
+              versionName: draft.modelName!.trim(),
+            },
+          }
+        : { catalogModelId }),
       supplierId: String(data.get('supplierId')),
       quantity: Number(data.get('quantity')),
+      reportedAt: String(data.get('reportedAt')),
       ...(notes ? { notes } : {}),
     })
   }
@@ -53,7 +110,7 @@ export function ProviderAvailabilityModal({
   return (
     <div className="modal-backdrop" role="presentation">
       <div
-        className="stock-modal"
+        className="stock-modal stock-modal--wide"
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
@@ -63,10 +120,13 @@ export function ProviderAvailabilityModal({
           <div>
             <p className="eyebrow">PROVEEDORES</p>
             <h2 id="availability-modal-title">
-              {availability ? 'Actualizar disponibilidad' : 'Informar disponibilidad'}
+              {availability
+                ? 'Actualizar disponibilidad'
+                : `Informar ${noun} de proveedor`}
             </h2>
             <p>
-              Registrá modelos y cantidades informadas. Esto no crea stock físico.
+              Se registra disponibilidad por modelo y cantidad. El chasis se
+              asignará cuando llegue la unidad.
             </p>
           </div>
           <button
@@ -80,18 +140,131 @@ export function ProviderAvailabilityModal({
           </button>
         </header>
 
-        {error && (
+        {(validationError || error) && (
           <div className="form-alert form-alert--error" role="alert">
-            {error}
+            {validationError ?? error}
           </div>
         )}
 
-        <div className="separation-note">
-          Las unidades de proveedor no tienen VIN ni sucursal hasta su recepción.
-        </div>
-
         <form onSubmit={submit}>
           <div className="stock-form-grid">
+            {!createCatalog && (
+              <label className="field field--wide">
+                <span>Marca y modelo *</span>
+                <select
+                  aria-label="Marca y modelo"
+                  disabled={Boolean(availability)}
+                  value={catalogModelId}
+                  onChange={(event) => setCatalogModelId(event.target.value)}
+                  required
+                >
+                  <option value="">
+                    Seleccionar del catálogo de {noun}
+                  </option>
+                  {pricedCatalog.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.brand} {item.model}
+                      {item.version && item.version !== item.model
+                        ? ` · ${item.version}`
+                        : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {!availability && canCreateCatalog && (
+              <label className="check stock-new-product-check field--wide">
+                <input
+                  checked={createCatalog}
+                  onChange={(event) => {
+                    setCreateCatalog(event.target.checked)
+                    setCatalogModelId('')
+                  }}
+                  type="checkbox"
+                />
+                La marca o modelo no existe
+              </label>
+            )}
+            {!availability && !canCreateCatalog && (
+              <p className="permission-note field--wide">
+                <ShieldCheck size={16} aria-hidden="true" />
+                El alta de marcas, modelos y precios requiere un permiso
+                adicional.
+              </p>
+            )}
+
+            {createCatalog && (
+              <>
+                <label className="field">
+                  <span>Tipo de vehículo</span>
+                  <input value={vehicleType === 'AUTO' ? 'Auto' : 'Moto'} readOnly />
+                </label>
+                <label className="field">
+                  <span>Marca *</span>
+                  <input
+                    aria-label="Nueva marca"
+                    value={draft.brandName}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        brandName: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span>Modelo *</span>
+                  <input
+                    aria-label="Nuevo modelo"
+                    value={draft.modelName}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        modelName: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span>Precio sugerido *</span>
+                  <input
+                    aria-label="Precio sugerido"
+                    min="0.01"
+                    step="0.01"
+                    type="number"
+                    value={draft.listPrice || ''}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        listPrice: Number(event.target.value),
+                      }))
+                    }
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span>Precio mínimo *</span>
+                  <input
+                    aria-label="Precio mínimo"
+                    min="0.01"
+                    step="0.01"
+                    type="number"
+                    value={draft.minimumPrice || ''}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        minimumPrice: Number(event.target.value),
+                      }))
+                    }
+                    required
+                  />
+                </label>
+              </>
+            )}
+
             <label className="field">
               <span>Proveedor *</span>
               <select
@@ -108,29 +281,19 @@ export function ProviderAvailabilityModal({
               </select>
             </label>
             <label className="field">
-              <span>Marca, modelo y versión *</span>
-              <select
-                defaultValue={availability?.catalogModel.id ?? ''}
-                name="catalogModelId"
+              <span>Cantidad informada *</span>
+              <input
+                defaultValue={availability?.quantity ?? 1}
+                name="quantity"
+                min="0"
+                type="number"
                 required
-              >
-                <option value="">Seleccionar</option>
-                {catalog
-                  .filter(
-                    (item) =>
-                      item.vehicleType === vehicleType && item.active,
-                  )
-                  .map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.brand} {item.model}
-                      {item.version ? ` · ${item.version}` : ''}
-                    </option>
-                  ))}
-              </select>
+              />
             </label>
             <label className="field">
-              <span>Condición *</span>
+              <span>Condición</span>
               <select
+                aria-label="Condición de disponibilidad"
                 value={condition}
                 onChange={(event) =>
                   setCondition(event.target.value as VehicleCondition)
@@ -141,26 +304,35 @@ export function ProviderAvailabilityModal({
               </select>
             </label>
             <label className="field">
-              <span>Cantidad disponible *</span>
+              <span>Fecha de actualización</span>
               <input
-                defaultValue={availability?.quantity}
-                name="quantity"
-                min="0"
-                type="number"
+                defaultValue={
+                  availability?.updatedAt.slice(0, 10) ?? today()
+                }
+                name="reportedAt"
+                type="date"
                 required
               />
             </label>
             <label className="field field--wide">
               <span>Observaciones</span>
-              <textarea
+              <input
                 name="notes"
                 defaultValue={availability?.notes ?? ''}
                 maxLength={1000}
-                placeholder="Plazo de entrega, colores o condiciones informadas"
-                rows={3}
+                placeholder="Plazo de entrega, colores, condiciones..."
               />
             </label>
           </div>
+
+          <div className="separation-note">
+            <strong>Sin chasis:</strong>
+            <span>
+              Esta disponibilidad puede utilizarse en una operación, pero no
+              será una unidad física hasta registrar su recepción.
+            </span>
+          </div>
+
           <footer className="stock-modal__actions">
             <button
               className="button button--secondary"

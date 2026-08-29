@@ -1,14 +1,22 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
+import { NetworkError } from '../../shared/api/client'
 import { NewOperationPage } from './NewOperationPage'
 
 const mocks = vi.hoisted(() => ({
-  loadWorkspace: vi.fn(),
-  listSalesSellers: vi.fn(),
-  getSalesPricePolicy: vi.fn(),
-  createSalesOperation: vi.fn(),
+  listBranches: vi.fn(),
+  listUnits: vi.fn(),
+  listAvailability: vi.fn(),
+  listSellers: vi.fn(),
+  listContacts: vi.fn(),
+  listFinancialInstitutions: vi.fn(),
+  getPricePolicy: vi.fn(),
+  createOperation: vi.fn(),
+  createTradeIn: vi.fn(),
+  replacePaymentPlan: vi.fn(),
+  submitOperation: vi.fn(),
   useCreditCheck: vi.fn(),
 }))
 
@@ -16,15 +24,17 @@ vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({
     user: {
       id: 'user-1',
+      email: 'vendedor@luma.test',
+      name: 'Vendedor Uno',
       globalAccess: false,
       organization: { id: 'org-1', name: 'Luma', code: 'LUMA_CENTRAL' },
       branch: { id: 'branch-1', code: 'CENTRO', name: 'Centro' },
       role: {
+        code: 'VENDEDOR',
         permissions: [
           'ventas.gestionar',
-          'catalogo.consultar',
+          'inventario.consultar',
           'proveedores.consultar',
-          'abastecimiento.gestionar',
         ],
       },
     },
@@ -32,30 +42,47 @@ vi.mock('../auth/AuthContext', () => ({
 }))
 
 vi.mock('../stock/api', () => ({
-  stockApiGateway: {
-    loadWorkspace: mocks.loadWorkspace,
-  },
+  listSalesBranches: mocks.listBranches,
+  listSalesPhysicalUnits: mocks.listUnits,
+  listSalesSupplierAvailability: mocks.listAvailability,
 }))
 
 vi.mock('../credit-checks', () => ({
   useCreditCheck: mocks.useCreditCheck,
   CreditAlert: ({
     state,
+    onRetry,
   }: {
     state: {
       status: string
       data?: { lastRejection?: { reason?: string | null } | null }
+      message?: string
     }
-  }) =>
-    state.status === 'success' ? (
-      <div role="alert">{state.data?.lastRejection?.reason}</div>
-    ) : null,
+    onRetry: () => void
+  }) => (
+    <div>
+      {state.status === 'success' && (
+        <div role="alert">{state.data?.lastRejection?.reason}</div>
+      )}
+      {state.status === 'error' && (
+        <div role="alert">
+          {state.message}
+          <button onClick={onRetry} type="button">Reintentar consulta</button>
+        </div>
+      )}
+    </div>
+  ),
 }))
 
 vi.mock('./api', () => ({
-  listSalesSellers: mocks.listSalesSellers,
-  getSalesPricePolicy: mocks.getSalesPricePolicy,
-  createSalesOperation: mocks.createSalesOperation,
+  listSalesSellers: mocks.listSellers,
+  listSalesContacts: mocks.listContacts,
+  listSalesFinancialInstitutions: mocks.listFinancialInstitutions,
+  getSalesPricePolicy: mocks.getPricePolicy,
+  createSalesOperation: mocks.createOperation,
+  createSalesTradeIn: mocks.createTradeIn,
+  replaceSalesPaymentPlan: mocks.replacePaymentPlan,
+  submitSalesOperation: mocks.submitOperation,
 }))
 
 const catalogModel = {
@@ -69,41 +96,50 @@ const catalogModel = {
   active: true,
 } as const
 
-const workspace = {
-  branches: [{ id: 'branch-1', name: 'Centro' }],
-  suppliers: [{ id: 'supplier-1', name: 'Proveedor Uno' }],
-  models: [],
-  catalog: [catalogModel],
-  units: [
-    {
-      id: 'unit-1',
-      vehicleType: 'MOTO',
-      catalogModel,
-      condition: 'NUEVO',
-      vin: 'VIN-001',
-      year: 2026,
-      mileage: 0,
-      licensePlate: null,
-      acquisitionOrigin: 'PROVEEDOR',
-      supplier: { id: 'supplier-1', name: 'Proveedor Uno' },
-      status: 'EN_STOCK',
-      branch: { id: 'branch-1', name: 'Centro' },
-      receivedAt: '2026-08-29T12:00:00.000Z',
-    },
-  ],
-  availability: [
-    {
-      id: 'availability-1',
-      vehicleType: 'MOTO',
-      catalogModel,
-      condition: 'NUEVO',
-      supplier: { id: 'supplier-1', name: 'Proveedor Uno' },
-      quantity: 2,
-      notes: null,
-      updatedAt: '2026-08-29T12:00:00.000Z',
-    },
-  ],
-  supplies: [],
+const autoCatalogModel = {
+  ...catalogModel,
+  id: 'version-auto-1',
+  vehicleType: 'AUTO',
+  brand: 'Fiat',
+  model: 'Cronos',
+  version: 'Drive',
+} as const
+
+const unit = {
+  id: 'unit-1',
+  vehicleType: 'MOTO',
+  catalogModel,
+  condition: 'NUEVO',
+  vin: 'VIN-001',
+  year: 2026,
+  mileage: 0,
+  licensePlate: null,
+  acquisitionOrigin: 'PROVEEDOR',
+  supplier: { id: 'supplier-1', name: 'Proveedor Uno' },
+  status: 'EN_STOCK',
+  branch: { id: 'branch-1', name: 'Centro' },
+  receivedAt: '2026-08-29T12:00:00.000Z',
+} as const
+
+const availability = {
+  id: 'availability-1',
+  vehicleType: 'MOTO',
+  catalogModel,
+  condition: 'NUEVO',
+  supplier: { id: 'supplier-1', name: 'Proveedor Uno' },
+  quantity: 2,
+  notes: null,
+  updatedAt: '2026-08-29T12:00:00.000Z',
+} as const
+
+function operation(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'operation-1',
+    number: '105',
+    rowVersion: 1,
+    tradeIns: [],
+    ...overrides,
+  }
 }
 
 beforeEach(() => {
@@ -113,16 +149,53 @@ beforeEach(() => {
     retry: vi.fn(),
     reset: vi.fn(),
   })
-  mocks.loadWorkspace.mockResolvedValue(workspace)
-  mocks.listSalesSellers.mockResolvedValue({
+  mocks.listBranches.mockResolvedValue([{ id: 'branch-1', name: 'Centro' }])
+  mocks.listUnits.mockResolvedValue([unit])
+  mocks.listAvailability.mockResolvedValue([availability])
+  mocks.listSellers.mockResolvedValue({
     items: [
-      { id: 'seller-1', employeeCode: 'V001', fullName: 'Vendedor Uno' },
+      {
+        id: 'seller-1',
+        employeeCode: 'V001',
+        fullName: 'Vendedor Uno',
+        isCurrentUser: true,
+      },
+      {
+        id: 'seller-2',
+        employeeCode: 'V002',
+        fullName: 'Vendedora Dos',
+      },
+    ],
+    total: 2,
+    page: 1,
+    limit: 100,
+  })
+  mocks.listContacts.mockResolvedValue({
+    items: [
+      {
+        id: 'contact-1',
+        employeeCode: 'C001',
+        fullName: 'Contacto Uno',
+      },
+      {
+        id: 'contact-2',
+        employeeCode: 'C002',
+        fullName: 'Contacto Dos',
+      },
+    ],
+    total: 2,
+    page: 1,
+    limit: 100,
+  })
+  mocks.listFinancialInstitutions.mockResolvedValue({
+    items: [
+      { id: 'bank-1', name: 'Banco Uno', taxId: null, active: true },
     ],
     total: 1,
     page: 1,
     limit: 100,
   })
-  mocks.getSalesPricePolicy.mockResolvedValue({
+  mocks.getPricePolicy.mockResolvedValue({
     id: 'policy-1',
     versionId: 'version-1',
     branchId: 'branch-1',
@@ -134,54 +207,73 @@ beforeEach(() => {
     validUntil: null,
     scope: 'BRANCH',
   })
-  mocks.createSalesOperation.mockResolvedValue({
-    id: 'operation-1',
-    number: '105',
-    rowVersion: 2,
-  })
+  mocks.createOperation.mockResolvedValue(operation())
+  mocks.createTradeIn.mockResolvedValue(
+    operation({
+      rowVersion: 2,
+      tradeIns: [
+        {
+          id: 'trade-1',
+          description: 'Honda usada',
+          appraisedAmount: '1000000',
+          acceptedAmount: '1000000',
+          status: 'PENDIENTE',
+        },
+      ],
+    }),
+  )
+  mocks.replacePaymentPlan.mockResolvedValue(operation({ rowVersion: 3 }))
+  mocks.submitOperation.mockResolvedValue(
+    operation({ rowVersion: 4, status: 'PENDIENTE_APROBACION' }),
+  )
 })
 
-describe('Nueva operación', () => {
-  it('envía la operación física completa mediante el contrato unificado', async () => {
-    const user = userEvent.setup()
-    render(
-      <MemoryRouter>
-        <NewOperationPage vehicleType="MOTO" />
-      </MemoryRouter>,
-    )
+function renderPage(vehicleType: 'MOTO' | 'AUTO' = 'MOTO') {
+  return render(
+    <MemoryRouter>
+      <NewOperationPage vehicleType={vehicleType} />
+    </MemoryRouter>,
+  )
+}
 
-    fireEvent.change(screen.getByPlaceholderText('Ingresar para verificar'), {
-      target: { value: '12.345.678' },
-    })
-    fireEvent.change(screen.getByLabelText('Nombre del cliente *'), {
-      target: { value: 'Ana Cliente' },
-    })
-    fireEvent.change(screen.getByLabelText('Teléfono *'), {
-      target: { value: '11 5555-5555' },
-    })
-    await screen.findByText(
-      'Elegí una unidad física o disponibilidad de proveedor',
-    )
-    fireEvent.change(
-      screen.getByPlaceholderText('Tipo, marca, modelo, sucursal o chasis…'),
-      {
-      target: {
-        value: 'Moto · Honda Wave 110 S · Nuevo · Centro · Chasis VIN-001',
-      },
-      },
-    )
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Guardar y enviar operación' }),
-      ).toBeEnabled(),
-    )
-    await user.selectOptions(
-      await screen.findByLabelText('Quién hizo la venta *'),
-      'seller-1',
-    )
+async function completeBaseData() {
+  const user = userEvent.setup()
+  fireEvent.change(screen.getByLabelText('DNI / CI *'), {
+    target: { value: '12.345.678' },
+  })
+  fireEvent.change(screen.getByLabelText('Nombre y apellido *'), {
+    target: { value: 'Ana Cliente' },
+  })
+  fireEvent.change(screen.getByLabelText('Teléfono *'), {
+    target: { value: '11 5555-5555' },
+  })
+  const option = await screen.findByRole('option', { name: /VIN-001/ })
+  await user.click(option)
+  await waitFor(() =>
+    expect(screen.getByText(/5\.000\.000/)).toBeInTheDocument(),
+  )
+  return user
+}
+
+describe('Nueva operación productiva', () => {
+  it('muestra vendedores y contactos reales con el usuario actual seleccionado', async () => {
+    renderPage()
+
+    const seller = await screen.findByLabelText('Quién hizo la venta *')
+    const contact = screen.getByLabelText('Quién fue el contacto')
+    expect(seller).toHaveValue('seller-1')
+    expect(within(seller).getAllByRole('option')).toHaveLength(3)
+    expect(
+      within(contact).getByRole('option', { name: 'Contacto Dos' }),
+    ).toBeInTheDocument()
+  })
+
+  it('envía persona embebida, plan y operación física sin seleccionar cliente', async () => {
+    renderPage()
+    const user = await completeBaseData()
     await user.selectOptions(
       screen.getByLabelText('Quién fue el contacto'),
-      'seller-1',
+      'contact-2',
     )
     await user.selectOptions(
       screen.getByLabelText('Plataforma de pago *'),
@@ -190,25 +282,20 @@ describe('Nueva operación', () => {
     fireEvent.change(screen.getByLabelText('Monto del crédito *'), {
       target: { value: '1000000' },
     })
+    await user.selectOptions(screen.getByLabelText('Financiera *'), 'bank-1')
     fireEvent.change(screen.getByLabelText('Respaldo / garante'), {
       target: { value: 'Garantía personal' },
     })
-    fireEvent.change(await screen.findByLabelText('Precio de cierre *'), {
-      target: { value: '4400000' },
-    })
+    const closingPrice = screen.getByLabelText('Precio de cierre *')
+    fireEvent.change(closingPrice, { target: { value: '4400000' } })
+    await user.click(
+      screen.getByRole('button', { name: 'Guardar y enviar operación' }),
+    )
 
-    expect(
-      screen.getByText('Precio por debajo de lista'),
-    ).toBeInTheDocument()
-    const submitButton = screen.getByRole('button', {
-      name: 'Guardar y enviar operación',
-    })
-    await user.click(submitButton)
-
-    expect(mocks.createSalesOperation).toHaveBeenCalledWith(
+    expect(mocks.createOperation).toHaveBeenCalledWith(
       expect.objectContaining({
-        branchId: 'branch-1',
         vehicleType: 'MOTO',
+        branchId: 'branch-1',
         client: {
           documentType: 'DNI',
           documentNumber: '12345678',
@@ -217,123 +304,115 @@ describe('Nueva operación', () => {
         },
         versionId: 'version-1',
         sellerId: 'seller-1',
-        contactId: 'seller-1',
+        contactId: 'contact-2',
         unitId: 'unit-1',
         agreedPrice: 4_400_000,
         paymentPlatform: 'EFECTIVO_CREDITO',
         creditAmount: 1_000_000,
-        guarantor: 'Garantía personal',
-        deliveryStatus: 'NO_PROGRAMADA',
-        papersDelivered: false,
-        debt: 'NO',
-        submit: true,
+        submit: false,
       }),
     )
+    expect(mocks.replacePaymentPlan).toHaveBeenCalledWith(
+      'operation-1',
+      {
+        expectedVersion: 1,
+        components: [
+          {
+            type: 'FINANCIACION',
+            amount: 1_000_000,
+            financialInstitutionId: 'bank-1',
+          },
+          { type: 'EFECTIVO', amount: 3_400_000 },
+        ],
+      },
+    )
+    expect(mocks.submitOperation).toHaveBeenCalledWith('operation-1', 3)
     expect(
       await screen.findByRole('heading', { name: 'Operación #105' }),
     ).toBeInTheDocument()
   })
 
-  it('crea abastecimiento vinculado sin enviar el borrador a aprobación', async () => {
-    const user = userEvent.setup()
-    render(
-      <MemoryRouter>
-        <NewOperationPage vehicleType="MOTO" />
-      </MemoryRouter>,
-    )
+  it('guarda un documento nuevo como borrador y delega al backend crear el cliente', async () => {
+    renderPage()
+    const user = await completeBaseData()
+    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
 
-    fireEvent.change(screen.getByPlaceholderText('Ingresar para verificar'), {
-      target: { value: '12.345.678' },
-    })
-    fireEvent.change(screen.getByLabelText('Nombre del cliente *'), {
-      target: { value: 'Ana Cliente' },
-    })
-    fireEvent.change(screen.getByLabelText('Teléfono *'), {
-      target: { value: '11 5555-5555' },
-    })
-    await screen.findByText(
-      'Elegí una unidad física o disponibilidad de proveedor',
-    )
-    fireEvent.change(
-      screen.getByPlaceholderText('Tipo, marca, modelo, sucursal o chasis…'),
-      {
-      target: {
-        value:
-          'Moto · Honda Wave 110 S · Nuevo · Proveedor Proveedor Uno (2) · Chasis al recibir',
-      },
-      },
-    )
-    const submitButton = screen.getByRole('button', {
-      name: 'Guardar y enviar operación',
-    })
-    await waitFor(() => expect(submitButton).toBeEnabled())
-    await user.click(submitButton)
-
-    expect(mocks.createSalesOperation).toHaveBeenCalledWith(
+    expect(mocks.createOperation).toHaveBeenCalledWith(
       expect.objectContaining({
-        vehicleType: 'MOTO',
-        supplierAvailabilityId: 'availability-1',
-        submit: true,
-      }),
-    )
-    expect(
-      await screen.findByText(/operación y su abastecimiento fueron creados/i),
-    ).toBeInTheDocument()
-  })
-
-  it('crea el cliente dentro del flujo y guarda un borrador', async () => {
-    const user = userEvent.setup()
-    render(
-      <MemoryRouter>
-        <NewOperationPage vehicleType="MOTO" />
-      </MemoryRouter>,
-    )
-
-    fireEvent.change(screen.getByLabelText('DNI / CI *'), {
-      target: { value: '33.444.555' },
-    })
-    fireEvent.change(screen.getByLabelText('Nombre del cliente *'), {
-      target: { value: 'Cliente Nuevo' },
-    })
-    fireEvent.change(screen.getByLabelText('Teléfono *'), {
-      target: { value: '11 4444-5555' },
-    })
-    await screen.findByText(
-      'Elegí una unidad física o disponibilidad de proveedor',
-    )
-    fireEvent.change(
-      screen.getByLabelText('Buscar y seleccionar vehículo *'),
-      {
-        target: {
-          value: 'Moto · Honda Wave 110 S · Nuevo · Centro · Chasis VIN-001',
-        },
-      },
-    )
-    const draftButton = screen.getByRole('button', {
-      name: 'Guardar borrador',
-    })
-    await waitFor(() => expect(draftButton).toBeEnabled())
-    await user.click(draftButton)
-
-    expect(mocks.createSalesOperation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        client: {
-          documentType: 'DNI',
-          documentNumber: '33444555',
-          fullName: 'Cliente Nuevo',
-          phone: '11 4444-5555',
-        },
-        unitId: 'unit-1',
-        paymentPlatform: 'EFECTIVO',
+        client: expect.objectContaining({ documentNumber: '12345678' }),
         submit: false,
       }),
     )
+    expect(mocks.replacePaymentPlan).toHaveBeenCalled()
+    expect(mocks.submitOperation).not.toHaveBeenCalled()
     expect(
-      await screen.findByText(/guardadas como borrador/),
+      await screen.findByText(/condiciones comerciales quedaron guardados como borrador/i),
     ).toBeInTheDocument()
   })
 
-  it('consulta el documento contra Clientes en rojo sin buscar clientes', async () => {
+  it('registra disponibilidad de proveedor y parte de pago con disclosure progresivo', async () => {
+    renderPage()
+    const user = userEvent.setup()
+    fireEvent.change(screen.getByLabelText('DNI / CI *'), {
+      target: { value: '33444555' },
+    })
+    fireEvent.change(screen.getByLabelText('Nombre y apellido *'), {
+      target: { value: 'Cliente Existente' },
+    })
+    fireEvent.change(screen.getByLabelText('Teléfono *'), {
+      target: { value: '1144445555' },
+    })
+    await user.click(
+      await screen.findByRole('option', {
+        name: /Proveedor Uno · 2 disponibles/,
+      }),
+    )
+    await waitFor(() => expect(screen.getByText(/5\.000\.000/)).toBeInTheDocument())
+    expect(screen.queryByLabelText('Unidad recibida como parte de pago *')).not.toBeInTheDocument()
+    await user.selectOptions(
+      screen.getByLabelText('Plataforma de pago *'),
+      'MOTO_EFECTIVO',
+    )
+    fireEvent.change(
+      screen.getByLabelText('Unidad recibida como parte de pago *'),
+      { target: { value: 'Honda usada 2022' } },
+    )
+    fireEvent.change(screen.getByLabelText('Valor aceptado *'), {
+      target: { value: '1000000' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+
+    expect(mocks.createOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supplierAvailabilityId: 'availability-1',
+        client: expect.objectContaining({ fullName: 'Cliente Existente' }),
+      }),
+    )
+    expect(mocks.createTradeIn).toHaveBeenCalledWith(
+      'operation-1',
+      expect.objectContaining({
+        expectedVersion: 1,
+        description: 'Honda usada 2022',
+        acceptedAmount: 1_000_000,
+      }),
+    )
+    expect(mocks.replacePaymentPlan).toHaveBeenCalledWith(
+      'operation-1',
+      expect.objectContaining({
+        expectedVersion: 2,
+        components: [
+          {
+            type: 'TOMA_PARTE_PAGO',
+            amount: 1_000_000,
+            tradeInVehicleId: 'trade-1',
+          },
+          { type: 'EFECTIVO', amount: 4_000_000 },
+        ],
+      }),
+    )
+  })
+
+  it('consulta Clientes en rojo sin convertirlo en selector de clientes', () => {
     mocks.useCreditCheck.mockReturnValue({
       state: {
         status: 'success',
@@ -345,24 +424,95 @@ describe('Nueva operación', () => {
       retry: vi.fn(),
       reset: vi.fn(),
     })
-    render(
-      <MemoryRouter>
-        <NewOperationPage vehicleType="MOTO" />
-      </MemoryRouter>,
-    )
+    renderPage()
 
     fireEvent.change(screen.getByLabelText('DNI / CI *'), {
       target: { value: '28.456.789' },
     })
-
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Mora informada por la financiera',
     )
-    expect(mocks.useCreditCheck).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        documentType: 'DNI',
-        documentNumber: '28.456.789',
-      }),
+    expect(screen.queryByText(/seleccionar cliente existente/i)).not.toBeInTheDocument()
+  })
+
+  it('mantiene AUTO separado en carga, resultados y política', async () => {
+    mocks.listUnits.mockResolvedValue([
+      {
+        ...unit,
+        id: 'auto-unit',
+        vehicleType: 'AUTO',
+        catalogModel: autoCatalogModel,
+        vin: 'AUTO-VIN-1',
+      },
+    ])
+    mocks.listAvailability.mockResolvedValue([])
+    mocks.getPricePolicy.mockResolvedValue({
+      id: 'auto-policy',
+      versionId: 'version-auto-1',
+      branchId: 'branch-1',
+      organizationId: 'org-1',
+      currency: 'ARS',
+      listPrice: '20000000',
+      minimumPrice: '19000000',
+      validFrom: '2026-01-01',
+      validUntil: null,
+      scope: 'BRANCH',
+    })
+    renderPage('AUTO')
+    const user = userEvent.setup()
+
+    expect(await screen.findByText('Nueva operación de auto')).toBeInTheDocument()
+    await user.click(await screen.findByRole('option', { name: /AUTO-VIN-1/ }))
+    expect(mocks.listUnits).toHaveBeenCalledWith(
+      'AUTO',
+      undefined,
+      expect.any(AbortSignal),
     )
+    expect(mocks.getPricePolicy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vehicleType: 'AUTO',
+        versionId: 'version-auto-1',
+      }),
+      expect.any(AbortSignal),
+    )
+    expect(screen.queryByText('Honda Wave 110 S')).not.toBeInTheDocument()
+  })
+
+  it('expone causa y reintenta stock sin ocultar el resto del formulario', async () => {
+    mocks.listUnits
+      .mockRejectedValueOnce(new NetworkError())
+      .mockResolvedValueOnce([unit])
+    renderPage()
+    const user = userEvent.setup()
+
+    const alert = await screen.findByRole('alert', {
+      name: '',
+    }).catch(() => screen.getByText(/No se pudo cargar toda la disponibilidad/).closest('[role="alert"]'))
+    expect(alert).toHaveTextContent('Stock físico')
+    expect(alert).toHaveTextContent('backend no respondió')
+    expect(screen.getByLabelText('DNI / CI *')).toBeInTheDocument()
+    await user.click(within(alert as HTMLElement).getByRole('button', { name: 'Reintentar' }))
+    expect(await screen.findByRole('option', { name: /VIN-001/ })).toBeInTheDocument()
+    expect(mocks.listUnits).toHaveBeenCalledTimes(2)
+  })
+
+  it('preserva la operación creada cuando falla un dato relacionado', async () => {
+    mocks.replacePaymentPlan.mockRejectedValueOnce(new NetworkError())
+    renderPage()
+    const user = await completeBaseData()
+    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Operación #105' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/La operación quedó guardada como borrador/)).toHaveTextContent(
+      'seguimiento sin duplicarla',
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Guardar borrador' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Cargar otra' }),
+    ).not.toBeInTheDocument()
   })
 })

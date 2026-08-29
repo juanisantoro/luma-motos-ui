@@ -200,10 +200,25 @@ export type SalesSeller = {
   id: string
   employeeCode: string
   fullName: string
+  isCurrentUser?: boolean
 }
 
 export type SalesSellerPage = {
   items: SalesSeller[]
+  total: number
+  page: number
+  limit: number
+}
+
+export type SalesFinancialInstitution = {
+  id: string
+  name: string
+  taxId: string | null
+  active: boolean
+}
+
+export type SalesFinancialInstitutionPage = {
+  items: SalesFinancialInstitution[]
   total: number
   page: number
   limit: number
@@ -238,6 +253,32 @@ export type LinkedSupplyRequest = {
   operationId: string | null
   supplierAvailabilityId: string | null
   status: string
+}
+
+export type SalesPaymentComponentInput = {
+  type:
+    | 'EFECTIVO'
+    | 'TRANSFERENCIA_BANCARIA'
+    | 'TARJETA'
+    | 'FINANCIACION'
+    | 'TOMA_PARTE_PAGO'
+    | 'OTRO'
+  amount: number
+  financialInstitutionId?: string
+  tradeInVehicleId?: string
+  notes?: string
+}
+
+export type CreateSalesTradeInInput = {
+  expectedVersion: number
+  description: string
+  appraisedAmount: number
+  acceptedAmount?: number
+}
+
+export type ReplaceSalesPaymentPlanInput = {
+  expectedVersion: number
+  components: SalesPaymentComponentInput[]
 }
 
 type CreateSalesOperationBase = {

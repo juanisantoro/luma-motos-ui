@@ -30,33 +30,77 @@ function request<T>(
 
 function queryPath(
   base: `/${string}`,
-  query: Record<string, string | number | undefined>,
+  query: Record<string, unknown>,
 ) {
   const search = new URLSearchParams()
   Object.entries(query).forEach(([key, value]) => {
-    if (value !== undefined && value !== '') search.set(key, String(value))
+    if (
+      value !== undefined &&
+      value !== null &&
+      value !== '' &&
+      value !== 'Todas' &&
+      value !== 'Todos'
+    ) {
+      search.set(key, String(value))
+    }
   })
   return `${base}${search.size ? `?${search.toString()}` : ''}` as `/${string}`
 }
 
-function listOptions(signal?: AbortSignal) {
+function validUuid(value: unknown) {
+  return typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+    ? value
+    : undefined
+}
+
+function sanitizeListQuery<T extends CommissionListQuery | PaidCommissionQuery>(
+  query: T,
+) {
+  return {
+    ...query,
+    branchId: validUuid(query.branchId),
+    sellerId: validUuid(query.sellerId),
+  }
+}
+
+async function listOptions(signal?: AbortSignal) {
   const options = signal ? { signal } : {}
-  return Promise.all([
-    request<CommissionPage<{ id: string; name: string }>>(
-      '/branches?page=1&limit=100',
-      options,
+  const branches = await request<Array<{ id: string; name: string }>>(
+    '/branches',
+    options,
+  )
+  const sellerPages = await Promise.all(
+    branches.map((branch) =>
+      request<
+        CommissionPage<{
+          id: string
+          employeeCode: string
+          fullName: string
+        }>
+      >(
+        queryPath('/sales/operations/sellers', {
+          branchId: branch.id,
+          page: 1,
+          limit: 100,
+        }),
+        options,
+      ),
     ),
-    request<CommissionPage<{ id: string; employeeCode: string; fullName: string }>>(
-      '/sales/operations/sellers?page=1&limit=100',
-      options,
-    ),
-  ]).then(([branches, sellers]): CommissionOptions => ({
-    branches: branches.items,
-    sellers: sellers.items.map((seller) => ({
-      id: seller.id,
-      name: seller.fullName,
-    })),
-  }))
+  )
+  const sellers = [
+    ...new Map(
+      sellerPages
+        .flatMap((page) => page.items)
+        .map((seller) => [
+          seller.id,
+          { id: seller.id, name: seller.fullName },
+        ]),
+    ).values(),
+  ]
+  return { branches, sellers } satisfies CommissionOptions
 }
 
 function listPaymentOptions(signal?: AbortSignal) {
@@ -72,7 +116,7 @@ function listSuggestions(
 ) {
   return request<CommissionPage<CommissionSummary>>(
     queryPath('/commissions/suggestions', {
-      ...query,
+      ...sanitizeListQuery(query),
       minComputableSales: query.minSales,
       maxComputableSales: query.maxSales,
       minSales: undefined,
@@ -104,7 +148,7 @@ function registerAgreement(
 
 function listPayable(query: CommissionListQuery, signal?: AbortSignal) {
   return request<CommissionPage<CommissionSettlement>>(
-    queryPath('/commissions/settlements', query),
+    queryPath('/commissions/settlements', sanitizeListQuery(query)),
     signal ? { signal } : {},
   )
 }
@@ -121,7 +165,7 @@ function pay(
 
 function listPaid(query: PaidCommissionQuery, signal?: AbortSignal) {
   return request<CommissionPage<PaidCommission>>(
-    queryPath('/commissions/history', query),
+    queryPath('/commissions/history', sanitizeListQuery(query)),
     signal ? { signal } : {},
   )
 }

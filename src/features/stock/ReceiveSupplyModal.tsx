@@ -1,10 +1,11 @@
 import { LoaderCircle, PackageCheck, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
-import type { ReceiveSupplyInput, SupplyOrder } from './types'
+import type { BranchOption, ReceiveSupplyInput, SupplyOrder } from './types'
 
 type ReceiveSupplyModalProps = {
   supply: SupplyOrder
+  branches: BranchOption[]
   submitting: boolean
   error: string | null
   onClose: () => void
@@ -13,6 +14,7 @@ type ReceiveSupplyModalProps = {
 
 export function ReceiveSupplyModal({
   supply,
+  branches,
   submitting,
   error,
   onClose,
@@ -27,7 +29,7 @@ export function ReceiveSupplyModal({
     const licensePlate = String(data.get('licensePlate') ?? '').trim()
     onSubmit({
       vin: String(data.get('vin')).trim().toUpperCase(),
-      branchId: supply.destinationBranch.id,
+      branchId: String(data.get('branchId')),
       year: Number(data.get('year')),
       mileage:
         supply.condition === 'NUEVO' ? 0 : Number(data.get('mileage')),
@@ -94,14 +96,21 @@ export function ReceiveSupplyModal({
               <span>Sucursal de recepción *</span>
               <select
                 aria-label="Sucursal de recepción"
-                value={supply.destinationBranch.id}
+                defaultValue={supply.destinationBranch.id}
                 disabled
                 required
               >
-                <option value={supply.destinationBranch.id}>
-                  {supply.destinationBranch.name}
-                </option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
               </select>
+              <input
+                name="branchId"
+                type="hidden"
+                value={supply.destinationBranch.id}
+              />
             </label>
             <label className="field">
               <span>Año *</span>
@@ -125,10 +134,12 @@ export function ReceiveSupplyModal({
                 required
               />
             </label>
+            {supply.vehicleType === 'AUTO' && (
             <label className="field">
               <span>Patente</span>
               <input name="licensePlate" maxLength={12} />
             </label>
+            )}
           </div>
           <footer className="stock-modal__actions">
             <button

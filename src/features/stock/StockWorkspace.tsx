@@ -1,10 +1,9 @@
 import {
-  Bike,
   Building2,
-  CarFront,
   Check,
   CircleDollarSign,
   Clock3,
+  Printer,
   PackageCheck,
   Plus,
   Search,
@@ -15,11 +14,13 @@ import {
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { ProviderAvailabilityModal } from './ProviderAvailabilityModal'
+import { PricePolicyModal } from './PricePolicyModal'
 import { ReceiveSupplyModal } from './ReceiveSupplyModal'
 import { UnitFormModal } from './UnitFormModal'
 import { stockErrorMessage } from './errors'
 import type {
   AcquisitionOrigin,
+  ConfigurePriceInput,
   CreateUnitsInput,
   PhysicalUnit,
   ReceiveSupplyInput,
@@ -43,6 +44,7 @@ type StockWorkspaceProps = {
   capabilities: StockCapabilities
   onCreateUnits: (input: CreateUnitsInput) => Promise<void>
   onUpsertAvailability: (input: UpsertAvailabilityInput) => Promise<void>
+  onConfigurePrice: (input: ConfigurePriceInput) => Promise<void>
   onTransitionSupply: (
     supplyId: string,
     status: SupplyStatus,
@@ -92,6 +94,14 @@ function formatDate(value: string | null) {
   }).format(date)
 }
 
+function formatMoney(value: number, currency = 'ARS') {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
 function modelName(item: {
   brand: string
   model: string
@@ -107,7 +117,10 @@ function normalize(value: string) {
     .toLocaleLowerCase()
 }
 
-function matchesSearch(values: Array<string | null>, search: string) {
+function matchesSearch(
+  values: Array<string | null | undefined>,
+  search: string,
+) {
   if (!search) return true
   return normalize(values.filter(Boolean).join(' ')).includes(normalize(search))
 }
@@ -140,12 +153,26 @@ function EmptyTab({
   )
 }
 
-function UnitCards({ units }: { units: PhysicalUnit[] }) {
+function UnitCards({
+  units,
+  selected,
+  onToggle,
+}: {
+  units: PhysicalUnit[]
+  selected: Set<string>
+  onToggle: (unitId: string) => void
+}) {
   return (
     <div className="stock-card-list">
       {units.map((unit) => (
         <article className="stock-row-card" key={unit.id}>
           <div className="stock-row-card__heading">
+            <input
+              aria-label={`Seleccionar ${unit.vin}`}
+              checked={selected.has(unit.id)}
+              onChange={() => onToggle(unit.id)}
+              type="checkbox"
+            />
             <div>
               <strong>{modelName(unit.catalogModel)}</strong>
               <span>{unit.vin}</span>
@@ -182,7 +209,17 @@ function UnitCards({ units }: { units: PhysicalUnit[] }) {
   )
 }
 
-function PhysicalUnits({ units }: { units: PhysicalUnit[] }) {
+function PhysicalUnits({
+  units,
+  selected,
+  onToggle,
+  onToggleAll,
+}: {
+  units: PhysicalUnit[]
+  selected: Set<string>
+  onToggle: (unitId: string) => void
+  onToggleAll: () => void
+}) {
   if (units.length === 0) {
     return (
       <EmptyTab
@@ -193,11 +230,23 @@ function PhysicalUnits({ units }: { units: PhysicalUnit[] }) {
   }
   return (
     <>
-      <UnitCards units={units} />
+      <UnitCards units={units} selected={selected} onToggle={onToggle} />
       <div className="stock-table-wrap">
         <table className="stock-table">
           <thead>
             <tr>
+              <th>
+                <input
+                  aria-label="Seleccionar unidades visibles"
+                  checked={
+                    units.length > 0 &&
+                    units.every((unit) => selected.has(unit.id))
+                  }
+                  onChange={onToggleAll}
+                  type="checkbox"
+                />
+              </th>
+              <th>Tipo</th>
               <th>Marca / modelo</th>
               <th>Condición</th>
               <th>VIN / chasis</th>
@@ -205,11 +254,25 @@ function PhysicalUnits({ units }: { units: PhysicalUnit[] }) {
               <th>Origen</th>
               <th>Año / km</th>
               <th>Estado</th>
+              <th>Reserva</th>
             </tr>
           </thead>
           <tbody>
             {units.map((unit) => (
               <tr key={unit.id}>
+                <td>
+                  <input
+                    aria-label={`Seleccionar ${unit.vin}`}
+                    checked={selected.has(unit.id)}
+                    onChange={() => onToggle(unit.id)}
+                    type="checkbox"
+                  />
+                </td>
+                <td>
+                  <Badge tone="info">
+                    {unit.vehicleType === 'MOTO' ? 'Moto' : 'Auto'}
+                  </Badge>
+                </td>
                 <td>
                   <strong>{modelName(unit.catalogModel)}</strong>
                 </td>
@@ -231,6 +294,7 @@ function PhysicalUnits({ units }: { units: PhysicalUnit[] }) {
                     {unitStatusLabels[unit.status]}
                   </Badge>
                 </td>
+                <td>—</td>
               </tr>
             ))}
           </tbody>
@@ -242,8 +306,14 @@ function PhysicalUnits({ units }: { units: PhysicalUnit[] }) {
 
 function CatalogList({
   catalog,
+  units,
+  canConfigurePrice,
+  onConfigurePrice,
 }: {
   catalog: StockWorkspaceData['catalog']
+  units: PhysicalUnit[]
+  canConfigurePrice: boolean
+  onConfigurePrice: (item: StockWorkspaceData['catalog'][number]) => void
 }) {
   if (catalog.length === 0) {
     return (
@@ -254,22 +324,69 @@ function CatalogList({
     )
   }
   return (
-    <div className="catalog-grid">
-      {catalog.map((item) => (
-        <article className="catalog-card" key={item.id}>
-          <div className="catalog-card__icon">
-            {item.vehicleType === 'MOTO' ? <Bike /> : <CarFront />}
-          </div>
-          <div>
-            <span>{item.brand}</span>
-            <strong>{item.model}</strong>
-            <small>{item.version ?? 'Sin versión informada'}</small>
-          </div>
-          <Badge tone={item.active ? 'success' : 'neutral'}>
-            {item.active ? 'Activo' : 'Inactivo'}
-          </Badge>
-        </article>
-      ))}
+    <div className="stock-table-wrap stock-table-wrap--catalog">
+      <table className="stock-table stock-table--catalog">
+        <thead>
+          <tr>
+            <th>Marca</th>
+            <th>Modelo</th>
+            <th>Precio sugerido</th>
+            <th>Precio mínimo</th>
+            <th>Unidades físicas</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {catalog.map((item) => (
+            <tr key={item.id}>
+              <td><strong>{item.brand}</strong></td>
+              <td>
+                {item.model}
+                {item.version && item.version !== item.model && (
+                  <small className="stock-table__subline">{item.version}</small>
+                )}
+              </td>
+              <td>
+                {item.pricePolicy
+                  ? formatMoney(
+                      item.pricePolicy.listPrice,
+                      item.pricePolicy.currency,
+                    )
+                  : '—'}
+              </td>
+              <td>
+                {item.pricePolicy
+                  ? formatMoney(
+                      item.pricePolicy.minimumPrice,
+                      item.pricePolicy.currency,
+                    )
+                  : '—'}
+              </td>
+              <td>
+                {units.filter((unit) => unit.catalogModel.id === item.id).length}
+              </td>
+              <td>
+                {item.pricePolicy ? (
+                  <Badge tone="success">Precio vigente</Badge>
+                ) : canConfigurePrice ? (
+                  <div className="catalog-price-action">
+                    <Badge tone="danger">Sin precio configurado</Badge>
+                    <button
+                      className="button button--secondary"
+                      onClick={() => onConfigurePrice(item)}
+                      type="button"
+                    >
+                      Configurar precio
+                    </button>
+                  </div>
+                ) : (
+                  <Badge tone="danger">Sin precio configurado</Badge>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -292,37 +409,90 @@ function AvailabilityList({
     )
   }
   return (
-    <div className="availability-grid">
-      {items.map((item) => (
-        <article className="availability-card" key={item.id}>
-          <div className="availability-card__top">
-            <Store aria-hidden="true" />
-            <div>
-              <strong>{item.supplier.name}</strong>
-              <span>{formatDate(item.updatedAt)}</span>
+    <>
+      <div className="stock-table-wrap stock-table-wrap--availability">
+        <table className="stock-table stock-table--availability">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Marca / modelo</th>
+              <th>Condición</th>
+              <th>Proveedor</th>
+              <th>Disponibilidad</th>
+              <th>Actualizado</th>
+              <th>Observaciones</th>
+              {canManage && <th>Acción</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.id}>
+                <td>
+                  <Badge tone="info">
+                    {item.vehicleType === 'MOTO' ? 'Moto' : 'Auto'}
+                  </Badge>
+                </td>
+                <td>
+                  <strong>{modelName(item.catalogModel)}</strong>
+                  <small className="stock-table__subline">
+                    Sin chasis hasta la recepción
+                  </small>
+                </td>
+                <td>
+                  {item.condition === 'NUEVO' ? 'Nuevo / 0 km' : 'Usado'}
+                </td>
+                <td>{item.supplier.name}</td>
+                <td><strong>{item.quantity} unidades</strong></td>
+                <td>{formatDate(item.updatedAt)}</td>
+                <td>{item.notes ?? '—'}</td>
+                {canManage && (
+                  <td>
+                    <button
+                      className="button button--secondary"
+                      onClick={() => onEdit(item)}
+                      type="button"
+                    >
+                      Actualizar cantidad
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="stock-card-list availability-card-list">
+        {items.map((item) => (
+          <article className="availability-card" key={item.id}>
+            <div className="availability-card__top">
+              <Store aria-hidden="true" />
+              <div>
+                <strong>{item.supplier.name}</strong>
+                <span>{formatDate(item.updatedAt)}</span>
+              </div>
+              <b>{item.quantity}</b>
             </div>
-            <b>{item.quantity}</b>
-          </div>
-          <h3>{modelName(item.catalogModel)}</h3>
-          <div className="availability-card__meta">
-            <Badge tone="info">
-              {item.condition === 'NUEVO' ? 'Nuevo / 0 km' : 'Usado'}
-            </Badge>
-            <span>Sin VIN · fuera del stock físico</span>
-          </div>
-          {item.notes && <p>{item.notes}</p>}
-          {canManage && (
-            <button
-              className="button button--secondary availability-card__action"
-              onClick={() => onEdit(item)}
-              type="button"
-            >
-              Actualizar cantidad
-            </button>
-          )}
-        </article>
-      ))}
-    </div>
+            <h3>{modelName(item.catalogModel)}</h3>
+            <div className="availability-card__meta">
+              <Badge tone="info">
+                {item.condition === 'NUEVO' ? 'Nuevo / 0 km' : 'Usado'}
+              </Badge>
+              <span>Sin VIN · fuera del stock físico</span>
+            </div>
+            {item.notes && <p>{item.notes}</p>}
+            {canManage && (
+              <button
+                className="button button--secondary availability-card__action"
+                onClick={() => onEdit(item)}
+                type="button"
+              >
+                Actualizar cantidad
+              </button>
+            )}
+          </article>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -330,12 +500,12 @@ function nextSupplyAction(status: SupplyStatus) {
   if (status === 'PENDIENTE_CONFIRMACION') {
     return {
       status: 'CONFIRMADO' as const,
-      label: 'Confirmar',
+      label: 'Confirmar disponibilidad',
       icon: Check,
     }
   }
   if (status === 'CONFIRMADO') {
-    return { status: 'PEDIDO' as const, label: 'Pedir', icon: Send }
+    return { status: 'PEDIDO' as const, label: 'Realizar pedido', icon: Send }
   }
   if (status === 'PEDIDO') {
     return {
@@ -381,8 +551,18 @@ function SuppliesList({
             <div className="supply-card__body">
               <div className="supply-card__heading">
                 <div>
-                  <span>{supply.id}</span>
+                  <span>
+                    {supply.operation?.number ??
+                      supply.operation?.id ??
+                      supply.id}
+                  </span>
                   <h3>{modelName(supply.catalogModel)}</h3>
+                  <p className="supply-card__customer">
+                    {supply.operation?.clientName ?? 'Cliente no informado por API'}
+                    {supply.operation?.clientDocument
+                      ? ` · ${supply.operation.clientDocument}`
+                      : ''}
+                  </p>
                 </div>
                 <Badge
                   tone={
@@ -399,20 +579,20 @@ function SuppliesList({
               </div>
               <dl>
                 <div>
-                  <dt>Proveedor</dt>
-                  <dd>{supply.supplier.name}</dd>
+                  <dt>Estado operación</dt>
+                  <dd>{supply.operation?.status ?? '—'}</dd>
                 </div>
                 <div>
-                  <dt>Cantidad</dt>
-                  <dd>{supply.quantity}</dd>
+                  <dt>Abastecimiento</dt>
+                  <dd>{supplyStatusLabels[supply.status]}</dd>
                 </div>
                 <div>
-                  <dt>Destino</dt>
-                  <dd>{supply.destinationBranch.name}</dd>
+                  <dt>Chasis</dt>
+                  <dd>{supply.receivedUnit?.vin ?? 'Sin asignar'}</dd>
                 </div>
                 <div>
-                  <dt>Pedido</dt>
-                  <dd>{formatDate(supply.requestedAt)}</dd>
+                  <dt>Proveedor / destino</dt>
+                  <dd>{supply.supplier.name} · {supply.destinationBranch.name}</dd>
                 </div>
               </dl>
               {(nextAction && capabilities.manageSupply && ActionIcon) && (
@@ -474,6 +654,7 @@ export function StockWorkspace({
   capabilities,
   onCreateUnits,
   onUpsertAvailability,
+  onConfigurePrice,
   onTransitionSupply,
   onReceiveSupply,
 }: StockWorkspaceProps) {
@@ -493,20 +674,24 @@ export function StockWorkspace({
     SupplierAvailability | 'new' | null
   >(null)
   const [receiving, setReceiving] = useState<SupplyOrder | null>(null)
+  const [pricing, setPricing] = useState<
+    StockWorkspaceData['catalog'][number] | null
+  >(null)
+  const [selectedUnits, setSelectedUnits] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [busySupplyId, setBusySupplyId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const noun = vehicleType === 'MOTO' ? 'motos' : 'autos'
   const tabs = [
     ['physical', 'Unidades físicas'],
-    ...(capabilities.viewCatalog
-      ? ([['catalog', 'Catálogo']] as const)
-      : []),
     ...(capabilities.viewAvailability
-      ? ([['providers', 'Proveedores']] as const)
+      ? ([['providers', 'Disponibilidad de proveedores']] as const)
       : []),
     ...(capabilities.viewSupply
-      ? ([['supply', 'Abastecimiento']] as const)
+      ? ([['supply', 'Abastecimientos']] as const)
+      : []),
+    ...(capabilities.viewCatalog
+      ? ([['catalog', 'Catálogo de modelos']] as const)
       : []),
   ] satisfies Array<readonly [StockTab, string]>
 
@@ -549,6 +734,10 @@ export function StockWorkspace({
       ),
     [data.catalog, search, vehicleType],
   )
+  const labelUnits = useMemo(
+    () => data.units.filter((unit) => selectedUnits.has(unit.id)),
+    [data.units, selectedUnits],
+  )
   const availability = useMemo(
     () =>
       data.availability.filter(
@@ -583,6 +772,10 @@ export function StockWorkspace({
               item.catalogModel.model,
               item.catalogModel.version,
               item.supplier.name,
+              item.operation?.number,
+              item.operation?.clientName,
+              item.operation?.clientDocument,
+              item.receivedUnit?.vin,
             ],
             search,
           ),
@@ -640,6 +833,25 @@ export function StockWorkspace({
     setActionError(null)
     setReceiving(supply)
   }
+  const toggleUnit = (unitId: string) => {
+    setSelectedUnits((current) => {
+      const next = new Set(current)
+      if (next.has(unitId)) next.delete(unitId)
+      else next.add(unitId)
+      return next
+    })
+  }
+  const toggleVisibleUnits = () => {
+    setSelectedUnits((current) => {
+      const allSelected =
+        units.length > 0 && units.every((unit) => current.has(unit.id))
+      const next = new Set(current)
+      units.forEach((unit) =>
+        allSelected ? next.delete(unit.id) : next.add(unit.id),
+      )
+      return next
+    })
+  }
 
   return (
     <>
@@ -660,7 +872,7 @@ export function StockWorkspace({
               type="button"
             >
               <Store size={18} />
-              Informar proveedor
+              + {vehicleType === 'MOTO' ? 'Motos' : 'Autos'} de proveedor
             </button>
           )}
           {capabilities.createUnits && (
@@ -670,9 +882,18 @@ export function StockWorkspace({
               type="button"
             >
               <Plus size={18} />
-              Ingresar {vehicleType === 'MOTO' ? 'motos' : 'autos'}
+              + Ingresar {vehicleType === 'MOTO' ? 'motos' : 'autos'}
             </button>
           )}
+          <button
+            className="button button--dark"
+            disabled={selectedUnits.size === 0}
+            onClick={() => window.print()}
+            type="button"
+          >
+            <Printer size={18} />
+            Etiquetas ({selectedUnits.size})
+          </button>
         </div>
       </header>
 
@@ -691,7 +912,7 @@ export function StockWorkspace({
                   ).length
                 }
               </strong>
-              <span>Disponibles en {branch.name}</span>
+              <span>{noun} disponibles en {branch.name}</span>
             </div>
           </article>
         ))}
@@ -707,7 +928,7 @@ export function StockWorkspace({
                 ).length
               }
             </strong>
-            <span>Unidades reservadas</span>
+            <span>{noun} reservadas</span>
           </div>
         </article>
         {capabilities.viewAvailability && (
@@ -777,7 +998,7 @@ export function StockWorkspace({
             <input
               aria-label="Buscar por marca o modelo"
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar marca, modelo, versión o VIN"
+              placeholder={`Buscar ${vehicleType === 'MOTO' ? 'moto' : 'auto'}, chasis, proveedor u operación`}
               type="search"
               value={search}
             />
@@ -893,8 +1114,25 @@ export function StockWorkspace({
           id={`stock-${vehicleType.toLocaleLowerCase()}-panel`}
           role="tabpanel"
         >
-          {tab === 'physical' && <PhysicalUnits units={units} />}
-          {tab === 'catalog' && <CatalogList catalog={catalog} />}
+          {tab === 'physical' && (
+            <PhysicalUnits
+              units={units}
+              selected={selectedUnits}
+              onToggle={toggleUnit}
+              onToggleAll={toggleVisibleUnits}
+            />
+          )}
+          {tab === 'catalog' && (
+            <CatalogList
+              catalog={catalog}
+              units={data.units}
+              canConfigurePrice={capabilities.createCatalog}
+              onConfigurePrice={(item) => {
+                setActionError(null)
+                setPricing(item)
+              }}
+            />
+          )}
           {tab === 'providers' && (
             <AvailabilityList
               canManage={capabilities.manageAvailability}
@@ -919,11 +1157,21 @@ export function StockWorkspace({
         </div>
       </section>
 
+      <section aria-hidden="true" className="stock-label-sheet">
+        {labelUnits.map((unit) => (
+          <article className="stock-label" key={unit.id}>
+            <strong>LUMA MOTOS · {unit.vehicleType}</strong>
+            <span>{modelName(unit.catalogModel)}</span>
+            <b>{unit.vin}</b>
+            <small>{unit.branch.name}</small>
+          </article>
+        ))}
+      </section>
+
       {unitModal && (
         <UnitFormModal
           branches={data.branches}
           canCreateCatalog={capabilities.createCatalog}
-          canCreateSharedCatalog={capabilities.createSharedCatalog}
           catalog={data.catalog}
           error={actionError}
           onClose={() => setUnitModal(false)}
@@ -934,8 +1182,6 @@ export function StockWorkspace({
             )
           }
           submitting={busy}
-          suppliers={data.suppliers}
-          models={data.models}
           vehicleType={vehicleType}
         />
       )}
@@ -945,6 +1191,7 @@ export function StockWorkspace({
             ? {}
             : { availability: providerModal })}
           catalog={data.catalog}
+          canCreateCatalog={capabilities.createCatalog}
           error={actionError}
           onClose={() => setProviderModal(null)}
           onSubmit={(input) =>
@@ -960,6 +1207,7 @@ export function StockWorkspace({
       )}
       {receiving && (
         <ReceiveSupplyModal
+          branches={data.branches}
           error={actionError}
           onClose={() => setReceiving(null)}
           onSubmit={(input) =>
@@ -970,6 +1218,20 @@ export function StockWorkspace({
           }
           submitting={busy}
           supply={receiving}
+        />
+      )}
+      {pricing && (
+        <PricePolicyModal
+          error={actionError}
+          model={pricing}
+          onClose={() => setPricing(null)}
+          onSubmit={(input) =>
+            void runMutation(
+              () => onConfigurePrice(input),
+              () => setPricing(null),
+            )
+          }
+          submitting={busy}
         />
       )}
     </>

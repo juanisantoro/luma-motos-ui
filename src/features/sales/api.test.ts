@@ -1,15 +1,25 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AUTH_TOKEN_KEY } from '../../shared/api/client'
 import {
+  createSalesTradeIn,
   createSalesOperation,
   createLinkedSupplyRequest,
   getSalesPricePolicy,
+  listSalesFinancialInstitutions,
   listSalesApprovals,
+  listSalesContacts,
   listSalesOperations,
   listSalesSellers,
   rejectSalesOperation,
+  replaceSalesPaymentPlan,
   releaseSalesReservation,
+  submitSalesOperation,
 } from './api'
+
+const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').replace(
+  /\/+$/,
+  '',
+)
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -42,7 +52,7 @@ describe('contrato API de operaciones', () => {
 
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe(
-      'http://localhost:3000/api/sales/operations?vehicleType=MOTO&status=PENDIENTE_APROBACION&search=Ana&from=2026-08-01&page=2&limit=20',
+      `${API_URL}/sales/operations?vehicleType=MOTO&status=PENDIENTE_APROBACION&search=Ana&from=2026-08-01&page=2&limit=20`,
     )
     expect(new Headers(request.headers).get('Authorization')).toBe(
       'Bearer sales-token',
@@ -89,6 +99,54 @@ describe('contrato API de operaciones', () => {
     })
   })
 
+  it('persiste toma, plan de pago y envío con rowVersion', async () => {
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'sales-token')
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json({ id: 'operation-1', rowVersion: 2 }, 201))
+      .mockResolvedValueOnce(json({ id: 'operation-1', rowVersion: 3 }))
+      .mockResolvedValueOnce(json({ id: 'operation-1', rowVersion: 4 }))
+      .mockResolvedValueOnce(json({ items: [], total: 0, page: 1, limit: 100 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await createSalesTradeIn('operation-1', {
+      expectedVersion: 1,
+      description: 'Honda usada',
+      appraisedAmount: 1_000_000,
+      acceptedAmount: 900_000,
+    })
+    await replaceSalesPaymentPlan('operation-1', {
+      expectedVersion: 2,
+      components: [
+        {
+          type: 'FINANCIACION',
+          amount: 2_000_000,
+          financialInstitutionId: 'bank-1',
+        },
+      ],
+    })
+    await submitSalesOperation('operation-1', 3)
+    await listSalesFinancialInstitutions()
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      `${API_URL}/sales/operations/operation-1/trade-ins`,
+      `${API_URL}/sales/operations/operation-1/payment-plan`,
+      `${API_URL}/sales/operations/operation-1/submit`,
+      `${API_URL}/financial-institutions?active=true&page=1&limit=100`,
+    ])
+    const paymentRequest = fetchMock.mock.calls[1]?.[1] as RequestInit
+    expect(JSON.parse(String(paymentRequest.body))).toEqual({
+      expectedVersion: 2,
+      components: [
+        {
+          type: 'FINANCIACION',
+          amount: 2_000_000,
+          financialInstitutionId: 'bank-1',
+        },
+      ],
+    })
+  })
+
   it('usa rowVersion al liberar una reserva y rechazar una aprobación', async () => {
     sessionStorage.setItem(AUTH_TOKEN_KEY, 'sales-token')
     const fetchMock = vi
@@ -107,8 +165,8 @@ describe('contrato API de operaciones', () => {
     })
 
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-      'http://localhost:3000/api/sales/operations/operation-1/reservation/release',
-      'http://localhost:3000/api/sales/operations/operation-1/reject',
+      `${API_URL}/sales/operations/operation-1/reservation/release`,
+      `${API_URL}/sales/operations/operation-1/reject`,
     ])
     const firstRequest = fetchMock.mock.calls[0]?.[1] as RequestInit
     const secondRequest = fetchMock.mock.calls[1]?.[1] as RequestInit
@@ -128,6 +186,7 @@ describe('contrato API de operaciones', () => {
         .fn()
         .mockResolvedValueOnce(json({ items: [], total: 0, page: 1, limit: 20 }))
         .mockResolvedValueOnce(json({ items: [], total: 0, page: 1, limit: 100 }))
+        .mockResolvedValueOnce(json({ items: [], total: 0, page: 1, limit: 100 }))
         .mockResolvedValueOnce(
           json({
             id: 'policy-1',
@@ -146,6 +205,7 @@ describe('contrato API de operaciones', () => {
         limit: 20,
       })
       await listSalesSellers({ branchId: 'branch-1', limit: 100 })
+      await listSalesContacts({ branchId: 'branch-1', limit: 100 })
       await getSalesPricePolicy({
         branchId: 'branch-1',
         versionId: 'version-1',
@@ -154,9 +214,10 @@ describe('contrato API de operaciones', () => {
       })
 
       expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-        'http://localhost:3000/api/sales/operations?vehicleType=MOTO&mine=true&page=1&limit=20',
-        'http://localhost:3000/api/sales/operations/sellers?branchId=branch-1&limit=100',
-        'http://localhost:3000/api/sales/operations/price-policy?branchId=branch-1&versionId=version-1&vehicleType=MOTO&operationDate=2026-08-29',
+        `${API_URL}/sales/operations?vehicleType=MOTO&mine=true&page=1&limit=20`,
+        `${API_URL}/sales/operations/sellers?branchId=branch-1&limit=100`,
+        `${API_URL}/sales/operations/contacts?branchId=branch-1&limit=100`,
+        `${API_URL}/sales/operations/price-policy?branchId=branch-1&versionId=version-1&vehicleType=MOTO&operationDate=2026-08-29`,
       ])
     })
 
@@ -174,7 +235,7 @@ describe('contrato API de operaciones', () => {
       })
 
       expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-        'http://localhost:3000/api/sales/operations/approvals?vehicleType=AUTO&page=1&limit=100',
+        `${API_URL}/sales/operations/approvals?vehicleType=AUTO&page=1&limit=100`,
       )
     })
 
@@ -195,7 +256,7 @@ describe('contrato API de operaciones', () => {
       })
 
       const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit]
-      expect(url).toBe('http://localhost:3000/api/supply-requests')
+      expect(url).toBe(`${API_URL}/supply-requests`)
       expect(JSON.parse(String(request.body))).toEqual({
         supplierId: 'supplier-1',
         supplierAvailabilityId: 'availability-1',

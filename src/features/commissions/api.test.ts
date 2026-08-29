@@ -15,6 +15,79 @@ afterEach(() => {
 })
 
 describe('contrato HTTP de comisiones', () => {
+  it('carga sucursales sin paginación y consulta vendedores por UUID real', async () => {
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'token')
+    const branch = {
+      id: '84e778cc-7616-4792-b6db-d89f100bb6f1',
+      name: 'San Miguel',
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json([branch]))
+      .mockResolvedValueOnce(
+        json({
+          items: [
+            {
+              id: '11b5de9b-9bc2-4777-bb78-9e4e9563dd20',
+              employeeCode: 'V-1',
+              fullName: 'Vendedora Uno',
+            },
+          ],
+          total: 1,
+          page: 1,
+          limit: 100,
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await commissionApiGateway.listOptions()
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'http://localhost:3000/api/branches',
+      'http://localhost:3000/api/sales/operations/sellers?branchId=84e778cc-7616-4792-b6db-d89f100bb6f1&page=1&limit=100',
+    ])
+  })
+
+  it('omite placeholders e IDs inválidos en los filtros por defecto', async () => {
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'token')
+    const fetchMock = vi.fn().mockResolvedValue(
+      json({ items: [], total: 0, page: 1, limit: 50 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await commissionApiGateway.listSuggestions({
+      vehicleType: 'MOTO',
+      period: '2026-08',
+      branchId: 'Todas',
+      sellerId: 'Todos',
+      page: 1,
+      limit: 50,
+    })
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      'http://localhost:3000/api/commissions/suggestions?vehicleType=MOTO&period=2026-08&page=1&limit=50',
+    )
+  })
+
+  it('envía branchId sólo cuando se selecciona un UUID real', async () => {
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'token')
+    const fetchMock = vi.fn().mockResolvedValue(
+      json({ items: [], total: 0, page: 1, limit: 50 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const branchId = '84e778cc-7616-4792-b6db-d89f100bb6f1'
+
+    await commissionApiGateway.listSuggestions({
+      vehicleType: 'AUTO',
+      period: '2026-08',
+      branchId,
+    })
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      `branchId=${branchId}`,
+    )
+  })
+
   it('envía tipo obligatorio y nombres definitivos de filtros al sugerido', async () => {
     sessionStorage.setItem(AUTH_TOKEN_KEY, 'token')
     const fetchMock = vi.fn().mockResolvedValue(json({

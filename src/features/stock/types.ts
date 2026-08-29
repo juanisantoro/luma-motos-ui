@@ -59,6 +59,18 @@ export type CatalogModel = {
   model: string
   version: string | null
   active: boolean
+  pricePolicy: CatalogPricePolicy | null
+}
+
+export type CatalogPricePolicy = {
+  id: string
+  versionId: string
+  branchId: string | null
+  currency: string
+  listPrice: number
+  minimumPrice: number
+  validFrom: string
+  validUntil: string | null
 }
 
 export type PhysicalUnit = {
@@ -98,6 +110,13 @@ export type SupplyOrder = {
   status: SupplyStatus
   destinationBranch: BranchOption
   requestedAt: string | null
+  operation: {
+    id: string
+    number: string | null
+    status: string | null
+    clientName: string | null
+    clientDocument: string | null
+  } | null
   receivedUnit: PhysicalUnit | null
   receivedUnitId: string | null
 }
@@ -118,6 +137,8 @@ export type CatalogModelDraft = {
   modelName?: string
   versionName: string
   scope: 'GLOBAL' | 'RESTRINGIDO'
+  listPrice: number
+  minimumPrice: number
 }
 
 export type UnitDraft = {
@@ -142,10 +163,18 @@ export type CreateUnitsInput = {
 export type UpsertAvailabilityInput = {
   vehicleType: VehicleKind
   condition: VehicleCondition
-  catalogModelId: string
+  catalogModelId?: string
+  catalogModel?: CatalogModelDraft
   supplierId: string
   quantity: number
+  reportedAt: string
   notes?: string
+}
+
+export type ConfigurePriceInput = {
+  versionId: string
+  listPrice: number
+  minimumPrice: number
 }
 
 export type ReceiveSupplyInput = {

@@ -164,7 +164,14 @@ export function StockPage({
         )
       }
       onUpsertAvailability={(input) =>
-        mutateAndReload(() => gateway.upsertAvailability(input))
+        mutateAndReload(() =>
+          gateway.upsertAvailability(input, targetOrganizationId),
+        )
+      }
+      onConfigurePrice={(input) =>
+        mutateAndReload(() =>
+          gateway.configurePrice(input, targetOrganizationId),
+        )
       }
       vehicleType={vehicleType}
     />

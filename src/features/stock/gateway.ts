@@ -1,4 +1,5 @@
 import type {
+  ConfigurePriceInput,
   CreateUnitsInput,
   ReceiveSupplyInput,
   StockCapabilities,
@@ -19,7 +20,14 @@ export type StockGateway = {
     input: CreateUnitsInput,
     organizationId?: string,
   ) => Promise<void>
-  upsertAvailability: (input: UpsertAvailabilityInput) => Promise<void>
+  upsertAvailability: (
+    input: UpsertAvailabilityInput,
+    organizationId?: string,
+  ) => Promise<void>
+  configurePrice: (
+    input: ConfigurePriceInput,
+    organizationId?: string,
+  ) => Promise<void>
   transitionSupply: (
     supplyId: string,
     status: SupplyStatus,

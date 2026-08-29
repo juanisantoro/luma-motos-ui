@@ -70,6 +70,16 @@ export function commissionErrorMessage(error: unknown) {
     }
     const typedMessage = messages[error.details?.code ?? '']
     if (typedMessage) return typedMessage
+    const technicalMessage = Array.isArray(error.details?.message)
+      ? error.details.message.join(' ')
+      : error.message
+    if (
+      /property (page|limit) should not exist|must be a UUID/i.test(
+        technicalMessage,
+      )
+    ) {
+      return 'No pudimos aplicar esos filtros. Actualizá la pantalla y volvé a intentarlo.'
+    }
   }
   if (error instanceof ApiError && error.status === 403) {
     return 'Tu perfil no tiene permiso para realizar esta acción.'

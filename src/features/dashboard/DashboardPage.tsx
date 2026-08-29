@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   Bike,
+  Car,
   CheckCircle2,
   ShoppingCart,
   UsersRound,
@@ -97,13 +98,30 @@ export function DashboardPage() {
               >
                 {canViewStock ? 'Disponible' : 'Sin permiso'}
               </span>
-              <h3>Stock y abastecimiento</h3>
-              <p>
-                Motos, autos, proveedores y recepciones en un único circuito.
-              </p>
+              <h3>Stock y abastecimiento de motos</h3>
+              <p>Unidades, disponibilidad y recepciones del circuito MOTO.</p>
             </div>
             {canViewStock && (
               <Link to="/stock/motos" className="text-link">
+                Abrir módulo <ArrowRight size={16} />
+              </Link>
+            )}
+          </article>
+          <article className="module-card">
+            <span className="module-card__icon">
+              <Car />
+            </span>
+            <div>
+              <span
+                className={`status-badge ${canViewStock ? 'status-badge--success' : ''}`}
+              >
+                {canViewStock ? 'Disponible' : 'Sin permiso'}
+              </span>
+              <h3>Stock y abastecimiento de autos</h3>
+              <p>Unidades, disponibilidad y recepciones del circuito AUTO.</p>
+            </div>
+            {canViewStock && (
+              <Link to="/stock/autos" className="text-link">
                 Abrir módulo <ArrowRight size={16} />
               </Link>
             )}
@@ -118,11 +136,30 @@ export function DashboardPage() {
               >
                 {canViewSales ? 'Disponible' : 'Sin permiso'}
               </span>
-              <h3>Operaciones comerciales</h3>
-              <p>Ventas, reservas de unidades y circuito de aprobación.</p>
+              <h3>Operaciones de motos</h3>
+              <p>Ventas, reservas y aprobaciones exclusivas del circuito MOTO.</p>
             </div>
             {canViewSales && (
-              <Link to="/operaciones" className="text-link">
+              <Link to="/motos/operaciones" className="text-link">
+                Abrir módulo <ArrowRight size={16} />
+              </Link>
+            )}
+          </article>
+          <article className="module-card">
+            <span className="module-card__icon">
+              <Car />
+            </span>
+            <div>
+              <span
+                className={`status-badge ${canViewSales ? 'status-badge--success' : ''}`}
+              >
+                {canViewSales ? 'Disponible' : 'Sin permiso'}
+              </span>
+              <h3>Operaciones de autos</h3>
+              <p>Ventas, reservas y aprobaciones exclusivas del circuito AUTO.</p>
+            </div>
+            {canViewSales && (
+              <Link to="/autos/operaciones" className="text-link">
                 Abrir módulo <ArrowRight size={16} />
               </Link>
             )}

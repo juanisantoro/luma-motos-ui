@@ -37,6 +37,7 @@ function gateway(
     loadWorkspace,
     createUnits: vi.fn().mockResolvedValue(undefined),
     upsertAvailability: vi.fn().mockResolvedValue(undefined),
+    configurePrice: vi.fn().mockResolvedValue(undefined),
     transitionSupply: vi.fn().mockResolvedValue(undefined),
     receiveSupply: vi.fn().mockResolvedValue(undefined),
   }
@@ -113,16 +114,16 @@ describe('contenedor de stock', () => {
 
     await screen.findByRole('heading', { name: 'Stock de motos' })
     expect(
-      screen.queryByRole('tab', { name: 'Catálogo' }),
+      screen.queryByRole('tab', { name: 'Catálogo de modelos' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('tab', { name: 'Proveedores' }),
+      screen.queryByRole('tab', { name: 'Disponibilidad de proveedores' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('tab', { name: 'Abastecimiento' }),
+      screen.queryByRole('tab', { name: 'Abastecimientos' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Ingresar motos' }),
+      screen.queryByRole('button', { name: /Ingresar motos/ }),
     ).not.toBeInTheDocument()
   })
 })

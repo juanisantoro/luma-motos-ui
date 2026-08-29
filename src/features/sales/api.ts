@@ -4,13 +4,16 @@ import {
 } from '../../shared/api/client'
 import type {
   CreateSalesOperationInput,
+  CreateSalesTradeInInput,
   CreateSupplyRequestInput,
   LinkedSupplyRequest,
   SalesPricePolicy,
+  SalesFinancialInstitutionPage,
   SalesSellerPage,
   SalesOperation,
   SalesOperationPage,
   SalesOperationQuery,
+  ReplaceSalesPaymentPlanInput,
   UpdateSalesOperationInput,
 } from './types'
 
@@ -66,7 +69,8 @@ export function getSalesOperation(id: string, signal?: AbortSignal) {
   )
 }
 
-export function listSalesSellers(
+function listSalesPeople(
+  resource: 'sellers' | 'contacts',
   query: {
     branchId: string
     search?: string
@@ -82,7 +86,28 @@ export function listSalesSellers(
   })
   const suffix = search.size ? `?${search.toString()}` : ''
   return request<SalesSellerPage>(
-    `/sales/operations/sellers${suffix}`,
+    `/sales/operations/${resource}${suffix}`,
+    signal ? { signal } : {},
+  )
+}
+
+export function listSalesSellers(
+  query: Parameters<typeof listSalesPeople>[1],
+  signal?: AbortSignal,
+) {
+  return listSalesPeople('sellers', query, signal)
+}
+
+export function listSalesContacts(
+  query: Parameters<typeof listSalesPeople>[1],
+  signal?: AbortSignal,
+) {
+  return listSalesPeople('contacts', query, signal)
+}
+
+export function listSalesFinancialInstitutions(signal?: AbortSignal) {
+  return request<SalesFinancialInstitutionPage>(
+    '/financial-institutions?active=true&page=1&limit=100',
     signal ? { signal } : {},
   )
 }
@@ -109,6 +134,26 @@ export function getSalesPricePolicy(
 
 export function createSalesOperation(input: CreateSalesOperationInput) {
   return request<SalesOperation>('/sales/operations', {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export function createSalesTradeIn(
+  id: string,
+  input: CreateSalesTradeInInput,
+) {
+  return request<SalesOperation>(`/sales/operations/${id}/trade-ins`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export function replaceSalesPaymentPlan(
+  id: string,
+  input: ReplaceSalesPaymentPlanInput,
+) {
+  return request<SalesOperation>(`/sales/operations/${id}/payment-plan`, {
     method: 'POST',
     body: input,
   })

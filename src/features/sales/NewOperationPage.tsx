@@ -2,49 +2,78 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock3,
+  CreditCard,
+  FileCheck2,
   LoaderCircle,
-  Search,
+  RefreshCw,
   Store,
-  Warehouse,
+  UserRound,
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { ApiError, NetworkError } from '../../shared/api/client'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { CreditAlert, useCreditCheck } from '../credit-checks'
-import { stockApiGateway } from '../stock/api'
-import { stockErrorMessage } from '../stock/errors'
+import {
+  listSalesBranches,
+  listSalesPhysicalUnits,
+  listSalesSupplierAvailability,
+} from '../stock/api'
 import type {
+  BranchOption,
   PhysicalUnit,
-  StockCapabilities,
-  StockWorkspaceData,
   SupplierAvailability,
   VehicleKind,
 } from '../stock/types'
 import {
   createSalesOperation,
+  createSalesTradeIn,
   getSalesPricePolicy,
+  listSalesContacts,
+  listSalesFinancialInstitutions,
   listSalesSellers,
+  replaceSalesPaymentPlan,
+  submitSalesOperation,
 } from './api'
 import { salesErrorMessage } from './errors'
+import {
+  OperationVehiclePicker,
+  type OperationVehicleOption,
+} from './OperationVehiclePicker'
 import { formatMoney } from './presentation'
 import type {
   SalesDebt,
+  SalesFinancialInstitution,
+  SalesOperation,
+  SalesPaymentComponentInput,
   SalesPaymentPlatform,
   SalesPricePolicy,
   SalesSeller,
 } from './types'
 
-type VehicleOption =
-  | { key: string; source: 'PHYSICAL'; unit: PhysicalUnit }
-  | { key: string; source: 'SUPPLIER'; availability: SupplierAvailability }
-
 type Completion = {
-  kind: 'draft' | 'submitted' | 'supply' | 'attention'
+  kind: 'draft' | 'partial' | 'submitted'
   number: string
   message: string
 }
+
+type FormField =
+  | 'documentNumber'
+  | 'fullName'
+  | 'phone'
+  | 'vehicle'
+  | 'branch'
+  | 'policy'
+  | 'agreedPrice'
+  | 'seller'
+  | 'financialInstitution'
+  | 'creditAmount'
+  | 'tradeInDescription'
+  | 'tradeInAmount'
+
+type FieldErrors = Partial<Record<FormField, string>>
 
 const paymentOptions: Array<{ value: SalesPaymentPlatform; label: string }> = [
   { value: 'EFECTIVO', label: 'Efectivo' },
@@ -61,21 +90,6 @@ function normalizeDocument(value: string) {
   return value.replace(/[\s.-]/g, '').toUpperCase()
 }
 
-function versionLabel(
-  item: PhysicalUnit['catalogModel'] | SupplierAvailability['catalogModel'],
-) {
-  return [item.brand, item.model, item.version].filter(Boolean).join(' ')
-}
-
-function vehicleOptionLabel(option: VehicleOption) {
-  if (option.source === 'PHYSICAL') {
-    const { unit } = option
-    return `${unit.vehicleType === 'MOTO' ? 'Moto' : 'Auto'} · ${versionLabel(unit.catalogModel)} · ${unit.condition === 'NUEVO' ? 'Nuevo' : 'Usado'} · ${unit.branch.name} · Chasis ${unit.vin}`
-  }
-  const { availability } = option
-  return `${availability.vehicleType === 'MOTO' ? 'Moto' : 'Auto'} · ${versionLabel(availability.catalogModel)} · ${availability.condition === 'NUEVO' ? 'Nuevo' : 'Usado'} · Proveedor ${availability.supplier.name} (${availability.quantity}) · Chasis al recibir`
-}
-
 function monthFromDate(value: string) {
   if (!value) return '—'
   const date = new Date(`${value}T12:00:00`)
@@ -85,6 +99,86 @@ function monthFromDate(value: string) {
     year: 'numeric',
   }).format(date)
   return label.charAt(0).toUpperCase() + label.slice(1)
+}
+
+function resourceError(error: unknown) {
+  if (error instanceof NetworkError) {
+    return 'El backend no respondió. Verificá que la API local esté activa y reintentá.'
+  }
+  if (error instanceof ApiError) {
+    if (error.status === 401) return 'La sesión venció. Volvé a ingresar.'
+    if (error.status === 403) return 'Tu rol no tiene permiso para consultar este recurso.'
+    return `${error.message} (HTTP ${error.status})`
+  }
+  return 'Ocurrió un error inesperado al consultar este recurso.'
+}
+
+function selectedModel(option: OperationVehicleOption | null) {
+  if (!option) return null
+  return option.source === 'PHYSICAL'
+    ? option.unit.catalogModel
+    : option.availability.catalogModel
+}
+
+function selectedCondition(option: OperationVehicleOption | null) {
+  if (!option) return null
+  return option.source === 'PHYSICAL'
+    ? option.unit.condition
+    : option.availability.condition
+}
+
+function FieldError({ message }: { message: string | undefined }) {
+  return message ? <small className="field-error">{message}</small> : null
+}
+
+function SectionHeading({
+  id,
+  number,
+  title,
+  description,
+}: {
+  id: string
+  number: number
+  title: string
+  description: string
+}) {
+  return (
+    <header className="operation-section__heading">
+      <span aria-hidden="true">{number}</span>
+      <div>
+        <h2 id={id}>{title}</h2>
+        <p>{description}</p>
+      </div>
+    </header>
+  )
+}
+
+function paymentPlan(
+  platform: SalesPaymentPlatform,
+  price: number,
+  creditAmount: number,
+  financialInstitutionId: string,
+  tradeInAmount: number,
+  tradeInVehicleId?: string,
+) {
+  const components: SalesPaymentComponentInput[] = []
+  if (tradeInVehicleId) {
+    components.push({
+      type: 'TOMA_PARTE_PAGO',
+      amount: tradeInAmount,
+      tradeInVehicleId,
+    })
+  }
+  if (platform.includes('CREDITO')) {
+    components.push({
+      type: 'FINANCIACION',
+      amount: creditAmount,
+      financialInstitutionId,
+    })
+  }
+  const cashAmount = price - creditAmount - tradeInAmount
+  if (cashAmount > 0) components.push({ type: 'EFECTIVO', amount: cashAmount })
+  return components
 }
 
 export function NewOperationPage({
@@ -98,24 +192,6 @@ export function NewOperationPage({
     permissions,
     'proveedores.consultar',
   )
-  const canManageSupply = hasPermission(
-    permissions,
-    'abastecimiento.gestionar',
-  )
-  const capabilities = useMemo<StockCapabilities>(
-    () => ({
-      viewCatalog: hasPermission(permissions, 'catalogo.consultar'),
-      viewAvailability: canViewAvailability,
-      viewSupply: false,
-      createUnits: false,
-      createCatalog: false,
-      createSharedCatalog: false,
-      manageAvailability: false,
-      manageSupply: false,
-      receiveSupply: false,
-    }),
-    [canViewAvailability, permissions],
-  )
   const organizationId = user?.globalAccess
     ? user.organization.id
     : undefined
@@ -128,34 +204,51 @@ export function NewOperationPage({
   const [operationDate, setOperationDate] = useState(today)
   const [vehicleSearch, setVehicleSearch] = useState('')
   const [vehicleKey, setVehicleKey] = useState('')
-  const [branchId, setBranchId] = useState('')
+  const [branchId, setBranchId] = useState(user?.branch?.id ?? '')
   const [agreedPrice, setAgreedPrice] = useState('')
   const [paymentPlatform, setPaymentPlatform] =
     useState<SalesPaymentPlatform>('EFECTIVO')
   const [creditAmount, setCreditAmount] = useState('')
+  const [financialInstitutionId, setFinancialInstitutionId] = useState('')
   const [guarantor, setGuarantor] = useState('')
+  const [tradeInDescription, setTradeInDescription] = useState('')
+  const [tradeInAmount, setTradeInAmount] = useState('')
   const [sellerId, setSellerId] = useState('')
-  const [contactSellerId, setContactSellerId] = useState('')
+  const [contactId, setContactId] = useState('')
   const [debtStatus, setDebtStatus] = useState<SalesDebt>('NO')
   const [papersDelivered, setPapersDelivered] = useState(false)
   const [notes, setNotes] = useState('')
 
-  const [workspace, setWorkspace] = useState<StockWorkspaceData | null>(null)
-  const [workspaceStatus, setWorkspaceStatus] = useState<
-    'loading' | 'success' | 'error'
-  >('loading')
-  const [workspaceError, setWorkspaceError] = useState('')
-  const [workspaceKey, setWorkspaceKey] = useState(0)
+  const [branches, setBranches] = useState<BranchOption[]>([])
+  const [units, setUnits] = useState<PhysicalUnit[]>([])
+  const [availability, setAvailability] = useState<SupplierAvailability[]>([])
+  const [vehicleLoading, setVehicleLoading] = useState(true)
+  const [vehicleErrors, setVehicleErrors] = useState<
+    Array<{ source: string; message: string }>
+  >([])
+  const [vehicleLoadKey, setVehicleLoadKey] = useState(0)
   const [sellers, setSellers] = useState<SalesSeller[]>([])
-  const [sellerStatus, setSellerStatus] = useState<
+  const [contacts, setContacts] = useState<SalesSeller[]>([])
+  const [peopleStatus, setPeopleStatus] = useState<
     'idle' | 'loading' | 'success' | 'error'
   >('idle')
-  const [sellerError, setSellerError] = useState('')
+  const [peopleError, setPeopleError] = useState('')
+  const [peopleLoadKey, setPeopleLoadKey] = useState(0)
+  const [financialInstitutions, setFinancialInstitutions] = useState<
+    SalesFinancialInstitution[]
+  >([])
+  const [financialStatus, setFinancialStatus] = useState<
+    'idle' | 'loading' | 'success' | 'error'
+  >('idle')
+  const [financialError, setFinancialError] = useState('')
+  const [financialLoadKey, setFinancialLoadKey] = useState(0)
   const [policy, setPolicy] = useState<SalesPricePolicy | null>(null)
   const [policyStatus, setPolicyStatus] = useState<
     'idle' | 'loading' | 'success' | 'error'
   >('idle')
   const [policyError, setPolicyError] = useState('')
+  const [policyLoadKey, setPolicyLoadKey] = useState(0)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [completion, setCompletion] = useState<Completion | null>(null)
@@ -165,127 +258,205 @@ export function NewOperationPage({
     documentNumber,
     enabled: normalizeDocument(documentNumber).length >= 5,
   })
+  const creditRequired = paymentPlatform.includes('CREDITO')
+  const tradeInRequired = paymentPlatform.startsWith('MOTO_')
+  const creditBlocksSale =
+    creditCheck.state.status === 'success' && creditCheck.state.data.blocksSale
 
   useEffect(() => {
     const controller = new AbortController()
-    setWorkspaceStatus('loading')
-    setWorkspaceError('')
-    void stockApiGateway
-      .loadWorkspace(
-        vehicleType,
-        capabilities,
-        organizationId,
-        controller.signal,
-      )
-      .then((data) => {
-        setWorkspace(data)
-        setWorkspaceStatus('success')
+    setVehicleLoading(true)
+    setVehicleErrors([])
+    void Promise.allSettled([
+      listSalesBranches(organizationId, controller.signal),
+      listSalesPhysicalUnits(vehicleType, organizationId, controller.signal),
+      canViewAvailability
+        ? listSalesSupplierAvailability(
+            vehicleType,
+            organizationId,
+            controller.signal,
+          )
+        : Promise.resolve([]),
+    ]).then(([branchResult, unitResult, availabilityResult]) => {
+      if (controller.signal.aborted) return
+      const errors: Array<{ source: string; message: string }> = []
+      if (branchResult.status === 'fulfilled') {
+        setBranches(branchResult.value)
         setBranchId((current) => {
-          if (current && data.branches.some((branch) => branch.id === current)) {
+          if (branchResult.value.some((branch) => branch.id === current)) {
             return current
           }
-          if (
-            user?.branch &&
-            data.branches.some((branch) => branch.id === user.branch?.id)
-          ) {
-            return user.branch.id
-          }
-          return data.branches[0]?.id ?? ''
+          return (
+            branchResult.value.find((branch) => branch.id === user?.branch?.id)
+              ?.id ??
+            branchResult.value[0]?.id ??
+            ''
+          )
         })
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        setWorkspaceError(stockErrorMessage(error))
-        setWorkspaceStatus('error')
-      })
+      } else {
+        setBranches([])
+        errors.push({
+          source: 'Sucursales',
+          message: resourceError(branchResult.reason),
+        })
+      }
+      if (unitResult.status === 'fulfilled') {
+        setUnits(unitResult.value)
+      } else {
+        setUnits([])
+        errors.push({
+          source: 'Stock físico',
+          message: resourceError(unitResult.reason),
+        })
+      }
+      if (availabilityResult.status === 'fulfilled') {
+        setAvailability(availabilityResult.value)
+      } else {
+        setAvailability([])
+        errors.push({
+          source: 'Disponibilidad de proveedores',
+          message: resourceError(availabilityResult.reason),
+        })
+      }
+      if (!canViewAvailability) {
+        errors.push({
+          source: 'Disponibilidad de proveedores',
+          message: 'Tu rol no tiene el permiso proveedores.consultar.',
+        })
+      }
+      setVehicleErrors(errors)
+      setVehicleLoading(false)
+    })
     return () => controller.abort()
   }, [
-    capabilities,
+    canViewAvailability,
     organizationId,
-    user?.branch,
+    user?.branch?.id,
+    vehicleLoadKey,
     vehicleType,
-    workspaceKey,
   ])
 
-  const vehicleOptions = useMemo<VehicleOption[]>(() => {
-    if (!workspace) return []
-    const physical = workspace.units
-      .filter(
-        (unit) =>
-          unit.vehicleType === vehicleType && unit.status === 'EN_STOCK',
-      )
+  const vehicleOptions = useMemo<OperationVehicleOption[]>(() => {
+    const physical = units
+      .filter((unit) => unit.vehicleType === vehicleType)
       .map((unit) => ({
         key: `unit:${unit.id}`,
         source: 'PHYSICAL' as const,
         unit,
       }))
-    const supplier = canViewAvailability
-      ? workspace.availability
-          .filter(
-            (item) =>
-              item.vehicleType === vehicleType && item.quantity > 0,
-          )
-          .map((availability) => ({
-            key: `availability:${availability.id}`,
-            source: 'SUPPLIER' as const,
-            availability,
-          }))
-      : []
-    return [...physical, ...supplier].sort((left, right) =>
-      vehicleOptionLabel(left).localeCompare(vehicleOptionLabel(right), 'es'),
-    )
-  }, [canViewAvailability, vehicleType, workspace])
+    const supplier = availability
+      .filter(
+        (item) => item.vehicleType === vehicleType && item.quantity > 0,
+      )
+      .map((item) => ({
+        key: `availability:${item.id}`,
+        source: 'SUPPLIER' as const,
+        availability: item,
+      }))
+    return [...physical, ...supplier]
+  }, [availability, units, vehicleType])
 
   const selectedVehicle =
     vehicleOptions.find((option) => option.key === vehicleKey) ?? null
-  const selectedCatalog = selectedVehicle
-    ? selectedVehicle.source === 'PHYSICAL'
-      ? selectedVehicle.unit.catalogModel
-      : selectedVehicle.availability.catalogModel
-    : null
-  const selectedCondition = selectedVehicle
-    ? selectedVehicle.source === 'PHYSICAL'
-      ? selectedVehicle.unit.condition
-      : selectedVehicle.availability.condition
-    : null
-  const selectedVin =
-    selectedVehicle?.source === 'PHYSICAL'
-      ? selectedVehicle.unit.vin
-      : selectedVehicle
-        ? 'Pendiente: se carga al recibir'
-        : 'Seleccioná un vehículo'
+  const catalogModel = selectedModel(selectedVehicle)
+  const condition = selectedCondition(selectedVehicle)
 
   useEffect(() => {
     if (!branchId) {
       setSellers([])
-      setSellerStatus('idle')
+      setContacts([])
+      setPeopleStatus('idle')
       return
     }
     const controller = new AbortController()
-    setSellerStatus('loading')
-    setSellerError('')
-    void listSalesSellers(
-      {
-        branchId,
-        limit: 100,
-        ...(organizationId ? { organizationId } : {}),
-      },
-      controller.signal,
-    )
+    setPeopleStatus('loading')
+    setPeopleError('')
+    const query = {
+      branchId,
+      limit: 100,
+      ...(organizationId ? { organizationId } : {}),
+    }
+    void Promise.allSettled([
+      listSalesSellers(query, controller.signal),
+      listSalesContacts(query, controller.signal),
+    ]).then(([sellerResult, contactResult]) => {
+      if (controller.signal.aborted) return
+      const errors: string[] = []
+      if (sellerResult.status === 'fulfilled') {
+        setSellers(sellerResult.value.items)
+        setSellerId((current) => {
+          if (sellerResult.value.items.some((person) => person.id === current)) {
+            return current
+          }
+          const currentUser =
+            sellerResult.value.items.find((person) => person.isCurrentUser) ??
+            sellerResult.value.items.find(
+              (person) =>
+                user?.name &&
+                person.fullName.localeCompare(user.name, 'es', {
+                  sensitivity: 'base',
+                }) === 0,
+            ) ??
+            (isSeller && sellerResult.value.items.length === 1
+              ? sellerResult.value.items[0]
+              : undefined)
+          return currentUser?.id ?? ''
+        })
+      } else {
+        setSellers([])
+        errors.push(`Vendedores: ${resourceError(sellerResult.reason)}`)
+      }
+      if (contactResult.status === 'fulfilled') {
+        setContacts(contactResult.value.items)
+        setContactId((current) =>
+          contactResult.value.items.some((person) => person.id === current)
+            ? current
+            : '',
+        )
+      } else {
+        setContacts([])
+        errors.push(`Contactos: ${resourceError(contactResult.reason)}`)
+      }
+      setPeopleError(errors.join(' '))
+      setPeopleStatus(errors.length ? 'error' : 'success')
+    })
+    return () => controller.abort()
+  }, [
+    branchId,
+    isSeller,
+    organizationId,
+    peopleLoadKey,
+    user?.name,
+  ])
+
+  useEffect(() => {
+    if (!creditRequired) {
+      setFinancialStatus('idle')
+      setFinancialInstitutionId('')
+      return
+    }
+    const controller = new AbortController()
+    setFinancialStatus('loading')
+    setFinancialError('')
+    void listSalesFinancialInstitutions(controller.signal)
       .then((response) => {
-        setSellers(response.items)
-        setSellerStatus('success')
+        setFinancialInstitutions(response.items)
+        setFinancialInstitutionId((current) =>
+          response.items.some((item) => item.id === current) ? current : '',
+        )
+        setFinancialStatus('success')
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        setSellerError(salesErrorMessage(error))
-        setSellerStatus('error')
+        setFinancialInstitutions([])
+        setFinancialError(resourceError(error))
+        setFinancialStatus('error')
       })
     return () => controller.abort()
-  }, [branchId, organizationId])
+  }, [creditRequired, financialLoadKey])
 
   useEffect(() => {
-    if (!branchId || !selectedCatalog) {
+    if (!branchId || !catalogModel) {
       setPolicy(null)
       setPolicyStatus('idle')
       return
@@ -297,7 +468,7 @@ export function NewOperationPage({
     void getSalesPricePolicy(
       {
         branchId,
-        versionId: selectedCatalog.id,
+        versionId: catalogModel.id,
         vehicleType,
         operationDate,
         ...(organizationId ? { organizationId } : {}),
@@ -311,145 +482,211 @@ export function NewOperationPage({
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        setPolicyError(salesErrorMessage(error))
+        setAgreedPrice('')
+        setPolicyError(resourceError(error))
         setPolicyStatus('error')
       })
     return () => controller.abort()
-  }, [branchId, operationDate, organizationId, selectedCatalog, vehicleType])
+  }, [
+    branchId,
+    catalogModel,
+    operationDate,
+    organizationId,
+    policyLoadKey,
+    vehicleType,
+  ])
 
+  const price = Number(agreedPrice)
+  const credit = creditRequired ? Number(creditAmount) : 0
+  const tradeIn = tradeInRequired ? Number(tradeInAmount) : 0
   const listDifference =
-    policy && agreedPrice !== ''
-      ? Math.max(0, Number(policy.listPrice) - Number(agreedPrice))
+    policy && Number.isFinite(price)
+      ? Math.max(0, Number(policy.listPrice) - price)
       : 0
   const belowList = listDifference > 0
   const belowMinimum =
     policy !== null &&
-    agreedPrice !== '' &&
-    Number(agreedPrice) < Number(policy.minimumPrice)
-  const creditRequired = paymentPlatform.includes('CREDITO')
-  const creditBlocksSale =
-    creditCheck.state.status === 'success' && creditCheck.state.data.blocksSale
+    Number.isFinite(price) &&
+    price < Number(policy.minimumPrice)
 
-  const chooseVehicle = (value: string) => {
-    setVehicleSearch(value)
-    const option =
-      vehicleOptions.find((item) => vehicleOptionLabel(item) === value) ?? null
-    setVehicleKey(option?.key ?? '')
+  const clearError = (field: FormField) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
+  const selectVehicle = (option: OperationVehicleOption) => {
+    setVehicleKey(option.key)
+    clearError('vehicle')
     setPolicy(null)
     setAgreedPrice('')
-    if (option?.source === 'PHYSICAL') {
+    if (option.source === 'PHYSICAL') {
       setBranchId(option.unit.branch.id)
     } else if (!branchId) {
-      setBranchId(user?.branch?.id ?? workspace?.branches[0]?.id ?? '')
+      setBranchId(user?.branch?.id ?? branches[0]?.id ?? '')
     }
   }
 
-  const save = async (submitForApproval: boolean) => {
-    setFormError('')
-    if (
-      !normalizeDocument(documentNumber) ||
-      !fullName.trim() ||
-      !phone.trim() ||
-      !selectedVehicle ||
-      !selectedCatalog ||
-      !selectedCondition ||
-      !branchId ||
-      !policy
-    ) {
-      setFormError(
-        'Completá documento, nombre, teléfono y seleccioná un vehículo con política vigente.',
-      )
-      return
+  const validate = () => {
+    const errors: FieldErrors = {}
+    if (normalizeDocument(documentNumber).length < 5) {
+      errors.documentNumber = 'Ingresá un DNI o CI válido.'
     }
-    const price = Number(agreedPrice)
+    if (!fullName.trim()) errors.fullName = 'Ingresá el nombre del cliente.'
+    if (!phone.trim()) errors.phone = 'Ingresá un teléfono de contacto.'
+    if (!selectedVehicle) errors.vehicle = 'Seleccioná un vehículo de los resultados.'
+    if (!branchId) errors.branch = 'Seleccioná la sucursal de la operación.'
+    if (!policy) errors.policy = 'Cargá una política de precio vigente.'
     if (!Number.isFinite(price) || price <= 0) {
-      setFormError('Ingresá un precio de cierre mayor a cero.')
-      return
+      errors.agreedPrice = 'Ingresá un precio de cierre mayor a cero.'
     }
-    if (creditRequired && (!Number.isFinite(Number(creditAmount)) || Number(creditAmount) <= 0)) {
-      setFormError('Ingresá el monto del crédito para la plataforma elegida.')
-      return
+    if (!sellerId) errors.seller = 'Seleccioná quién hizo la venta.'
+    if (creditRequired) {
+      if (!financialInstitutionId) {
+        errors.financialInstitution = 'Seleccioná la financiera.'
+      }
+      if (!Number.isFinite(credit) || credit <= 0) {
+        errors.creditAmount = 'Ingresá el monto financiado.'
+      } else if (credit > price) {
+        errors.creditAmount = 'El crédito no puede superar el precio de cierre.'
+      }
     }
-    if (creditRequired && Number(creditAmount) > price) {
-      setFormError('El monto del crédito no puede superar el precio de cierre.')
-      return
+    if (tradeInRequired) {
+      if (!tradeInDescription.trim()) {
+        errors.tradeInDescription = 'Describí la unidad recibida como parte de pago.'
+      }
+      if (!Number.isFinite(tradeIn) || tradeIn <= 0) {
+        errors.tradeInAmount = 'Ingresá el valor aceptado de la unidad.'
+      }
+    }
+    const remaining = price - credit - tradeIn
+    if (
+      (paymentPlatform === 'CREDITO' ||
+        paymentPlatform === 'MOTO_CREDITO') &&
+      Number.isFinite(remaining) &&
+      remaining !== 0
+    ) {
+      errors.creditAmount =
+        'En esta combinación, crédito y parte de pago deben completar el precio.'
+    }
+    if (
+      paymentPlatform.includes('EFECTIVO') &&
+      Number.isFinite(remaining) &&
+      remaining <= 0
+    ) {
+      errors.agreedPrice =
+        'La combinación debe dejar un importe positivo para efectivo.'
     }
     if (creditBlocksSale) {
-      setFormError('El backend indicó que este antecedente bloquea la operación.')
-      return
+      errors.documentNumber =
+        'El antecedente crediticio bloquea esta operación según el backend.'
     }
-    if (selectedVehicle.source === 'SUPPLIER' && !canManageSupply) {
-      setFormError(
-        'No tenés permiso para crear la solicitud de abastecimiento.',
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      setFormError('Revisá los campos marcados antes de guardar la operación.')
+      const first = Object.keys(errors)[0]
+      window.requestAnimationFrame(() =>
+        document.querySelector<HTMLElement>(`[data-field="${first}"]`)?.focus(),
       )
+      return false
+    }
+    setFormError('')
+    return true
+  }
+
+  const save = async (sendOperation: boolean) => {
+    if (!validate() || !selectedVehicle || !catalogModel || !condition || !policy) {
       return
     }
-
     setSubmitting(true)
+    let persisted: SalesOperation | null = null
     try {
-      const operation = await createSalesOperation({
+      persisted = await createSalesOperation({
         vehicleType,
         branchId,
         client: {
           documentType,
           documentNumber: normalizeDocument(documentNumber),
           fullName: fullName.trim(),
-          ...(phone.trim() ? { phone: phone.trim() } : {}),
+          phone: phone.trim(),
         },
-        versionId: selectedCatalog.id,
-        condition: selectedCondition,
+        versionId: catalogModel.id,
+        condition,
         agreedPrice: price,
         paymentPlatform,
-        ...(creditRequired ? { creditAmount: Number(creditAmount) } : {}),
+        ...(creditRequired ? { creditAmount: credit } : {}),
         ...(guarantor.trim() ? { guarantor: guarantor.trim() } : {}),
         ...(selectedVehicle.source === 'PHYSICAL'
           ? { unitId: selectedVehicle.unit.id }
           : {
               supplierAvailabilityId: selectedVehicle.availability.id,
             }),
-        ...(!isSeller && sellerId ? { sellerId } : {}),
-        ...(contactSellerId ? { contactId: contactSellerId } : {}),
+        sellerId,
+        ...(contactId ? { contactId } : {}),
         operationDate,
         deliveryStatus: 'NO_PROGRAMADA',
         papersDelivered,
         debt: debtStatus,
-        submit: submitForApproval,
+        submit: false,
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         ...(organizationId ? { organizationId } : {}),
       })
 
-      if (selectedVehicle.source === 'SUPPLIER') {
-        setCompletion({
-          kind: submitForApproval ? 'submitted' : 'supply',
-          number: operation.number,
-          message: submitForApproval
-            ? belowList
-              ? `La operación y su abastecimiento fueron creados; quedó pendiente de aprobación por una diferencia de ${formatMoney(String(listDifference), policy.currency)} debajo de lista.`
-              : 'La operación y su abastecimiento fueron creados y enviados al circuito comercial. El chasis se asignará al recibir la unidad.'
-            : 'La operación, la reserva de proveedor y su abastecimiento quedaron guardados como borrador. El chasis se asignará al recibir la unidad.',
+      let tradeInVehicleId: string | undefined
+      if (tradeInRequired) {
+        persisted = await createSalesTradeIn(persisted.id, {
+          expectedVersion: persisted.rowVersion,
+          description: tradeInDescription.trim(),
+          appraisedAmount: tradeIn,
+          acceptedAmount: tradeIn,
         })
-        return
+        tradeInVehicleId = persisted.tradeIns.at(-1)?.id
+        if (!tradeInVehicleId) {
+          throw new Error('El backend no devolvió la unidad tomada registrada.')
+        }
       }
 
-      if (!submitForApproval) {
-        setCompletion({
-          kind: 'draft',
-          number: operation.number,
-          message:
-            'La operación y la reserva quedaron guardadas como borrador.',
-        })
-        return
+      persisted = await replaceSalesPaymentPlan(persisted.id, {
+        expectedVersion: persisted.rowVersion,
+        components: paymentPlan(
+          paymentPlatform,
+          price,
+          credit,
+          financialInstitutionId,
+          tradeIn,
+          tradeInVehicleId,
+        ),
+      })
+
+      if (sendOperation) {
+        persisted = await submitSalesOperation(
+          persisted.id,
+          persisted.rowVersion,
+        )
       }
 
       setCompletion({
-        kind: 'submitted',
-        number: operation.number,
-        message: belowList
-          ? `La operación fue enviada a aprobación con una diferencia de ${formatMoney(String(listDifference), policy.currency)} debajo de lista.`
-          : 'La operación fue enviada para completar el circuito comercial.',
+        kind: sendOperation ? 'submitted' : 'draft',
+        number: persisted.number,
+        message: sendOperation
+          ? belowList
+            ? `La operación y el cliente quedaron registrados. Se envió a aprobación por una diferencia de ${formatMoney(String(listDifference), policy.currency)} debajo de lista.`
+            : 'La operación y el cliente quedaron registrados y se enviaron al circuito comercial.'
+          : 'La operación, el cliente y sus condiciones comerciales quedaron guardados como borrador.',
       })
     } catch (error) {
-      setFormError(salesErrorMessage(error))
+      if (persisted) {
+        setCompletion({
+          kind: 'partial',
+          number: persisted.number,
+          message: `La operación quedó guardada como borrador, pero no se completaron todos sus datos relacionados. No vuelvas a enviarla: informá el número de operación para completar el seguimiento sin duplicarla. ${salesErrorMessage(error)}`,
+        })
+      } else {
+        setFormError(salesErrorMessage(error))
+      }
     } finally {
       setSubmitting(false)
     }
@@ -460,35 +697,18 @@ export function NewOperationPage({
     void save(true)
   }
 
-  if (workspaceStatus === 'error') {
-    return (
-      <StatePanel
-        icon={Warehouse}
-        title={`No pudimos preparar la operación de ${vehicleType === 'MOTO' ? 'moto' : 'auto'}`}
-        description={workspaceError}
-        tone="danger"
-        action={
-          <button
-            className="button button--primary"
-            onClick={() => setWorkspaceKey((value) => value + 1)}
-            type="button"
-          >
-            Reintentar
-          </button>
-        }
-      />
-    )
-  }
-
   if (completion) {
-    const icon =
-      completion.kind === 'submitted' ? CheckCircle2 : Clock3
     return (
       <StatePanel
-        icon={icon}
+        icon={
+          completion.kind === 'submitted'
+            ? CheckCircle2
+            : completion.kind === 'partial'
+              ? AlertTriangle
+              : Clock3
+        }
         title={`Operación #${completion.number}`}
         description={completion.message}
-        tone={completion.kind === 'attention' ? 'danger' : 'default'}
         action={
           <div className="operation-complete__actions">
             <Link
@@ -497,13 +717,15 @@ export function NewOperationPage({
             >
               Ver mis operaciones
             </Link>
-            <button
-              className="button button--secondary"
-              onClick={() => window.location.reload()}
-              type="button"
-            >
-              Cargar otra
-            </button>
+            {completion.kind !== 'partial' && (
+              <button
+                className="button button--secondary"
+                onClick={() => window.location.reload()}
+                type="button"
+              >
+                Cargar otra
+              </button>
+            )}
           </div>
         }
       />
@@ -512,303 +734,546 @@ export function NewOperationPage({
 
   return (
     <>
-      <header className="page-heading">
+      <header className="page-heading operation-page-heading">
         <div>
-          <p className="eyebrow">VENTAS</p>
+          <p className="eyebrow">VENTAS · CIRCUITO PRODUCTIVO</p>
           <h1>
             Nueva operación de {vehicleType === 'MOTO' ? 'moto' : 'auto'}
           </h1>
-          <p>Carga de venta y reserva de unidad.</p>
+          <p>
+            Cargá cliente, vehículo y condiciones en un único recorrido continuo.
+          </p>
         </div>
+        <span className="operation-circuit-badge">
+          {vehicleType === 'MOTO' ? 'Motos' : 'Autos'}
+        </span>
       </header>
 
-      <CreditAlert
-        state={creditCheck.state}
-        onRetry={creditCheck.retry}
-        showClearResult
-      />
-      {selectedVehicle?.source === 'SUPPLIER' && (
-        <div className="operation-warning" role="status">
-          <Store size={20} />
-          <div>
-            <strong>Abastecimiento externo</strong>
-            <p>
-              Disponibilidad informada por{' '}
-              {selectedVehicle.availability.supplier.name}. El chasis se
-              asignará al recibir la unidad.
-            </p>
-          </div>
-        </div>
-      )}
-      {belowList && policy && (
-        <div className="operation-warning" role="status">
-          <AlertTriangle size={20} />
-          <div>
-            <strong>Precio por debajo de lista</strong>
-            <p>
-              La diferencia es{' '}
-              {formatMoney(String(listDifference), policy.currency)}. La
-              operación quedará pendiente de aprobación.
-              {belowMinimum ? ' También está por debajo del precio piso.' : ''}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <form className="operation-form-card" onSubmit={submit}>
+      <form className="operation-form" noValidate onSubmit={submit}>
         <fieldset disabled={submitting}>
-          <div className="operation-compact-grid">
-            <div className="field operation-span-3">
-              <span>Tipo de operación *</span>
-              <div className="operation-readonly">
-                {vehicleType === 'MOTO' ? 'Venta de moto' : 'Venta de auto'}
-              </div>
-            </div>
-
-            <label className="field">
-              <span>Tipo documento *</span>
-              <select
-                onChange={(event) =>
-                  setDocumentType(event.target.value as 'DNI' | 'CI')
-                }
-                value={documentType}
-              >
-                <option value="DNI">DNI</option>
-                <option value="CI">CI</option>
-              </select>
-            </label>
-            <label className="field">
-              <span>DNI / CI *</span>
-              <input
-                aria-label="DNI / CI *"
-                autoComplete="off"
-                onChange={(event) => setDocumentNumber(event.target.value)}
-                placeholder="Ingresar para verificar"
-                required
-                value={documentNumber}
-              />
-              <small>
-                Se verifican únicamente antecedentes crediticios; el cliente se
-                vincula al guardar.
-              </small>
-            </label>
-            <label className="field">
-              <span>Nombre del cliente *</span>
-              <input
-                maxLength={180}
-                onChange={(event) => setFullName(event.target.value)}
-                required
-                value={fullName}
-              />
-            </label>
-            <label className="field">
-              <span>Fecha *</span>
-              <input
-                onChange={(event) => setOperationDate(event.target.value)}
-                required
-                type="date"
-                value={operationDate}
-              />
-            </label>
-            <label className="field operation-span-2">
-              <span>Buscar y seleccionar vehículo *</span>
-              <div className="operation-vehicle-search">
-                <Search size={17} />
-                <input
-                  aria-label="Buscar y seleccionar vehículo *"
-                  list="sales-vehicle-options"
-                  onChange={(event) => chooseVehicle(event.target.value)}
-                  placeholder="Tipo, marca, modelo, sucursal o chasis…"
-                  required
-                  value={vehicleSearch}
-                />
-              </div>
-              <datalist id="sales-vehicle-options">
-                {vehicleOptions.map((option) => (
-                  <option key={option.key} value={vehicleOptionLabel(option)} />
-                ))}
-              </datalist>
-              <small>
-                {workspaceStatus === 'loading'
-                  ? 'Cargando stock y disponibilidad…'
-                  : selectedVehicle
-                    ? `${selectedVehicle.source === 'PHYSICAL' ? 'Stock físico' : 'Proveedor'} · ${selectedCondition === 'NUEVO' ? 'Nuevo' : 'Usado'}`
-                    : 'Elegí una unidad física o disponibilidad de proveedor'}
-              </small>
-            </label>
-            <div className="field">
-              <span>Precio de lista sugerido</span>
-              <div className="operation-readonly">
-                {policy
-                  ? formatMoney(policy.listPrice, policy.currency)
-                  : policyStatus === 'loading'
-                    ? 'Consultando…'
-                    : 'Seleccioná un vehículo'}
-              </div>
-              {policy && (
-                <small>
-                  Piso: {formatMoney(policy.minimumPrice, policy.currency)}
-                </small>
-              )}
-              {policyStatus === 'error' && <small>{policyError}</small>}
-            </div>
-            <label className="field">
-              <span>Precio de cierre *</span>
-              <input
-                min="0.01"
-                onChange={(event) => setAgreedPrice(event.target.value)}
-                required
-                step="0.01"
-                type="number"
-                value={agreedPrice}
-              />
-            </label>
-            <label className="field">
-              <span>Plataforma de pago *</span>
-              <select
-                onChange={(event) => {
-                  const platform = event.target.value as SalesPaymentPlatform
-                  setPaymentPlatform(platform)
-                  if (!platform.includes('CREDITO')) setCreditAmount('')
-                }}
-                value={paymentPlatform}
-              >
-                {paymentOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Monto del crédito{creditRequired ? ' *' : ''}</span>
-              <input
-                disabled={!creditRequired}
-                min="0"
-                onChange={(event) => setCreditAmount(event.target.value)}
-                step="0.01"
-                type="number"
-                value={creditAmount}
-              />
-            </label>
-            <label className="field">
-              <span>Teléfono *</span>
-              <input
-                maxLength={40}
-                onChange={(event) => setPhone(event.target.value)}
-                placeholder="11 0000-0000"
-                required
-                value={phone}
-              />
-            </label>
-            <label className="field">
-              <span>Respaldo / garante</span>
-              <input
-                maxLength={500}
-                onChange={(event) => setGuarantor(event.target.value)}
-                value={guarantor}
-              />
-            </label>
-            <label className="field">
-              <span>Quién hizo la venta *</span>
-              <select
-                aria-label="Quién hizo la venta *"
-                disabled={isSeller}
-                onChange={(event) => setSellerId(event.target.value)}
-                value={sellerId}
-              >
-                <option value="">
-                  {isSeller ? user?.name ?? 'Vendedor de la sesión' : 'Vendedor de la sesión'}
-                </option>
-                {!isSeller && sellers.map((seller) => (
-                  <option key={seller.id} value={seller.id}>
-                    {seller.fullName}
-                  </option>
-                ))}
-              </select>
-              {sellerStatus === 'error' && <small>{sellerError}</small>}
-            </label>
-            <label className="field">
-              <span>Quién fue el contacto</span>
-              <select
-                onChange={(event) => setContactSellerId(event.target.value)}
-                value={contactSellerId}
-              >
-                <option value="">Seleccionar vendedor</option>
-                {sellers.map((seller) => (
-                  <option key={seller.id} value={seller.id}>
-                    {seller.fullName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="field">
-              <span>Usuario que carga</span>
-              <div className="operation-readonly">
-                {user?.name ?? user?.email ?? 'Sesión activa'}
-              </div>
-            </div>
-            <div className="field">
-              <span>Estado de entrega</span>
-              <div className="operation-readonly">No programada</div>
-              <small>Se programa después de aprobar la operación.</small>
-            </div>
-            <label className="field">
-              <span>Debe</span>
-              <select
-                onChange={(event) =>
-                  setDebtStatus(
-                    event.target.value as SalesDebt,
-                  )
-                }
-                value={debtStatus}
-              >
-                <option value="NO">No</option>
-                <option value="RESERVA">Reserva</option>
-                <option value="CUOTA_INICIAL">Cuota inicial</option>
-                <option value="PAPELES">Papeles</option>
-                <option value="ACCESORIOS">Accesorios</option>
-                <option value="OTRO">Otro</option>
-              </select>
-            </label>
-            <div className="field">
-              <span>Mes</span>
-              <div className="operation-readonly">
-                {monthFromDate(operationDate)}
-              </div>
-            </div>
-            <div className="field">
-              <span>Chasis de la operación</span>
-              <div className="operation-readonly">{selectedVin}</div>
-              <small>
-                Identifica la unidad física y evita una doble venta.
-              </small>
-            </div>
-            <label className="operation-check">
-              <input
-                checked={papersDelivered}
-                onChange={(event) => setPapersDelivered(event.target.checked)}
-                type="checkbox"
-              />
-              <span>Papeles entregados</span>
-            </label>
-            <label className="field operation-span-3">
-              <span>Notas</span>
-              <textarea
-                maxLength={2000}
-                onChange={(event) => setNotes(event.target.value)}
-                rows={3}
-                value={notes}
-              />
-            </label>
-          </div>
-
           {formError && (
-            <div className="form-alert form-alert--error" role="alert">
-              {formError}
+            <div className="form-alert form-alert--error operation-form-summary" role="alert">
+              <AlertTriangle size={18} aria-hidden="true" />
+              <span>{formError}</span>
             </div>
           )}
+
+          <section className="operation-section" aria-labelledby="operation-client-title">
+            <SectionHeading
+              id="operation-client-title"
+              number={1}
+              title="Cliente y consulta crediticia"
+              description="El DNI o CI inicia la operación. El cliente se crea o vincula recién al guardar."
+            />
+            <div className="operation-form-grid operation-form-grid--client">
+              <label className="field">
+                <span>DNI / CI *</span>
+                <input
+                  aria-invalid={Boolean(fieldErrors.documentNumber)}
+                  autoComplete="off"
+                  autoFocus
+                  data-field="documentNumber"
+                  onChange={(event) => {
+                    setDocumentNumber(event.target.value)
+                    clearError('documentNumber')
+                  }}
+                  placeholder="Ingresá el documento"
+                  value={documentNumber}
+                />
+                <FieldError message={fieldErrors.documentNumber} />
+              </label>
+              <label className="field operation-document-type">
+                <span>Tipo *</span>
+                <select
+                  onChange={(event) =>
+                    setDocumentType(event.target.value as 'DNI' | 'CI')
+                  }
+                  value={documentType}
+                >
+                  <option value="DNI">DNI</option>
+                  <option value="CI">CI</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Nombre y apellido *</span>
+                <input
+                  aria-invalid={Boolean(fieldErrors.fullName)}
+                  data-field="fullName"
+                  maxLength={180}
+                  onChange={(event) => {
+                    setFullName(event.target.value)
+                    clearError('fullName')
+                  }}
+                  value={fullName}
+                />
+                <FieldError message={fieldErrors.fullName} />
+              </label>
+              <label className="field">
+                <span>Teléfono *</span>
+                <input
+                  aria-invalid={Boolean(fieldErrors.phone)}
+                  data-field="phone"
+                  maxLength={40}
+                  onChange={(event) => {
+                    setPhone(event.target.value)
+                    clearError('phone')
+                  }}
+                  placeholder="11 0000-0000"
+                  value={phone}
+                />
+                <FieldError message={fieldErrors.phone} />
+              </label>
+            </div>
+            <CreditAlert
+              state={creditCheck.state}
+              onRetry={creditCheck.retry}
+              showClearResult
+            />
+          </section>
+
+          <section className="operation-section" aria-labelledby="operation-vehicle-title">
+            <SectionHeading
+              id="operation-vehicle-title"
+              number={2}
+              title="Vehículo y precio"
+              description="Buscá una unidad física o disponibilidad real de proveedor."
+            />
+            <OperationVehiclePicker
+              errors={vehicleErrors}
+              loading={vehicleLoading}
+              onRetry={() => setVehicleLoadKey((current) => current + 1)}
+              onSearch={setVehicleSearch}
+              onSelect={selectVehicle}
+              options={vehicleOptions}
+              search={vehicleSearch}
+              selectedKey={vehicleKey}
+              vehicleType={vehicleType}
+            />
+            <FieldError message={fieldErrors.vehicle} />
+
+            {selectedVehicle && (
+              <div className="operation-selected-vehicle" role="status">
+                <div>
+                  <strong>
+                    {[
+                      catalogModel?.brand,
+                      catalogModel?.model,
+                      catalogModel?.version,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  </strong>
+                  <span>
+                    {condition === 'NUEVO' ? 'Nuevo' : 'Usado'} ·{' '}
+                    {selectedVehicle.source === 'PHYSICAL'
+                      ? `Stock físico · ${selectedVehicle.unit.branch.name}`
+                      : `Proveedor ${selectedVehicle.availability.supplier.name}`}
+                  </span>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Origen</dt>
+                    <dd>
+                      {selectedVehicle.source === 'PHYSICAL'
+                        ? 'Unidad física'
+                        : 'Disponibilidad proveedor'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Chasis</dt>
+                    <dd>
+                      {selectedVehicle.source === 'PHYSICAL'
+                        ? selectedVehicle.unit.vin
+                        : 'Pendiente al recibir'}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            )}
+
+            {selectedVehicle?.source === 'SUPPLIER' && (
+              <label className="field operation-branch-field">
+                <span>Sucursal destino *</span>
+                <select
+                  aria-invalid={Boolean(fieldErrors.branch)}
+                  data-field="branch"
+                  onChange={(event) => {
+                    setBranchId(event.target.value)
+                    clearError('branch')
+                  }}
+                  value={branchId}
+                >
+                  <option value="">Seleccionar sucursal</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={fieldErrors.branch} />
+              </label>
+            )}
+
+            <div className="operation-price-row">
+              <div className="field">
+                <span>Precio de lista</span>
+                <div className="price-reference" aria-live="polite">
+                  {policyStatus === 'loading' ? (
+                    <>
+                      <LoaderCircle className="spin" size={18} />
+                      <strong>Consultando política…</strong>
+                    </>
+                  ) : policy ? (
+                    <>
+                      <strong>{formatMoney(policy.listPrice, policy.currency)}</strong>
+                      <small>
+                        Piso adicional:{' '}
+                        {formatMoney(policy.minimumPrice, policy.currency)}
+                      </small>
+                    </>
+                  ) : (
+                    <strong>Seleccioná un vehículo</strong>
+                  )}
+                </div>
+                {policyStatus === 'error' && (
+                  <div className="operation-field-retry" role="alert">
+                    <span>{policyError}</span>
+                    <button
+                      onClick={() => setPolicyLoadKey((current) => current + 1)}
+                      type="button"
+                    >
+                      <RefreshCw size={15} /> Reintentar
+                    </button>
+                  </div>
+                )}
+                <FieldError message={fieldErrors.policy} />
+              </div>
+              <label className="field">
+                <span>Precio de cierre *</span>
+                <input
+                  aria-invalid={Boolean(fieldErrors.agreedPrice)}
+                  data-field="agreedPrice"
+                  disabled={policyStatus !== 'success'}
+                  min="0.01"
+                  onChange={(event) => {
+                    setAgreedPrice(event.target.value)
+                    clearError('agreedPrice')
+                  }}
+                  step="0.01"
+                  type="number"
+                  value={agreedPrice}
+                />
+                <FieldError message={fieldErrors.agreedPrice} />
+              </label>
+            </div>
+
+            {belowList && policy && (
+              <div className="price-warning" role="status">
+                <AlertTriangle size={20} aria-hidden="true" />
+                <div>
+                  <strong>Precio por debajo de lista</strong>
+                  <p>
+                    Diferencia:{' '}
+                    {formatMoney(String(listDifference), policy.currency)}. La
+                    operación quedará pendiente de aprobación.
+                    {belowMinimum
+                      ? ' También está por debajo del precio piso.'
+                      : ''}
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="operation-section" aria-labelledby="operation-terms-title">
+            <SectionHeading
+              id="operation-terms-title"
+              number={3}
+              title="Condiciones comerciales"
+              description="Asignación, fecha y composición real del pago."
+            />
+            <div className="operation-form-grid">
+              <label className="field">
+                <span>Fecha de operación *</span>
+                <input
+                  onChange={(event) => setOperationDate(event.target.value)}
+                  type="date"
+                  value={operationDate}
+                />
+              </label>
+              <label className="field">
+                <span>Quién hizo la venta *</span>
+                <select
+                  aria-invalid={Boolean(fieldErrors.seller)}
+                  data-field="seller"
+                  disabled={peopleStatus === 'loading'}
+                  onChange={(event) => {
+                    setSellerId(event.target.value)
+                    clearError('seller')
+                  }}
+                  value={sellerId}
+                >
+                  <option value="">
+                    {peopleStatus === 'loading'
+                      ? 'Cargando vendedores…'
+                      : 'Seleccionar vendedor'}
+                  </option>
+                  {sellers.map((seller) => (
+                    <option key={seller.id} value={seller.id}>
+                      {seller.fullName}
+                      {seller.isCurrentUser ? ' · usuario actual' : ''}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={fieldErrors.seller} />
+              </label>
+              <label className="field">
+                <span>Quién fue el contacto</span>
+                <select
+                  disabled={peopleStatus === 'loading'}
+                  onChange={(event) => setContactId(event.target.value)}
+                  value={contactId}
+                >
+                  <option value="">Sin contacto asignado</option>
+                  {contacts.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.fullName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="field">
+                <span>Usuario que carga</span>
+                <div className="operation-readonly">
+                  <UserRound size={16} aria-hidden="true" />
+                  {user?.name ?? user?.email ?? 'Sesión activa'}
+                </div>
+              </div>
+            </div>
+
+            {peopleStatus === 'error' && (
+              <div className="operation-resource-error" role="alert">
+                <div>
+                  <strong>No pudimos cargar todas las personas elegibles</strong>
+                  <p>{peopleError}</p>
+                </div>
+                <button
+                  className="button button--secondary"
+                  onClick={() => setPeopleLoadKey((current) => current + 1)}
+                  type="button"
+                >
+                  <RefreshCw size={16} /> Reintentar
+                </button>
+              </div>
+            )}
+
+            <div className="operation-payment-block">
+              <label className="field">
+                <span>Plataforma de pago *</span>
+                <select
+                  onChange={(event) => {
+                    const platform = event.target.value as SalesPaymentPlatform
+                    setPaymentPlatform(platform)
+                    if (!platform.includes('CREDITO')) {
+                      setCreditAmount('')
+                      setFinancialInstitutionId('')
+                    }
+                    if (!platform.startsWith('MOTO_')) {
+                      setTradeInDescription('')
+                      setTradeInAmount('')
+                    }
+                  }}
+                  value={paymentPlatform}
+                >
+                  {paymentOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {creditRequired && (
+                <>
+                  <label className="field">
+                    <span>Monto del crédito *</span>
+                    <input
+                      aria-invalid={Boolean(fieldErrors.creditAmount)}
+                      data-field="creditAmount"
+                      min="0.01"
+                      onChange={(event) => {
+                        setCreditAmount(event.target.value)
+                        clearError('creditAmount')
+                      }}
+                      step="0.01"
+                      type="number"
+                      value={creditAmount}
+                    />
+                    <FieldError message={fieldErrors.creditAmount} />
+                  </label>
+                  <label className="field">
+                    <span>Financiera *</span>
+                    <select
+                      aria-invalid={Boolean(fieldErrors.financialInstitution)}
+                      data-field="financialInstitution"
+                      disabled={financialStatus === 'loading'}
+                      onChange={(event) => {
+                        setFinancialInstitutionId(event.target.value)
+                        clearError('financialInstitution')
+                      }}
+                      value={financialInstitutionId}
+                    >
+                      <option value="">
+                        {financialStatus === 'loading'
+                          ? 'Cargando financieras…'
+                          : 'Seleccionar financiera'}
+                      </option>
+                      {financialInstitutions.map((institution) => (
+                        <option key={institution.id} value={institution.id}>
+                          {institution.name}
+                        </option>
+                      ))}
+                    </select>
+                    <FieldError message={fieldErrors.financialInstitution} />
+                  </label>
+                  <label className="field">
+                    <span>Respaldo / garante</span>
+                    <input
+                      maxLength={500}
+                      onChange={(event) => setGuarantor(event.target.value)}
+                      value={guarantor}
+                    />
+                  </label>
+                  {financialStatus === 'error' && (
+                    <div className="operation-field-retry" role="alert">
+                      <span>{financialError}</span>
+                      <button
+                        onClick={() =>
+                          setFinancialLoadKey((current) => current + 1)
+                        }
+                        type="button"
+                      >
+                        <RefreshCw size={15} /> Reintentar
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {tradeInRequired && (
+                <>
+                  <label className="field operation-span-2">
+                    <span>Unidad recibida como parte de pago *</span>
+                    <input
+                      aria-invalid={Boolean(fieldErrors.tradeInDescription)}
+                      data-field="tradeInDescription"
+                      maxLength={500}
+                      onChange={(event) => {
+                        setTradeInDescription(event.target.value)
+                        clearError('tradeInDescription')
+                      }}
+                      placeholder="Marca, modelo, año, dominio o chasis"
+                      value={tradeInDescription}
+                    />
+                    <FieldError message={fieldErrors.tradeInDescription} />
+                  </label>
+                  <label className="field">
+                    <span>Valor aceptado *</span>
+                    <input
+                      aria-invalid={Boolean(fieldErrors.tradeInAmount)}
+                      data-field="tradeInAmount"
+                      min="0.01"
+                      onChange={(event) => {
+                        setTradeInAmount(event.target.value)
+                        clearError('tradeInAmount')
+                      }}
+                      step="0.01"
+                      type="number"
+                      value={tradeInAmount}
+                    />
+                    <FieldError message={fieldErrors.tradeInAmount} />
+                  </label>
+                </>
+              )}
+            </div>
+          </section>
+
+          <section className="operation-section" aria-labelledby="operation-delivery-title">
+            <SectionHeading
+              id="operation-delivery-title"
+              number={4}
+              title="Entrega y documentación"
+              description="Estado inicial, documentación y pendientes de la operación."
+            />
+            <div className="operation-form-grid">
+              <div className="field">
+                <span>Estado de entrega</span>
+                <div className="operation-readonly">
+                  <Store size={16} aria-hidden="true" />
+                  No programada
+                </div>
+                <small>Se programa después de aprobar la operación.</small>
+              </div>
+              <label className="field">
+                <span>Debe</span>
+                <select
+                  onChange={(event) =>
+                    setDebtStatus(event.target.value as SalesDebt)
+                  }
+                  value={debtStatus}
+                >
+                  <option value="NO">No</option>
+                  <option value="RESERVA">Reserva</option>
+                  <option value="CUOTA_INICIAL">Cuota inicial</option>
+                  <option value="PAPELES">Papeles</option>
+                  <option value="ACCESORIOS">Accesorios</option>
+                  <option value="OTRO">Otro</option>
+                </select>
+              </label>
+              <div className="field">
+                <span>Mes</span>
+                <div className="operation-readonly">
+                  {monthFromDate(operationDate)}
+                </div>
+              </div>
+              <div className="field">
+                <span>Chasis de la operación</span>
+                <div className="operation-readonly">
+                  {selectedVehicle?.source === 'PHYSICAL'
+                    ? selectedVehicle.unit.vin
+                    : selectedVehicle
+                      ? 'Pendiente al recibir'
+                      : 'Seleccioná un vehículo'}
+                </div>
+              </div>
+              <label className="operation-check">
+                <input
+                  checked={papersDelivered}
+                  onChange={(event) => setPapersDelivered(event.target.checked)}
+                  type="checkbox"
+                />
+                <FileCheck2 size={17} aria-hidden="true" />
+                <span>Papeles entregados</span>
+              </label>
+              <label className="field operation-span-3">
+                <span>Observaciones</span>
+                <textarea
+                  maxLength={2000}
+                  onChange={(event) => setNotes(event.target.value)}
+                  rows={3}
+                  value={notes}
+                />
+              </label>
+            </div>
+          </section>
+
           <div className="operation-form__actions">
+            <div className="operation-save-note">
+              <CreditCard size={18} aria-hidden="true" />
+              <span>
+                El cliente se incorpora o actualiza dentro de la misma operación.
+              </span>
+            </div>
             <button
               className="button button--secondary"
               disabled={submitting}
@@ -819,7 +1284,7 @@ export function NewOperationPage({
             </button>
             <button
               className="button button--primary"
-              disabled={submitting || policyStatus !== 'success'}
+              disabled={submitting}
               type="submit"
             >
               {submitting && <LoaderCircle className="spin" size={17} />}

@@ -6,6 +6,7 @@ import { App } from '../../app/App'
 import { AUTH_TOKEN_KEY } from '../../shared/api/client'
 import type { AuthUser } from '../auth/types'
 import { AgreementModal } from './components'
+import { commissionApiGateway } from './api'
 import { CommissionPaymentsPage, PaidCommissionsPage } from './CommissionManagementPages'
 import { SuggestedCommissionsPage } from './SuggestedCommissionsPage'
 import { validateScalePolicy } from './format'
@@ -267,6 +268,7 @@ describe('permisos y vista propia', () => {
       if (url.includes('/commissions/me')) return json(mine)
       return json({}, 404)
     })
+
     vi.stubGlobal('fetch', fetchMock)
     render(<App />)
     expect(await screen.findByRole('heading', { name: 'Mis comisiones' })).toBeInTheDocument()
@@ -283,5 +285,48 @@ describe('permisos y vista propia', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(seller)))
     render(<App />)
     expect(await screen.findByRole('heading', { name: 'No tenés permiso para ingresar' })).toBeInTheDocument()
+  })
+})
+
+describe('integración HTTP del sugerido', () => {
+  it('carga por defecto todas las sucursales sin serializar el placeholder', async () => {
+    const branch = {
+      id: '84e778cc-7616-4792-b6db-d89f100bb6f1',
+      name: 'San Miguel',
+    }
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/branches')) {
+        return new Response(JSON.stringify([branch]), { status: 200 })
+      }
+      if (url.includes('/sales/operations/sellers?')) {
+        return new Response(
+          JSON.stringify({ items: [], total: 0, page: 1, limit: 100 }),
+          { status: 200 },
+        )
+      }
+      return new Response(
+        JSON.stringify({ items: [], total: 0, page: 1, limit: 50 }),
+        { status: 200 },
+      )
+    })
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'admin-token')
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderRoute(
+      <SuggestedCommissionsPage
+        vehicleType="MOTO"
+        gateway={commissionApiGateway}
+      />,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Sugerido de comisiones' }),
+    ).toBeInTheDocument()
+    const suggestionUrl = fetchMock.mock.calls
+      .map(([url]) => String(url))
+      .find((url) => url.includes('/commissions/suggestions?'))
+    expect(suggestionUrl).not.toContain('branchId')
+    expect(suggestionUrl).not.toContain('Todas')
   })
 })

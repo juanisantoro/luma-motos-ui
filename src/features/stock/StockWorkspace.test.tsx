@@ -21,6 +21,16 @@ const model: CatalogModel = {
   model: 'Wave',
   version: '110 S',
   active: true,
+  pricePolicy: {
+    id: 'price-1',
+    versionId: 'version-1',
+    branchId: null,
+    currency: 'ARS',
+    listPrice: 1500000,
+    minimumPrice: 1400000,
+    validFrom: '2026-01-01T00:00:00.000Z',
+    validUntil: null,
+  },
 }
 const unit: PhysicalUnit = {
   id: 'unit-1',
@@ -47,6 +57,7 @@ const supply: SupplyOrder = {
   status: 'PENDIENTE_CONFIRMACION',
   destinationBranch: branch,
   requestedAt: '2026-08-29T12:00:00.000Z',
+  operation: null,
   receivedUnit: null,
   receivedUnitId: null,
 }
@@ -106,6 +117,7 @@ function renderWorkspace(overrides?: {
   const handlers = {
     onCreateUnits: vi.fn().mockResolvedValue(undefined),
     onUpsertAvailability: vi.fn().mockResolvedValue(undefined),
+    onConfigurePrice: vi.fn().mockResolvedValue(undefined),
     onTransitionSupply: vi.fn().mockResolvedValue(undefined),
     onReceiveSupply: vi.fn().mockResolvedValue(undefined),
   }
@@ -142,27 +154,27 @@ describe('workspace de stock', () => {
     const handlers = renderWorkspace()
 
     await user.click(
-      screen.getByRole('button', { name: 'Ingresar motos' }),
+      screen.getByRole('button', { name: /Ingresar motos/ }),
     )
     const dialog = screen.getByRole('dialog', {
-      name: 'Ingresar motos',
+      name: 'Ingresar motos al stock',
     })
     expect(
       within(dialog).getByText(/permiso adicional/),
     ).toBeInTheDocument()
     await user.selectOptions(
-      within(dialog).getByLabelText('Marca, modelo y versión'),
+      within(dialog).getByLabelText('Marca y modelo'),
       model.id,
     )
     await user.type(
-      within(dialog).getByLabelText('VIN / chasis unidad 1'),
+      within(dialog).getByLabelText('Chasis / VIN unidad 1'),
       'vin-nuevo-1',
     )
     await user.click(
       within(dialog).getByRole('button', { name: 'Agregar unidad' }),
     )
     await user.type(
-      within(dialog).getByLabelText('VIN / chasis unidad 2'),
+      within(dialog).getByLabelText('Chasis / VIN unidad 2'),
       'vin-nuevo-1',
     )
     await user.click(
@@ -173,10 +185,10 @@ describe('workspace de stock', () => {
     )
 
     await user.clear(
-      within(dialog).getByLabelText('VIN / chasis unidad 2'),
+      within(dialog).getByLabelText('Chasis / VIN unidad 2'),
     )
     await user.type(
-      within(dialog).getByLabelText('VIN / chasis unidad 2'),
+      within(dialog).getByLabelText('Chasis / VIN unidad 2'),
       'vin-nuevo-2',
     )
     await user.click(
@@ -201,9 +213,11 @@ describe('workspace de stock', () => {
     const handlers = renderWorkspace()
 
     await user.click(
-      screen.getByRole('tab', { name: 'Abastecimiento' }),
+      screen.getByRole('tab', { name: 'Abastecimientos' }),
     )
-    await user.click(screen.getByRole('button', { name: 'Confirmar' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Confirmar disponibilidad' }),
+    )
 
     expect(handlers.onTransitionSupply).toHaveBeenCalledWith(
       supply.id,
@@ -215,17 +229,20 @@ describe('workspace de stock', () => {
     const user = userEvent.setup()
     const handlers = renderWorkspace()
 
-    await user.click(screen.getByRole('tab', { name: 'Proveedores' }))
+    await user.click(
+      screen.getByRole('tab', { name: 'Disponibilidad de proveedores' }),
+    )
     expect(screen.getByText('Sin VIN · fuera del stock físico')).toBeInTheDocument()
     await user.click(
-      screen.getByRole('button', { name: 'Actualizar cantidad' }),
+      screen.getAllByRole('button', { name: 'Actualizar cantidad' })[0]!,
     )
     const dialog = screen.getByRole('dialog', {
       name: 'Actualizar disponibilidad',
     })
-    const quantity = within(dialog).getByLabelText('Cantidad disponible *')
+    const quantity = within(dialog).getByLabelText('Cantidad informada *')
+    expect(quantity).toHaveAttribute('min', '0')
     await user.clear(quantity)
-    await user.type(quantity, '7')
+    await user.type(quantity, '0')
     await user.click(
       within(dialog).getByRole('button', {
         name: 'Actualizar disponibilidad',
@@ -237,7 +254,8 @@ describe('workspace de stock', () => {
       condition: 'NUEVO',
       catalogModelId: model.id,
       supplierId: supplier.id,
-      quantity: 7,
+      quantity: 0,
+      reportedAt: '2026-08-29',
       notes: 'Entrega en 72 horas',
     })
   })
@@ -271,7 +289,7 @@ describe('workspace de stock', () => {
     })
 
     await user.click(
-      screen.getByRole('tab', { name: 'Abastecimiento' }),
+      screen.getByRole('tab', { name: 'Abastecimientos' }),
     )
     expect(screen.getByText(/Unidad creada:/)).toHaveTextContent(
       'VIN-RECIBIDO-1',
@@ -294,6 +312,66 @@ describe('workspace de stock', () => {
         branchId: branch.id,
       }),
     )
+  })
+
+  it('bloquea modelos sin precio y permite configurar una política real', async () => {
+    const user = userEvent.setup()
+    const withoutPrice = {
+      ...model,
+      id: 'version-without-price',
+      model: 'Biz',
+      pricePolicy: null,
+    }
+    const handlers = renderWorkspace({
+      data: { ...data, catalog: [...data.catalog, withoutPrice] },
+      capabilities: { ...capabilities, createCatalog: true },
+    })
+
+    await user.click(
+      screen.getByRole('tab', { name: 'Catálogo de modelos' }),
+    )
+    expect(screen.getByText('Sin precio configurado')).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: 'Configurar precio' }),
+    )
+    const dialog = screen.getByRole('dialog', { name: 'Configurar precio' })
+    await user.type(
+      within(dialog).getByLabelText('Precio sugerido *'),
+      '2500000',
+    )
+    await user.type(
+      within(dialog).getByLabelText('Precio mínimo *'),
+      '2300000',
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Guardar precio' }),
+    )
+
+    expect(handlers.onConfigurePrice).toHaveBeenCalledWith({
+      versionId: withoutPrice.id,
+      listPrice: 2500000,
+      minimumPrice: 2300000,
+    })
+  })
+
+  it('informa disponibilidad sin solicitar VIN y con proveedor real', async () => {
+    const user = userEvent.setup()
+    renderWorkspace()
+
+    await user.click(
+      screen.getByRole('button', { name: /Motos de proveedor/ }),
+    )
+    const dialog = screen.getByRole('dialog', {
+      name: 'Informar motos de proveedor',
+    })
+
+    expect(within(dialog).queryByLabelText(/VIN|chasis/i)).not.toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('option', { name: supplier.name }),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByLabelText('Fecha de actualización'),
+    ).toHaveAttribute('type', 'date')
   })
 
   it('oculta mutaciones cuando faltan permisos', () => {

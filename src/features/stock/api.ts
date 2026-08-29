@@ -9,6 +9,8 @@ import type {
   CatalogBrand,
   CatalogModel,
   CatalogVehicleModel,
+  CatalogPricePolicy,
+  ConfigurePriceInput,
   CreateUnitsInput,
   PhysicalUnit,
   ReceiveSupplyInput,
@@ -64,6 +66,17 @@ type VersionDto = VersionSummaryDto & {
   active: boolean
 }
 
+type PricePolicyDto = {
+  id: string
+  versionId: string
+  branchId: string | null
+  currency: string
+  listPrice: string
+  minimumPrice: string
+  validFrom: string
+  validUntil: string | null
+}
+
 type BranchDto = {
   id: string
   name: string
@@ -108,6 +121,17 @@ type SupplyRequestDto = {
   version: VersionSummaryDto
   supplier: SupplierDto
   branch: BranchDto
+  operationId?: string | null
+  operation?: {
+    id: string
+    operationNumber?: string | null
+    status?: string | null
+    client?: {
+      fullName?: string | null
+      documentNumber?: string | null
+    } | null
+  } | null
+  receivedUnit?: UnitDto | null
   receivedUnitId: string | null
 }
 
@@ -181,6 +205,7 @@ function vehicleModel(dto: ModelDto): CatalogVehicleModel {
 function catalogVersion(
   dto: VersionSummaryDto,
   active = true,
+  pricePolicy: CatalogPricePolicy | null = null,
 ): CatalogModel {
   return {
     id: dto.id,
@@ -191,6 +216,20 @@ function catalogVersion(
     model: dto.model.name,
     version: dto.name,
     active,
+    pricePolicy,
+  }
+}
+
+function pricePolicy(dto: PricePolicyDto): CatalogPricePolicy {
+  return {
+    id: dto.id,
+    versionId: dto.versionId,
+    branchId: dto.branchId,
+    currency: dto.currency,
+    listPrice: Number(dto.listPrice),
+    minimumPrice: Number(dto.minimumPrice),
+    validFrom: dto.validFrom,
+    validUntil: dto.validUntil,
   }
 }
 
@@ -234,6 +273,44 @@ function availability(dto: AvailabilityDto): SupplierAvailability {
   }
 }
 
+export function listSalesBranches(
+  organizationId?: string,
+  signal?: AbortSignal,
+) {
+  return request<BranchDto[]>(
+    listPath('/inventory/branches', { organizationId }),
+    signal ? { signal } : {},
+  ).then((items) => uniqueById(items.map(branch)))
+}
+
+export function listSalesPhysicalUnits(
+  vehicleType: VehicleKind,
+  organizationId?: string,
+  signal?: AbortSignal,
+) {
+  return requestAll<UnitDto>(
+    '/inventory/units',
+    {
+      vehicleType,
+      inventoryStatus: 'EN_STOCK',
+      organizationId,
+    },
+    signal,
+  ).then((items) => items.map(physicalUnit))
+}
+
+export function listSalesSupplierAvailability(
+  vehicleType: VehicleKind,
+  organizationId?: string,
+  signal?: AbortSignal,
+) {
+  return requestAll<AvailabilityDto>(
+    '/supplier-availability',
+    { vehicleType, organizationId },
+    signal,
+  ).then((items) => items.map(availability))
+}
+
 function supplyRequest(dto: SupplyRequestDto): SupplyOrder {
   const version = catalogVersion(dto.version)
   return {
@@ -246,7 +323,17 @@ function supplyRequest(dto: SupplyRequestDto): SupplyOrder {
     status: dto.status,
     destinationBranch: branch(dto.branch),
     requestedAt: dto.requestedAt,
-    receivedUnit: null,
+    operation:
+      dto.operation || dto.operationId
+        ? {
+            id: dto.operation?.id ?? dto.operationId ?? '',
+            number: dto.operation?.operationNumber ?? null,
+            status: dto.operation?.status ?? null,
+            clientName: dto.operation?.client?.fullName ?? null,
+            clientDocument: dto.operation?.client?.documentNumber ?? null,
+          }
+        : null,
+    receivedUnit: dto.receivedUnit ? physicalUnit(dto.receivedUnit) : null,
     receivedUnitId: dto.receivedUnitId,
   }
 }
@@ -276,7 +363,7 @@ function unitInput(
 }
 
 async function createVersion(
-  input: CreateUnitsInput,
+  input: Pick<CreateUnitsInput, 'vehicleType' | 'catalogModelId' | 'catalogModel'>,
   organizationId?: string,
 ) {
   const draft = input.catalogModel
@@ -367,6 +454,49 @@ async function createVersion(
   return version.id
 }
 
+async function configurePrice(
+  input: ConfigurePriceInput,
+  organizationId?: string,
+) {
+  if (input.minimumPrice > input.listPrice) {
+    throw new Error('El precio mínimo no puede superar el precio sugerido.')
+  }
+  await request<PricePolicyDto>('/catalog/price-policies', {
+    method: 'POST',
+    body: {
+      versionId: input.versionId,
+      currency: 'ARS',
+      listPrice: input.listPrice,
+      minimumPrice: input.minimumPrice,
+      validFrom: `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`,
+      organizationId,
+    },
+  })
+}
+
+async function ensureDraftPrice(
+  versionId: string,
+  draft: CreateUnitsInput['catalogModel'],
+  vehicleType: VehicleKind,
+  organizationId?: string,
+) {
+  if (!draft) return
+  const policies = await requestAll<PricePolicyDto>('/catalog/price-policies', {
+    vehicleType,
+    versionId,
+    organizationId,
+  })
+  if (policies.length > 0) return
+  await configurePrice(
+    {
+      versionId,
+      listPrice: draft.listPrice,
+      minimumPrice: draft.minimumPrice,
+    },
+    organizationId,
+  )
+}
+
 async function loadWorkspace(
   vehicleType: VehicleKind,
   capabilities: StockCapabilities,
@@ -399,17 +529,25 @@ async function loadWorkspace(
           signal,
         )
       : Promise.resolve([])
+  const policiesPromise = capabilities.viewCatalog
+    ? requestAll<PricePolicyDto>(
+        '/catalog/price-policies',
+        baseQuery,
+        signal,
+      )
+    : Promise.resolve([])
   const branchesPromise = request<BranchDto[]>(
     listPath('/inventory/branches', { organizationId }),
     signal ? { signal } : {},
   )
 
-  const [unitDtos, versionDtos, modelDtos, supplierDtos, branchDtos, availabilityDtos, supplyDtos] =
+  const [unitDtos, versionDtos, modelDtos, supplierDtos, policyDtos, branchDtos, availabilityDtos, supplyDtos] =
     await Promise.all([
       requestAll<UnitDto>('/inventory/units', baseQuery, signal),
       versionsPromise,
       modelsPromise,
       suppliersPromise,
+      policiesPromise,
       branchesPromise,
       capabilities.viewAvailability
         ? requestAll<AvailabilityDto>(
@@ -430,12 +568,27 @@ async function loadWorkspace(
   const units = unitDtos.map(physicalUnit)
   const supplies = supplyDtos.map(supplyRequest)
   const branches = uniqueById(branchDtos.map(branch))
+  const policiesByVersion = new Map<string, CatalogPricePolicy>()
+  policyDtos
+    .map(pricePolicy)
+    .sort((left, right) => Number(Boolean(left.branchId)) - Number(Boolean(right.branchId)))
+    .forEach((policy) => {
+      if (!policiesByVersion.has(policy.versionId)) {
+        policiesByVersion.set(policy.versionId, policy)
+      }
+    })
 
   return {
     branches,
     suppliers: supplierDtos.map(supplier),
     models: modelDtos.map(vehicleModel),
-    catalog: versionDtos.map((item) => catalogVersion(item, item.active)),
+    catalog: versionDtos.map((item) =>
+      catalogVersion(
+        item,
+        item.active,
+        policiesByVersion.get(item.id) ?? null,
+      ),
+    ),
     units,
     availability: availabilityDtos.map(availability),
     supplies,
@@ -446,6 +599,12 @@ export const stockApiGateway: StockGateway = {
   loadWorkspace,
   async createUnits(input, organizationId) {
     const versionId = await createVersion(input, organizationId)
+    await ensureDraftPrice(
+      versionId,
+      input.catalogModel,
+      input.vehicleType,
+      organizationId,
+    )
     const units = unitInput(versionId, input, organizationId)
     if (units.length === 1) {
       await request<UnitDto>('/inventory/units', {
@@ -459,18 +618,27 @@ export const stockApiGateway: StockGateway = {
       body: { units },
     })
   },
-  async upsertAvailability(input: UpsertAvailabilityInput) {
+  async upsertAvailability(input: UpsertAvailabilityInput, organizationId) {
+    const versionId = await createVersion(input, organizationId)
+    await ensureDraftPrice(
+      versionId,
+      input.catalogModel,
+      input.vehicleType,
+      organizationId,
+    )
     await request<AvailabilityDto>('/supplier-availability', {
       method: 'PUT',
       body: {
         supplierId: input.supplierId,
-        versionId: input.catalogModelId,
+        versionId,
         condition: input.condition,
         reportedQuantity: input.quantity,
+        reportedAt: input.reportedAt,
         notes: input.notes,
       },
     })
   },
+  configurePrice,
   async transitionSupply(supplyId, status) {
     await request<SupplyRequestDto>(
       `/supply-requests/${supplyId}/transitions`,
