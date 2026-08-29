@@ -58,7 +58,7 @@ function emptyUnit(key: number, branchId = ''): UnitRow {
 export function UnitFormModal({
   vehicleType,
   catalog,
-  models,
+  models: catalogModels,
   branches,
   suppliers,
   canCreateCatalog,
@@ -87,7 +87,7 @@ export function UnitFormModal({
   ])
   const [validationError, setValidationError] = useState<string | null>(null)
   const vehicleLabel = vehicleType === 'AUTO' ? 'auto' : 'moto'
-  const models = useMemo(
+  const activeVersions = useMemo(
     () => catalog.filter((item) => item.vehicleType === vehicleType && item.active),
     [catalog, vehicleType],
   )
@@ -148,10 +148,10 @@ export function UnitFormModal({
             catalogModel: {
               ...(canCreateSharedCatalog
                 ? {
-                    brandName: catalogDraft.brandName?.trim(),
-                    modelName: catalogDraft.modelName?.trim(),
+                    brandName: catalogDraft.brandName?.trim() ?? '',
+                    modelName: catalogDraft.modelName?.trim() ?? '',
                   }
-                : { modelId: catalogDraft.modelId }),
+                : { modelId: catalogDraft.modelId ?? '' }),
               versionName: catalogDraft.versionName.trim(),
               scope: catalogDraft.scope,
             },
@@ -234,7 +234,7 @@ export function UnitFormModal({
                   required
                 >
                   <option value="">Seleccionar del catálogo</option>
-                  {models.map((item) => (
+                  {activeVersions.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.brand} {item.model}
                       {item.version ? ` · ${item.version}` : ''}
@@ -319,7 +319,7 @@ export function UnitFormModal({
                     required
                   >
                     <option value="">Seleccionar</option>
-                    {models
+                    {catalogModels
                       .filter(
                         (item) =>
                           item.vehicleType === vehicleType && item.active,
