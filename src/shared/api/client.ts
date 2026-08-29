@@ -9,6 +9,7 @@ export const UNAUTHORIZED_EVENT = 'luma:unauthorized'
 type ApiErrorPayload = {
   message?: string | string[]
   error?: string
+  code?: string
 }
 
 export class ApiError extends Error {

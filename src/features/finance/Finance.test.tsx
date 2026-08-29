@@ -2,8 +2,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../app/App'
-import { AUTH_TOKEN_KEY } from '../../shared/api/client'
+import { ApiError, AUTH_TOKEN_KEY } from '../../shared/api/client'
 import type { AuthUser } from '../auth/types'
+import { financialErrorMessage } from './format'
 import type {
   Expense,
   FinancialMovement,
@@ -212,6 +213,21 @@ afterEach(() => {
 })
 
 describe('administración financiera', () => {
+  it('explica cuándo un ingreso legado requiere conciliación', () => {
+    expect(
+      financialErrorMessage(
+        new ApiError(
+          409,
+          'Conflict',
+          {
+            code: 'INCOME_REQUIRES_RECONCILIATION',
+            message: 'Income cannot receive collections',
+          },
+        ),
+      ),
+    ).toBe('Este ingreso requiere conciliación antes de registrar un cobro.')
+  })
+
   it('oculta costos y alta de compras sin el permiso sensible, también en 393 px', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 393 })
     openRoute('/compras')
