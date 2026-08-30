@@ -423,7 +423,7 @@ export function VehiclePaymentForm({
             </button>
             <button
               className="button button--primary"
-              disabled={submitting || !conceptId || !providerId || !amount || !selectedUnit}
+              disabled={submitting}
               type="submit"
             >
               {submitting && <LoaderCircle className="spin" size={17} />}
