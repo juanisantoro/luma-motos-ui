@@ -65,6 +65,10 @@ export async function apiRequest<T>(
     response = await fetch(`${API_URL}${path}`, {
       ...options,
       headers: requestHeaders,
+      // Every response here is per-tenant, authenticated JSON that changes
+      // often. Never let the browser's HTTP cache serve or revalidate it -
+      // a stale 304 with no body has caused blank screens (e.g. stock).
+      cache: 'no-store',
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     })
   } catch {

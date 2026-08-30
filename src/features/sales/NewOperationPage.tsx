@@ -449,19 +449,23 @@ export function NewOperationPage({
           if (sellerResult.value.items.some((person) => person.id === current)) {
             return current
           }
-          const currentUser = isSeller
-            ? sellerResult.value.items.find((person) => person.isCurrentUser) ??
-              sellerResult.value.items.find(
-                (person) =>
-                  user?.name &&
-                  person.fullName.localeCompare(user.name, 'es', {
-                    sensitivity: 'base',
-                  }) === 0,
-              ) ??
-              (sellerResult.value.items.length === 1
-                ? sellerResult.value.items[0]
-                : undefined)
-            : undefined
+          // Default the seller to whoever is loading the sale, for every
+          // role - not just VENDEDOR. Non-sellers can still pick someone
+          // else from the dropdown afterwards (it stays enabled below);
+          // what this fixes is operations silently landing on a leftover
+          // or wrong seller because the field defaulted to blank.
+          const currentUser =
+            sellerResult.value.items.find((person) => person.isCurrentUser) ??
+            sellerResult.value.items.find(
+              (person) =>
+                user?.name &&
+                person.fullName.localeCompare(user.name, 'es', {
+                  sensitivity: 'base',
+                }) === 0,
+            ) ??
+            (isSeller && sellerResult.value.items.length === 1
+              ? sellerResult.value.items[0]
+              : undefined)
           return currentUser?.id ?? ''
         })
       } else {
@@ -1146,6 +1150,12 @@ export function NewOperationPage({
                 </select>
                 {isSeller && sellerId && (
                   <small>Se asigna automáticamente al vendedor de la sesión.</small>
+                )}
+                {!isSeller && sellerId && (
+                  <small>
+                    Se preselecciona tu usuario. Cambialo solo si la venta la
+                    hizo otro vendedor.
+                  </small>
                 )}
                 {peopleStatus === 'success' && sellers.length === 0 && (
                   <small className="field-error">

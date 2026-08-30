@@ -315,8 +315,12 @@ describe('Nueva operación productiva', () => {
         expect.any(AbortSignal),
       ),
     )
+    // Even for an admin/administrative role, the seller field now defaults
+    // to whoever is logged in (identified by isCurrentUser) instead of
+    // blank - that blank default was exactly what let operations get
+    // silently saved under the wrong seller.
     expect(await screen.findByLabelText('Quién hizo la venta *')).toHaveValue(
-      '',
+      'seller-1',
     )
     expect(within(seller).getAllByRole('option')).toHaveLength(3)
     expect(
