@@ -6,6 +6,7 @@ import { RolesPage } from '../features/access/RolesPage'
 import { UserFormPage } from '../features/access/UserFormPage'
 import { UsersPage } from '../features/access/UsersPage'
 import { LoginPage } from '../features/auth/LoginPage'
+import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage'
 import { InitialPasswordPage } from '../features/auth/InitialPasswordPage'
 import { PermissionRoute } from '../features/auth/PermissionRoute'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
@@ -39,6 +40,10 @@ export function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/olvide-mi-contrasena"
+            element={<ForgotPasswordPage />}
+          />
           <Route
             path="/configurar-contrasena"
             element={<InitialPasswordPage />}

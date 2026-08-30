@@ -21,7 +21,6 @@ export function logoutRequest(token: string) {
 }
 
 export function changeTemporaryPasswordRequest(input: {
-  organizationCode: string
   email: string
   temporaryPassword: string
   newPassword: string
@@ -29,5 +28,16 @@ export function changeTemporaryPasswordRequest(input: {
   return apiRequest<void>('/auth/change-temporary-password', {
     method: 'POST',
     body: input,
+  })
+}
+
+export function requestPasswordResetRequest(
+  input: { email: string },
+  signal?: AbortSignal,
+) {
+  return apiRequest<void>('/auth/request-password-reset', {
+    method: 'POST',
+    body: input,
+    ...(signal ? { signal } : {}),
   })
 }

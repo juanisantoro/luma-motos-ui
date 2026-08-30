@@ -17,6 +17,7 @@ import {
   getCurrentUser,
   loginRequest,
   logoutRequest,
+  requestPasswordResetRequest,
 } from './api'
 import type {
   AuthStatus,
@@ -34,6 +35,7 @@ type AuthContextValue = {
   login: (credentials: LoginCredentials) => Promise<LoginResult>
   completeTemporaryPassword: (newPassword: string) => Promise<void>
   cancelTemporaryPasswordChange: () => void
+  requestPasswordReset: (email: string) => Promise<void>
   logout: () => Promise<void>
   retrySession: () => Promise<void>
   clearNotice: () => void
@@ -121,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             organizationCode:
               typeof details?.organizationCode === 'string'
                 ? details.organizationCode
-                : credentials.organizationCode,
+                : '',
             email:
               typeof details?.email === 'string' ? details.email : credentials.email,
             temporaryPassword: credentials.password,
@@ -145,7 +147,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('No hay un cambio de contraseña pendiente.')
       }
       await changeTemporaryPasswordRequest({
-        organizationCode: temporaryPasswordChallenge.organizationCode,
         email: temporaryPasswordChallenge.email,
         temporaryPassword: temporaryPasswordChallenge.temporaryPassword,
         newPassword,
@@ -156,6 +157,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [temporaryPasswordChallenge],
   )
+
+  const requestPasswordReset = useCallback(async (email: string) => {
+    await requestPasswordResetRequest({ email })
+  }, [])
 
   const logout = useCallback(async () => {
     const token = storedToken()
@@ -182,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       completeTemporaryPassword,
       cancelTemporaryPasswordChange: () => clearSession(),
+      requestPasswordReset,
       logout,
       retrySession: () => restoreSession(),
       clearNotice: () => setNotice(null),
@@ -192,6 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       notice,
+      requestPasswordReset,
       restoreSession,
       status,
       temporaryPasswordChallenge,

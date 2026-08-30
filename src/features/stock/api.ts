@@ -142,7 +142,11 @@ type SupplyRequestDto = {
       documentNumber?: string | null
     } | null
   } | null
-  receivedUnit?: UnitDto | null
+  receivedUnit?: {
+    id: string
+    vin: string
+    branchId: string | null
+  } | null
   receivedUnitId: string | null
 }
 
@@ -374,7 +378,15 @@ function supplyRequest(dto: SupplyRequestDto): SupplyOrder {
             clientDocument: dto.operation?.client?.documentNumber ?? null,
           }
         : null,
-    receivedUnit: dto.receivedUnit ? physicalUnit(dto.receivedUnit) : null,
+    // The supply-requests endpoint embeds only a partial projection of
+    // the received unit (id/vin/branchId) - not the full UnitDto shape
+    // (no version/branch/supplier/etc). Mapping it through physicalUnit()
+    // used to throw a TypeError (undefined.model) whenever a supply
+    // request already had a received unit, which surfaced as the
+    // generic "Ocurrio un error inesperado" stock error screen.
+    receivedUnit: dto.receivedUnit
+      ? { id: dto.receivedUnit.id, vin: dto.receivedUnit.vin }
+      : null,
     receivedUnitId: dto.receivedUnitId,
   }
 }

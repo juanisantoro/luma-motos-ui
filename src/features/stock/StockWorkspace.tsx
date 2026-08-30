@@ -763,7 +763,7 @@ function SuppliesList({
                   <PackageCheck size={18} aria-hidden="true" />
                   <span>
                     Unidad creada: <strong>{supply.receivedUnit.vin}</strong> ·{' '}
-                    {supply.receivedUnit.branch.name}
+                    {supply.destinationBranch.name}
                   </span>
                 </div>
               )}

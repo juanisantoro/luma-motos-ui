@@ -105,9 +105,6 @@ describe('autenticación y autorización', () => {
     )
     const user = userEvent.setup()
     render(<App />)
-    fireEvent.change(screen.getByLabelText('Organización'), {
-      target: { value: 'LUMA' },
-    })
     fireEvent.change(screen.getByLabelText('Correo electrónico'), {
       target: { value: 'admin@lumamotos.com.ar' },
     })
@@ -136,9 +133,6 @@ describe('autenticación y autorización', () => {
       ),
     ).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Organización'), {
-      target: { value: 'LUMA' },
-    })
     fireEvent.change(screen.getByLabelText('Correo electrónico'), {
       target: { value: 'admin@lumamotos.com.ar' },
     })
@@ -165,9 +159,6 @@ describe('autenticación y autorización', () => {
     )
     const user = userEvent.setup()
     render(<App />)
-    fireEvent.change(screen.getByLabelText('Organización'), {
-      target: { value: 'LUMA' },
-    })
     fireEvent.change(screen.getByLabelText('Correo electrónico'), {
       target: { value: 'admin@lumamotos.com.ar' },
     })
@@ -187,7 +178,6 @@ describe('autenticación y autorización', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.type(screen.getByLabelText('Organización'), ' luma_central ')
     await user.type(
       screen.getByLabelText('Correo electrónico'),
       ' ADMIN@LUMAMOTOS.COM.AR ',
@@ -206,7 +196,6 @@ describe('autenticación y autorización', () => {
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('http://localhost:3000/api/auth/login')
     expect(JSON.parse(String(request.body))).toEqual({
-      organizationCode: 'LUMA_CENTRAL',
       email: 'admin@lumamotos.com.ar',
       password: 'clave-segura',
     })
@@ -226,7 +215,6 @@ describe('autenticación y autorización', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.type(screen.getByLabelText('Organización'), 'LUMA')
     await user.type(
       screen.getByLabelText('Correo electrónico'),
       'persona@lumamotos.com.ar',
@@ -248,7 +236,6 @@ describe('autenticación y autorización', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.type(screen.getByLabelText('Organización'), 'LUMA')
     await user.type(
       screen.getByLabelText('Correo electrónico'),
       'persona@lumamotos.com.ar',
@@ -261,6 +248,30 @@ describe('autenticación y autorización', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'No pudimos conectar con el servidor.',
     )
+  })
+
+  it('pide una contraseña temporal sin revelar si el correo existe', async () => {
+    const fetchMock = mockFetch(jsonResponse(undefined, 204))
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: '¿Olvidaste tu contraseña?' }))
+    await user.type(
+      await screen.findByLabelText('Correo electrónico'),
+      'quiensea@lumamotos.com.ar',
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Enviar contraseña temporal' }),
+    )
+
+    expect(
+      await screen.findByText(/Si el correo está registrado/),
+    ).toBeInTheDocument()
+    const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('http://localhost:3000/api/auth/request-password-reset')
+    expect(JSON.parse(String(request.body))).toEqual({
+      email: 'quiensea@lumamotos.com.ar',
+    })
   })
 
   it('restaura la sesión y arma la navegación con permisos del backend', async () => {

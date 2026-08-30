@@ -123,7 +123,9 @@ export type SupplyOrder = {
     clientName: string | null
     clientDocument: string | null
   } | null
-  receivedUnit: PhysicalUnit | null
+  // Only id/vin are populated by the API's supply-requests projection -
+  // it is not a full PhysicalUnit (no version/branch/supplier/etc).
+  receivedUnit: { id: string; vin: string } | null
   receivedUnitId: string | null
 }
 

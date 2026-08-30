@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { LoaderCircle } from 'lucide-react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { ApiError, NetworkError } from '../../shared/api/client'
 import { Brand } from '../../shared/components/Brand'
 import { useAuth } from './AuthContext'
@@ -51,9 +51,6 @@ export function LoginPage() {
 
     try {
       await login({
-        organizationCode: String(data.get('organizationCode') ?? '')
-          .trim()
-          .toUpperCase(),
         email: String(data.get('email') ?? '').trim().toLowerCase(),
         password: String(data.get('password') ?? ''),
       })
@@ -84,17 +81,6 @@ export function LoginPage() {
 
         <form onSubmit={submit}>
           <label className="field">
-            <span>Organización</span>
-            <input
-              name="organizationCode"
-              autoComplete="organization"
-              maxLength={40}
-              required
-              autoFocus
-              placeholder="LUMA_CENTRAL"
-            />
-          </label>
-          <label className="field">
             <span>Correo electrónico</span>
             <input
               name="email"
@@ -102,6 +88,7 @@ export function LoginPage() {
               autoComplete="username"
               maxLength={255}
               required
+              autoFocus
               placeholder="nombre@lumamotos.com.ar"
             />
           </label>
@@ -126,6 +113,9 @@ export function LoginPage() {
             )}
             {submitting ? 'Ingresando…' : 'Ingresar al sistema'}
           </button>
+          <Link className="login-card__forgot-password" to="/olvide-mi-contrasena">
+            ¿Olvidaste tu contraseña?
+          </Link>
         </form>
       </section>
     </main>

@@ -257,6 +257,18 @@ a {
   margin-top: 8px;
 }
 
+.login-card__forgot-password {
+  display: block;
+  margin-top: 14px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.login-card__forgot-password:hover {
+  color: var(--red);
+}
+
 .form-alert {
   padding: 12px 14px;
   border: 1px solid #bbdfcc;

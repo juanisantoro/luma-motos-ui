@@ -29,7 +29,6 @@ export type AuthUser = {
 }
 
 export type LoginCredentials = {
-  organizationCode: string
   email: string
   password: string
 }
