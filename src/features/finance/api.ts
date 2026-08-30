@@ -13,6 +13,7 @@ import type {
   ReverseInput,
   SettlementInput,
   BranchOption,
+  IncomeTypeOption,
   SupplierOption,
   SupplierPurchase,
   UnitOption,
@@ -165,6 +166,13 @@ export async function listAllSuppliers(signal?: AbortSignal) {
 
 export function listInventoryBranches(signal?: AbortSignal) {
   return apiRequest<BranchOption[]>('/inventory/branches', {
+    token: authToken(),
+    ...(signal ? { signal } : {}),
+  })
+}
+
+export function listIncomeTypes(signal?: AbortSignal) {
+  return apiRequest<IncomeTypeOption[]>('/incomes/types', {
     token: authToken(),
     ...(signal ? { signal } : {}),
   })

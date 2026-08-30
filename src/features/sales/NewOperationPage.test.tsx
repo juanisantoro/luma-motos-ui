@@ -263,6 +263,9 @@ async function completeBaseData() {
   fireEvent.change(screen.getByLabelText('Teléfono *'), {
     target: { value: '11 5555-5555' },
   })
+  fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
+    target: { value: 'VIN-001' },
+  })
   const option = await screen.findByRole('option', { name: /VIN-001/ })
   await user.click(option)
   await waitFor(() =>
@@ -473,6 +476,9 @@ describe('Nueva operación productiva', () => {
     fireEvent.change(screen.getByLabelText('Teléfono *'), {
       target: { value: '1144445555' },
     })
+    fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
+      target: { value: 'Proveedor Uno' },
+    })
     await user.click(
       await screen.findByRole('option', {
         name: /Stock de Proveedor Uno \(2\) · Chasis al recibir/,
@@ -527,6 +533,9 @@ describe('Nueva operación productiva', () => {
     mocks.listAvailability.mockResolvedValue([])
     mocks.listUnits.mockResolvedValue([])
     renderPage()
+    fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
+      target: { value: 'Wave 110' },
+    })
     expect(
       await screen.findByText('No hay coincidencias'),
     ).toBeInTheDocument()
@@ -609,10 +618,14 @@ describe('Nueva operación productiva', () => {
     const user = userEvent.setup()
 
     expect(await screen.findByText('Nueva operación de auto')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
+      target: { value: 'AUTO-VIN-1' },
+    })
     await user.click(await screen.findByRole('option', { name: /AUTO-VIN-1/ }))
     expect(mocks.listUnits).toHaveBeenCalledWith(
       'AUTO',
       undefined,
+      'AUTO-VIN-1',
       expect.any(AbortSignal),
     )
     expect(mocks.getPricePolicy).toHaveBeenCalledWith(
@@ -631,6 +644,9 @@ describe('Nueva operación productiva', () => {
       .mockResolvedValueOnce([unit])
     renderPage()
     const user = userEvent.setup()
+    fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
+      target: { value: 'VIN-001' },
+    })
 
     const alert = await screen.findByRole('alert', {
       name: '',

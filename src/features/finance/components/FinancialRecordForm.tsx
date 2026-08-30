@@ -6,6 +6,7 @@ import {
   listAllInventoryUnits,
   listAllSalesOperations,
   listAllSuppliers,
+  listIncomeTypes,
   listInventoryBranches,
 } from '../api'
 import { financialErrorMessage, financialLabels } from '../format'
@@ -16,6 +17,7 @@ import type {
   FinancialKind,
   FinancialVehicleType,
   BranchOption,
+  IncomeTypeOption,
   SupplierOption,
   UnitOption,
   VersionOption,
@@ -57,6 +59,7 @@ export function FinancialRecordForm({
   const [branchId, setBranchId] = useState(defaultBranchId ?? '')
   const [error, setError] = useState('')
   const [branches, setBranches] = useState<BranchOption[]>([])
+  const [incomeTypes, setIncomeTypes] = useState<IncomeTypeOption[]>([])
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
   const [units, setUnits] = useState<UnitOption[]>([])
   const [versions, setVersions] = useState<VersionOption[]>([])
@@ -107,10 +110,13 @@ export function FinancialRecordForm({
         listAllSuppliers(controller.signal).then(setSuppliers),
         listAllCatalogVersions(vehicleType, controller.signal).then(setVersions),
       )
-    } else if (kind === 'income' && canViewOperations) {
-      requests.push(
-        listAllSalesOperations(vehicleType, controller.signal).then(setOperations),
-      )
+    } else if (kind === 'income') {
+      requests.push(listIncomeTypes(controller.signal).then(setIncomeTypes))
+      if (canViewOperations) {
+        requests.push(
+          listAllSalesOperations(vehicleType, controller.signal).then(setOperations),
+        )
+      }
     }
     void Promise.all(requests)
       .catch((loadError: unknown) => {
@@ -314,11 +320,12 @@ export function FinancialRecordForm({
               <>
                 <label className="field">
                   <span>Tipo *</span>
-                  <input name="type" maxLength={60} required />
-                </label>
-                <label className="field">
-                  <span>TT / referencia</span>
-                  <input name="reference" maxLength={120} />
+                  <select name="type" required disabled={loadingOptions} defaultValue="">
+                    <option value="" disabled>Seleccionar tipo</option>
+                    {incomeTypes.map((type) => (
+                      <option key={type.id} value={type.name}>{type.name}</option>
+                    ))}
+                  </select>
                 </label>
                 <label className="field">
                   <span>Unidad / VIN</span>

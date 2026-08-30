@@ -258,6 +258,11 @@ export type SupplierOption = {
   active: boolean
 }
 
+export type IncomeTypeOption = {
+  id: string
+  name: string
+}
+
 export type BranchOption = MinimalBranch & {
   organizationId: string
 }

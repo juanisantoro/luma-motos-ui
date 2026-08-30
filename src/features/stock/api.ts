@@ -100,7 +100,10 @@ type SupplierDto = {
 
 type UnitDto = {
   id: string
-  vehicleType: VehicleKind
+  // The API never sends vehicleType at this level - it only lives nested
+  // under version.model.vehicleType. Do not add it back here without also
+  // updating the backend response; physicalUnit() below derives it from
+  // the nested version instead.
   condition: VehicleCondition
   vin: string
   manufactureYear: number | null
@@ -276,7 +279,9 @@ function supplier(dto: SupplierDto): SupplierOption {
 function physicalUnit(dto: UnitDto): PhysicalUnit {
   return {
     id: dto.id,
-    vehicleType: dto.vehicleType,
+    // The unit payload has no top-level vehicleType (see UnitDto above) -
+    // it comes from the version's model instead.
+    vehicleType: dto.version.model.vehicleType,
     catalogModel: catalogVersion(dto.version),
     condition: dto.condition,
     vin: dto.vin,
@@ -318,6 +323,7 @@ export function listSalesBranches(
 export function listSalesPhysicalUnits(
   vehicleType: VehicleKind,
   organizationId?: string,
+  search?: string,
   signal?: AbortSignal,
 ) {
   return requestAll<UnitDto>(
@@ -326,7 +332,25 @@ export function listSalesPhysicalUnits(
       vehicleType,
       inventoryStatus: 'EN_STOCK',
       organizationId,
+      search,
     },
+    signal,
+  ).then((items) => items.map(physicalUnit))
+}
+
+export function listAllPhysicalUnits(
+  vehicleType: VehicleKind,
+  organizationId?: string,
+  search?: string,
+  signal?: AbortSignal,
+) {
+  // Unlike listSalesPhysicalUnits, this is not restricted to EN_STOCK - it's
+  // used to find a unit regardless of status (e.g. already sold/delivered),
+  // for flows like vehicle-payments where the VIN being tracked is often a
+  // unit that has already left the lot.
+  return requestAll<UnitDto>(
+    '/inventory/units',
+    { vehicleType, organizationId, search },
     signal,
   ).then((items) => items.map(physicalUnit))
 }
@@ -334,11 +358,12 @@ export function listSalesPhysicalUnits(
 export function listSalesSupplierAvailability(
   vehicleType: VehicleKind,
   organizationId?: string,
+  search?: string,
   signal?: AbortSignal,
 ) {
   return requestAll<AvailabilityDto>(
     '/supplier-availability',
-    { vehicleType, organizationId },
+    { vehicleType, organizationId, search },
     signal,
   ).then((items) => items.map(availability))
 }

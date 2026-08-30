@@ -69,6 +69,7 @@ export function OperationVehiclePicker({
   onSearch,
   onSelect,
   onRetry,
+  minSearchLength = 3,
 }: {
   vehicleType: 'MOTO' | 'AUTO'
   options: OperationVehicleOption[]
@@ -79,6 +80,7 @@ export function OperationVehiclePicker({
   onSearch: (value: string) => void
   onSelect: (option: OperationVehicleOption) => void
   onRetry: () => void
+  minSearchLength?: number
 }) {
   const filtered = useMemo(() => {
     const query = normalizeSearch(search)
@@ -87,6 +89,8 @@ export function OperationVehiclePicker({
       normalizeSearch(vehicleOptionSearchText(option)).includes(query),
     )
   }, [options, search])
+
+  const belowMinLength = normalizeSearch(search).length < minSearchLength
 
   const TypeIcon = vehicleType === 'MOTO' ? Bike : CarFront
 
@@ -109,7 +113,8 @@ export function OperationVehiclePicker({
         </div>
         <small>
           Resultados exclusivos del circuito de{' '}
-          {vehicleType === 'MOTO' ? 'motos' : 'autos'}.
+          {vehicleType === 'MOTO' ? 'motos' : 'autos'}. Ingresá al menos{' '}
+          {minSearchLength} letras para buscar.
         </small>
       </label>
 
@@ -183,7 +188,16 @@ export function OperationVehiclePicker({
                 </button>
               )
             })}
-            {filtered.length === 0 && (
+            {filtered.length === 0 && belowMinLength && (
+              <div className="operation-vehicle-empty">
+                <TypeIcon size={22} aria-hidden="true" />
+                <strong>Seguí escribiendo para buscar</strong>
+                <span>
+                  Ingresá al menos {minSearchLength} letras de la marca, modelo, versión, chasis o sucursal.
+                </span>
+              </div>
+            )}
+            {filtered.length === 0 && !belowMinLength && (
               <div className="operation-vehicle-empty">
                 <TypeIcon size={22} aria-hidden="true" />
                 <strong>No hay coincidencias</strong>

@@ -270,6 +270,9 @@ export function NewOperationPage({
     Array<{ source: string; message: string }>
   >([])
   const [vehicleLoadKey, setVehicleLoadKey] = useState(0)
+  const [debouncedVehicleSearch, setDebouncedVehicleSearch] = useState('')
+  const [pinnedVehicleOption, setPinnedVehicleOption] =
+    useState<OperationVehicleOption | null>(null)
   const [sellers, setSellers] = useState<SalesSeller[]>([])
   const [contacts, setContacts] = useState<SalesSeller[]>([])
   const [peopleStatus, setPeopleStatus] = useState<
@@ -334,15 +337,38 @@ export function NewOperationPage({
   }, [organizationId, user?.branch?.id, vehicleLoadKey])
 
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedVehicleSearch(vehicleSearch.trim())
+    }, 350)
+    return () => clearTimeout(timeout)
+  }, [vehicleSearch])
+
+  const vehicleSearchQuery =
+    debouncedVehicleSearch.length >= 3 ? debouncedVehicleSearch : ''
+
+  useEffect(() => {
+    if (!vehicleSearchQuery) {
+      setUnits([])
+      setAvailability([])
+      setVehicleErrors([])
+      setVehicleLoading(false)
+      return
+    }
     const controller = new AbortController()
     setVehicleLoading(true)
     setVehicleErrors([])
     void Promise.allSettled([
-      listSalesPhysicalUnits(vehicleType, organizationId, controller.signal),
+      listSalesPhysicalUnits(
+        vehicleType,
+        organizationId,
+        vehicleSearchQuery,
+        controller.signal,
+      ),
       canViewAvailability
         ? listSalesSupplierAvailability(
             vehicleType,
             organizationId,
+            vehicleSearchQuery,
             controller.signal,
           )
         : Promise.resolve([]),
@@ -383,6 +409,7 @@ export function NewOperationPage({
     canViewAvailability,
     organizationId,
     vehicleLoadKey,
+    vehicleSearchQuery,
     vehicleType,
   ])
 
@@ -414,8 +441,15 @@ export function NewOperationPage({
         source: 'SUPPLIER' as const,
         availability: item,
       }))
-    return [...physical, ...supplier]
-  }, [availability, units, vehicleType])
+    const fresh = [...physical, ...supplier]
+    if (
+      pinnedVehicleOption &&
+      !fresh.some((option) => option.key === pinnedVehicleOption.key)
+    ) {
+      return [pinnedVehicleOption, ...fresh]
+    }
+    return fresh
+  }, [availability, pinnedVehicleOption, units, vehicleType])
 
   const selectedVehicle =
     vehicleOptions.find((option) => option.key === vehicleKey) ?? null
@@ -585,6 +619,7 @@ export function NewOperationPage({
 
   const selectVehicle = (option: OperationVehicleOption) => {
     setVehicleKey(option.key)
+    setPinnedVehicleOption(option)
     clearError('vehicle')
     setPolicy(null)
     setAgreedPrice('')
@@ -755,6 +790,7 @@ export function NewOperationPage({
           current.filter((unit) => unit.id !== unavailableUnitId),
         )
         setVehicleKey('')
+        setPinnedVehicleOption(null)
         setPolicy(null)
         setAgreedPrice('')
         setReservationConflict(true)

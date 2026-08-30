@@ -24,6 +24,7 @@ import {
 } from '../features/commissions'
 import { ExpensesPage } from '../features/finance/ExpensesPage'
 import { IncomesPage } from '../features/finance/IncomesPage'
+import { VehiclePaymentsPage } from '../features/vehicle-payments/VehiclePaymentsPage'
 import { PurchasesPage } from '../features/finance/PurchasesPage'
 import { ModulePlaceholder } from '../features/placeholders/ModulePlaceholder'
 import { ApprovalsPage } from '../features/sales/ApprovalsPage'
@@ -59,7 +60,7 @@ export function App() {
               </Route>
               <Route
                 element={
-                  <PermissionRoute permission="inventario.consultar" />
+                  <PermissionRoute permission="inventario.gestionar" />
                 }
               >
                 <Route
@@ -216,6 +217,22 @@ export function App() {
                 <Route
                   path="ingresos"
                   element={<Navigate replace to="/motos/ingresos" />}
+                />
+              </Route>
+              <Route
+                element={<PermissionRoute permission="pagos_vehiculo.consultar" />}
+              >
+                <Route
+                  path="motos/pagos-vehiculo"
+                  element={<VehiclePaymentsPage vehicleType="MOTO" />}
+                />
+                <Route
+                  path="autos/pagos-vehiculo"
+                  element={<VehiclePaymentsPage vehicleType="AUTO" />}
+                />
+                <Route
+                  path="pagos-vehiculo"
+                  element={<Navigate replace to="/motos/pagos-vehiculo" />}
                 />
               </Route>
               <Route
