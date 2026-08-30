@@ -237,24 +237,6 @@ export type SalesPricePolicy = {
   scope: 'BRANCH' | 'ORGANIZATION'
 }
 
-export type CreateSupplyRequestInput = {
-  supplierId: string
-  supplierAvailabilityId?: string
-  operationId: string
-  versionId: string
-  condition: VehicleCondition
-  arrivalBranchId: string
-  notes?: string
-  organizationId?: string
-}
-
-export type LinkedSupplyRequest = {
-  id: string
-  operationId: string | null
-  supplierAvailabilityId: string | null
-  status: string
-}
-
 export type SalesPaymentComponentInput = {
   type:
     | 'EFECTIVO'

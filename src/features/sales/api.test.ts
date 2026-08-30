@@ -3,7 +3,6 @@ import { AUTH_TOKEN_KEY } from '../../shared/api/client'
 import {
   createSalesTradeIn,
   createSalesOperation,
-  createLinkedSupplyRequest,
   getSalesPricePolicy,
   listSalesFinancialInstitutions,
   listSalesApprovals,
@@ -239,31 +238,45 @@ describe('contrato API de operaciones', () => {
       )
     })
 
-    it('vincula el abastecimiento proveedor a la operación borrador', async () => {
+    it('carga todas las páginas de vendedores cuando superan el límite', async () => {
       sessionStorage.setItem(AUTH_TOKEN_KEY, 'sales-token')
-      const fetchMock = vi.fn().mockResolvedValueOnce(
-        json({ id: 'supply-1', operationId: 'operation-1' }, 201),
-      )
+      const firstItems = Array.from({ length: 100 }, (_, index) => ({
+        id: `seller-${index + 1}`,
+        employeeCode: `V${index + 1}`,
+        fullName: `Vendedor ${index + 1}`,
+      }))
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          json({ items: firstItems, total: 101, page: 1, limit: 100 }),
+        )
+        .mockResolvedValueOnce(
+          json({
+            items: [
+              {
+                id: 'seller-101',
+                employeeCode: 'V101',
+                fullName: 'Vendedor actual',
+                isCurrentUser: true,
+              },
+            ],
+            total: 101,
+            page: 2,
+            limit: 100,
+          }),
+        )
       vi.stubGlobal('fetch', fetchMock)
 
-      await createLinkedSupplyRequest({
-        supplierId: 'supplier-1',
-        supplierAvailabilityId: 'availability-1',
-        operationId: 'operation-1',
-        versionId: 'version-1',
-        condition: 'NUEVO',
-        arrivalBranchId: 'branch-1',
+      const result = await listSalesSellers({
+        branchId: 'branch-1',
+        limit: 100,
       })
 
-      const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit]
-      expect(url).toBe(`${API_URL}/supply-requests`)
-      expect(JSON.parse(String(request.body))).toEqual({
-        supplierId: 'supplier-1',
-        supplierAvailabilityId: 'availability-1',
-        operationId: 'operation-1',
-        versionId: 'version-1',
-        condition: 'NUEVO',
-        arrivalBranchId: 'branch-1',
-      })
-  })
+      expect(result.items).toHaveLength(101)
+      expect(result.items.at(-1)?.isCurrentUser).toBe(true)
+      expect(String(fetchMock.mock.calls[1]?.[0])).toBe(
+        `${API_URL}/sales/operations/sellers?branchId=branch-1&limit=100&page=2`,
+      )
+    })
+
 })

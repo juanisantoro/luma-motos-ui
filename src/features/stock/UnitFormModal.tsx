@@ -79,11 +79,10 @@ export function UnitFormModal({
   const [validationError, setValidationError] = useState<string | null>(null)
   const noun = vehicleType === 'AUTO' ? 'autos' : 'motos'
   const singular = vehicleType === 'AUTO' ? 'auto' : 'moto'
-  const pricedCatalog = useMemo(
+  const activeCatalog = useMemo(
     () =>
       catalog.filter(
-        (item) =>
-          item.vehicleType === vehicleType && item.active && item.pricePolicy,
+        (item) => item.vehicleType === vehicleType && item.active,
       ),
     [catalog, vehicleType],
   )
@@ -201,7 +200,10 @@ export function UnitFormModal({
               <span>1</span>
               <div>
                 <h3>Marca y modelo de {singular}</h3>
-                <p>Elegí un modelo con una política de precio vigente.</p>
+                <p>
+                  Elegí un modelo del catálogo. El estado de precio se informa
+                  sin ocultar modelos existentes.
+                </p>
               </div>
             </div>
 
@@ -217,16 +219,28 @@ export function UnitFormModal({
                   <option value="">
                     Seleccionar del catálogo de {noun}
                   </option>
-                  {pricedCatalog.map((item) => (
+                  {activeCatalog.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.brand} {item.model}
                       {item.version && item.version !== item.model
                         ? ` · ${item.version}`
                         : ''}
+                      {!item.pricePolicy ? ' · Sin precio configurado' : ''}
                     </option>
                   ))}
                 </select>
               </label>
+            )}
+
+            {!createCatalog && activeCatalog.length === 0 && (
+              <div className="stock-catalog-empty field--wide" role="status">
+                <strong>No hay modelos cargados</strong>
+                <span>
+                  {canCreateCatalog
+                    ? 'Marcá “La marca o modelo no existe” para crearlo con su política de precio.'
+                    : 'Solicitá a un usuario autorizado que cargue el catálogo.'}
+                </span>
+              </div>
             )}
 
             {canCreateCatalog ? (

@@ -56,7 +56,7 @@ describe('credit inquiries route', () => {
       await screen.findByRole('heading', { name: 'Clientes en rojo' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('link', { name: /Clientes en rojo/ }),
+      await screen.findByRole('link', { name: /Clientes en rojo/ }),
     ).toBeInTheDocument()
   })
 

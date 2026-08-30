@@ -171,11 +171,13 @@ export function OperationVehiclePicker({
                       {condition === 'NUEVO' ? 'Nuevo' : 'Usado'} ·{' '}
                       {physical
                         ? `${branch} · Chasis ${option.unit.vin}`
-                        : `${supplier} · ${option.availability.quantity} disponibles`}
+                        : `Stock de ${supplier} (${option.availability.quantity}) · Chasis al recibir`}
                     </small>
                   </span>
                   <span className="operation-vehicle-results__source">
-                    {physical ? 'Stock físico' : 'Proveedor'}
+                    {physical
+                      ? 'Disponible · Stock físico'
+                      : 'Disponibilidad proveedor'}
                   </span>
                   {selected && <CheckCircle2 size={19} aria-hidden="true" />}
                 </button>

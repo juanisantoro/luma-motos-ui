@@ -4,10 +4,15 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../app/App'
 import { AUTH_TOKEN_KEY } from '../../shared/api/client'
+import { AuthProvider } from '../auth/AuthContext'
 import type { AuthUser } from '../auth/types'
 import { AgreementModal } from './components'
 import { commissionApiGateway } from './api'
-import { CommissionPaymentsPage, PaidCommissionsPage } from './CommissionManagementPages'
+import {
+  CommissionPaymentsPage,
+  PaidCommissionsPage,
+  SellerMeetingPage,
+} from './CommissionManagementPages'
 import { SuggestedCommissionsPage } from './SuggestedCommissionsPage'
 import { validateScalePolicy } from './format'
 import type {
@@ -129,8 +134,8 @@ function gateway(overrides: Partial<CommissionGateway> = {}): CommissionGateway 
   }
 }
 
-function renderRoute(node: React.ReactNode) {
-  return render(<MemoryRouter>{node}</MemoryRouter>)
+function renderRoute(node: React.ReactNode, initialEntry = '/') {
+  return render(<MemoryRouter initialEntries={[initialEntry]}>{node}</MemoryRouter>)
 }
 
 afterEach(() => {
@@ -146,6 +151,66 @@ describe('comisiones productivas', () => {
     expect(screen.getAllByText('13')).not.toHaveLength(0)
     expect(screen.queryByText('$ 585.000')).not.toBeInTheDocument()
     expect(screen.getByText(/monto fijo total/i)).toBeInTheDocument()
+  })
+
+  it('no recarga opciones ni escalas al aplicar filtros', async () => {
+    const api = gateway()
+    const user = userEvent.setup()
+    renderRoute(<SuggestedCommissionsPage vehicleType="MOTO" gateway={api} />)
+    await screen.findAllByText('$ 45.000')
+    await user.selectOptions(
+      screen.getByLabelText('Sucursal'),
+      summary.branch.id,
+    )
+    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }))
+    await waitFor(() => expect(api.listSuggestions).toHaveBeenCalledTimes(2))
+
+    expect(api.listOptions).toHaveBeenCalledTimes(1)
+    expect(api.listPolicies).toHaveBeenCalledTimes(1)
+  })
+
+  it('mantiene la lista visible y reintenta opciones sin recargar sugerencias', async () => {
+    const listOptions = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('options failed'))
+      .mockResolvedValueOnce({
+        sellers: [summary.seller],
+        branches: [summary.branch],
+      })
+    const api = gateway({ listOptions })
+    const user = userEvent.setup()
+    renderRoute(<SuggestedCommissionsPage vehicleType="MOTO" gateway={api} />)
+
+    expect(await screen.findAllByText('$ 45.000')).not.toHaveLength(0)
+    expect(
+      await screen.findByRole('heading', {
+        name: 'No pudimos cargar vendedores y sucursales',
+      }),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Reintentar opciones' }))
+    await waitFor(() => expect(listOptions).toHaveBeenCalledTimes(2))
+    expect(api.listSuggestions).toHaveBeenCalledTimes(1)
+  })
+
+  it('abre un deep link de reunión sin recargar lista ni duplicar detalle al sincronizar período', async () => {
+    const api = gateway()
+    render(
+      <MemoryRouter
+        initialEntries={[
+          '/comisiones/reunion/motos?suggestion=suggestion-1',
+        ]}
+      >
+        <AuthProvider>
+          <SellerMeetingPage vehicleType="MOTO" gateway={api} />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Martín Suárez' }),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(api.getSuggestion).toHaveBeenCalledTimes(1))
+    expect(api.listSuggestions).not.toHaveBeenCalled()
   })
 
   it('mantiene AUTO separado y muestra política ausente sin inventar importes', async () => {

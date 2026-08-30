@@ -53,16 +53,32 @@ export function SuggestedCommissionsPage({
   const [items, setItems] = useState<CommissionSummary[]>([])
   const [policies, setPolicies] = useState<CommissionScalePolicy[]>([])
   const [options, setOptions] = useState(emptyOptions)
+  const [policyStatus, setPolicyStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [policyError, setPolicyError] = useState('')
+  const [policyRefreshKey, setPolicyRefreshKey] = useState(0)
+  const [optionsStatus, setOptionsStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [optionsError, setOptionsError] = useState('')
+  const [optionsRefreshKey, setOptionsRefreshKey] = useState(0)
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<CommissionDetail | null>(null)
   const [detailStatus, setDetailStatus] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [detailError, setDetailError] = useState('')
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0)
 
   useEffect(() => {
-    setQuery((current) => ({ ...current, vehicleType, page: 1 }))
-    setDraft((current) => ({ ...current, vehicleType, page: 1 }))
+    setQuery((current) =>
+      current.vehicleType === vehicleType
+        ? current
+        : { ...current, vehicleType, page: 1 },
+    )
+    setDraft((current) =>
+      current.vehicleType === vehicleType
+        ? current
+        : { ...current, vehicleType, page: 1 },
+    )
     setItems([])
     setPolicies([])
     setSelectedId(null)
@@ -73,15 +89,10 @@ export function SuggestedCommissionsPage({
     const controller = new AbortController()
     setStatus('loading')
     setError('')
-    void Promise.all([
-      gateway.listSuggestions(query, controller.signal),
-      gateway.listPolicies(vehicleType, controller.signal),
-      gateway.listOptions(controller.signal),
-    ])
-      .then(([result, policyResult, optionResult]) => {
+    void gateway
+      .listSuggestions(query, controller.signal)
+      .then((result) => {
         setItems(result.items)
-        setPolicies(policyResult.items)
-        setOptions(optionResult)
         setStatus('success')
       })
       .catch((loadError: unknown) => {
@@ -93,9 +104,49 @@ export function SuggestedCommissionsPage({
   }, [gateway, query, refreshKey, vehicleType])
 
   useEffect(() => {
+    const controller = new AbortController()
+    setPolicyStatus('loading')
+    setPolicyError('')
+    void gateway
+      .listPolicies(vehicleType, controller.signal)
+      .then((result) => {
+        setPolicies(result.items)
+        setPolicyStatus('success')
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return
+        setPolicies([])
+        setPolicyError(commissionErrorMessage(loadError))
+        setPolicyStatus('error')
+      })
+    return () => controller.abort()
+  }, [gateway, policyRefreshKey, vehicleType])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setOptionsStatus('loading')
+    setOptionsError('')
+    void gateway
+      .listOptions(controller.signal)
+      .then((result) => {
+        setOptions(result)
+        setOptionsStatus('success')
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return
+        setOptions(emptyOptions)
+        setOptionsError(commissionErrorMessage(loadError))
+        setOptionsStatus('error')
+      })
+    return () => controller.abort()
+  }, [gateway, optionsRefreshKey])
+
+  useEffect(() => {
     if (!selectedId) return
     const controller = new AbortController()
+    setDetail(null)
     setDetailStatus('loading')
+    setDetailError('')
     void gateway.getSuggestion(selectedId, controller.signal)
       .then((result) => {
         setDetail(result)
@@ -103,11 +154,11 @@ export function SuggestedCommissionsPage({
       })
       .catch((loadError: unknown) => {
         if (controller.signal.aborted) return
-        setError(commissionErrorMessage(loadError))
+        setDetailError(commissionErrorMessage(loadError))
         setDetailStatus('error')
       })
     return () => controller.abort()
-  }, [gateway, selectedId])
+  }, [detailRefreshKey, gateway, selectedId])
 
   const policy = useMemo(() => {
     const periodDate = `${query.period ?? currentPeriod()}-01`
@@ -122,6 +173,7 @@ export function SuggestedCommissionsPage({
 
   const configurationMissing =
     status === 'success'
+    && policyStatus === 'success'
     && !policy
     && (items.length === 0 || items.every((item) => item.configurationStatus === 'NOT_CONFIGURED'))
 
@@ -142,6 +194,25 @@ export function SuggestedCommissionsPage({
         </div>
       </header>
       <VehicleTypeNav active={vehicleType} path="/comisiones/sugerido" />
+
+      {policyStatus === 'error' && (
+        <StatePanel
+          icon={RefreshCw}
+          title="No pudimos cargar las escalas"
+          description={policyError}
+          tone="danger"
+          action={<button className="button button--secondary" type="button" onClick={() => setPolicyRefreshKey((key) => key + 1)}>Reintentar escalas</button>}
+        />
+      )}
+      {optionsStatus === 'error' && (
+        <StatePanel
+          icon={RefreshCw}
+          title="No pudimos cargar vendedores y sucursales"
+          description={optionsError}
+          tone="danger"
+          action={<button className="button button--secondary" type="button" onClick={() => setOptionsRefreshKey((key) => key + 1)}>Reintentar opciones</button>}
+        />
+      )}
 
       {configurationMissing ? (
         <div className="commission-policy-missing" role="status">
@@ -180,6 +251,7 @@ export function SuggestedCommissionsPage({
             Sucursal
             <select
               aria-label="Sucursal"
+              disabled={optionsStatus === 'loading'}
               value={draft.branchId ?? ''}
               onChange={(event) => setDraft(withOptional(draft, 'branchId', event.target.value || undefined))}
             >
@@ -191,6 +263,7 @@ export function SuggestedCommissionsPage({
             Vendedor
             <select
               aria-label="Vendedor"
+              disabled={optionsStatus === 'loading'}
               value={draft.sellerId ?? ''}
               onChange={(event) => setDraft(withOptional(draft, 'sellerId', event.target.value || undefined))}
             >
@@ -300,7 +373,7 @@ export function SuggestedCommissionsPage({
             <button className="button button--secondary" type="button" onClick={() => { setSelectedId(null); setDetail(null) }}>Cerrar detalle</button>
           </header>
           {detailStatus === 'loading' && <div className="commission-loading"><RefreshCw className="spin" size={22} /> Cargando operaciones…</div>}
-          {detailStatus === 'error' && <StatePanel icon={RefreshCw} title="No pudimos cargar el detalle" description={error} tone="danger" />}
+          {detailStatus === 'error' && <StatePanel icon={RefreshCw} title="No pudimos cargar el detalle" description={detailError} tone="danger" action={<button className="button button--secondary" type="button" onClick={() => setDetailRefreshKey((key) => key + 1)}>Reintentar detalle</button>} />}
           {detail && detailStatus === 'idle' && (
             <>
               <CommissionProgress commission={detail} />

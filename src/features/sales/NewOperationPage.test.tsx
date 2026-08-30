@@ -2,10 +2,11 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
-import { NetworkError } from '../../shared/api/client'
+import { ApiError, NetworkError } from '../../shared/api/client'
 import { NewOperationPage } from './NewOperationPage'
 
 const mocks = vi.hoisted(() => ({
+  authRoleCode: 'VENDEDOR',
   listBranches: vi.fn(),
   listUnits: vi.fn(),
   listAvailability: vi.fn(),
@@ -30,7 +31,7 @@ vi.mock('../auth/AuthContext', () => ({
       organization: { id: 'org-1', name: 'Luma', code: 'LUMA_CENTRAL' },
       branch: { id: 'branch-1', code: 'CENTRO', name: 'Centro' },
       role: {
-        code: 'VENDEDOR',
+        code: mocks.authRoleCode,
         permissions: [
           'ventas.gestionar',
           'inventario.consultar',
@@ -144,6 +145,7 @@ function operation(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.authRoleCode = 'VENDEDOR'
   mocks.useCreditCheck.mockReturnValue({
     state: { status: 'idle' },
     retry: vi.fn(),
@@ -262,10 +264,22 @@ describe('Nueva operación productiva', () => {
     const seller = await screen.findByLabelText('Quién hizo la venta *')
     const contact = screen.getByLabelText('Quién fue el contacto')
     expect(seller).toHaveValue('seller-1')
+    expect(seller).toBeDisabled()
     expect(within(seller).getAllByRole('option')).toHaveLength(3)
     expect(
       within(contact).getByRole('option', { name: 'Contacto Dos' }),
     ).toBeInTheDocument()
+  })
+
+  it('permite elegir vendedor a los roles administrativos autorizados', async () => {
+    mocks.authRoleCode = 'ADMINISTRATIVA'
+    const user = userEvent.setup()
+    renderPage()
+
+    const seller = await screen.findByLabelText('Quién hizo la venta *')
+    expect(seller).toBeEnabled()
+    await user.selectOptions(seller, 'seller-2')
+    expect(seller).toHaveValue('seller-2')
   })
 
   it('envía persona embebida, plan y operación física sin seleccionar cliente', async () => {
@@ -356,6 +370,7 @@ describe('Nueva operación productiva', () => {
     fireEvent.change(screen.getByLabelText('DNI / CI *'), {
       target: { value: '33444555' },
     })
+
     fireEvent.change(screen.getByLabelText('Nombre y apellido *'), {
       target: { value: 'Cliente Existente' },
     })
@@ -364,7 +379,7 @@ describe('Nueva operación productiva', () => {
     })
     await user.click(
       await screen.findByRole('option', {
-        name: /Proveedor Uno · 2 disponibles/,
+        name: /Stock de Proveedor Uno \(2\) · Chasis al recibir/,
       }),
     )
     await waitFor(() => expect(screen.getByText(/5\.000\.000/)).toBeInTheDocument())
@@ -410,6 +425,42 @@ describe('Nueva operación productiva', () => {
         ],
       }),
     )
+  })
+
+  it('no ofrece pedidos sintéticos cuando no hay disponibilidad informada', async () => {
+    mocks.listAvailability.mockResolvedValue([])
+    mocks.listUnits.mockResolvedValue([])
+    renderPage()
+    expect(
+      await screen.findByText('No hay coincidencias'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Pedir a proveedor' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('invalida sólo la unidad perdida ante una reserva concurrente 409', async () => {
+    mocks.createOperation.mockRejectedValueOnce(
+      new ApiError(409, 'already reserved', {
+        code: 'INVENTORY_UNIT_ALREADY_RESERVED',
+      }),
+    )
+    renderPage()
+    const user = await completeBaseData()
+    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Esta unidad acaba de ser reservada por otra operación',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Nombre y apellido *')).toHaveValue(
+      'Ana Cliente',
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Elegir otra unidad' }),
+    )
+    await waitFor(() => expect(mocks.listUnits).toHaveBeenCalledTimes(2))
   })
 
   it('consulta Clientes en rojo sin convertirlo en selector de clientes', () => {

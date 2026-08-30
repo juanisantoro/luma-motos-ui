@@ -10,12 +10,13 @@ const permissions = [
   'inventario.gestionar',
   'catalogo.consultar',
 ]
+let roleCode = 'ADMINISTRADOR'
 
 vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({
     user: {
       globalAccess: false,
-      role: { permissions },
+      role: { code: roleCode, permissions },
     },
   }),
 }))
@@ -38,12 +39,14 @@ function gateway(
     createUnits: vi.fn().mockResolvedValue(undefined),
     upsertAvailability: vi.fn().mockResolvedValue(undefined),
     configurePrice: vi.fn().mockResolvedValue(undefined),
+    updateCatalogModel: vi.fn().mockResolvedValue(undefined),
     transitionSupply: vi.fn().mockResolvedValue(undefined),
     receiveSupply: vi.fn().mockResolvedValue(undefined),
   }
 }
 
 beforeEach(() => {
+  roleCode = 'ADMINISTRADOR'
   permissions.splice(
     0,
     permissions.length,
@@ -76,6 +79,31 @@ describe('contenedor de stock', () => {
         viewAvailability: false,
         createUnits: true,
         manageSupply: false,
+      }),
+      undefined,
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('bloquea acciones de abastecimiento al vendedor aunque reciba permisos operativos', async () => {
+    roleCode = 'VENDEDOR'
+    permissions.push(
+      'proveedores.consultar',
+      'proveedores.gestionar',
+      'abastecimiento.consultar',
+      'abastecimiento.gestionar',
+      'abastecimiento.recibir',
+    )
+    const loadWorkspace = vi.fn().mockResolvedValue(emptyData)
+    render(<StockPage gateway={gateway(loadWorkspace)} vehicleType="MOTO" />)
+
+    await screen.findByRole('heading', { name: 'Stock de motos' })
+    expect(loadWorkspace).toHaveBeenCalledWith(
+      'MOTO',
+      expect.objectContaining({
+        manageAvailability: false,
+        manageSupply: false,
+        receiveSupply: false,
       }),
       undefined,
       expect.any(AbortSignal),

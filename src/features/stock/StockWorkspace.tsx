@@ -12,7 +12,8 @@ import {
   Truck,
   Warehouse,
 } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { CatalogModelModal } from './CatalogModelModal'
 import { ProviderAvailabilityModal } from './ProviderAvailabilityModal'
 import { PricePolicyModal } from './PricePolicyModal'
 import { ReceiveSupplyModal } from './ReceiveSupplyModal'
@@ -20,6 +21,7 @@ import { UnitFormModal } from './UnitFormModal'
 import { stockErrorMessage } from './errors'
 import type {
   AcquisitionOrigin,
+  CatalogPricePolicy,
   ConfigurePriceInput,
   CreateUnitsInput,
   PhysicalUnit,
@@ -29,6 +31,7 @@ import type {
   SupplierAvailability,
   SupplyOrder,
   SupplyStatus,
+  UpdateCatalogModelInput,
   UnitStatus,
   UpsertAvailabilityInput,
   VehicleCondition,
@@ -45,6 +48,7 @@ type StockWorkspaceProps = {
   onCreateUnits: (input: CreateUnitsInput) => Promise<void>
   onUpsertAvailability: (input: UpsertAvailabilityInput) => Promise<void>
   onConfigurePrice: (input: ConfigurePriceInput) => Promise<void>
+  onUpdateCatalogModel: (input: UpdateCatalogModelInput) => Promise<void>
   onTransitionSupply: (
     supplyId: string,
     status: SupplyStatus,
@@ -73,7 +77,7 @@ const supplyStatusLabels: Record<SupplyStatus, string> = {
   PEDIDO: 'Pedido',
   EN_TRANSITO: 'En tránsito',
   RECIBIDO: 'Recibido',
-  ASIGNADO: 'Asignado',
+  ASIGNADO: 'Recibida y reservada',
   CANCELADA: 'Cancelada',
 }
 
@@ -304,17 +308,56 @@ function PhysicalUnits({
   )
 }
 
+function effectivePolicy(
+  model: StockWorkspaceData['catalog'][number],
+  branchId: string,
+) {
+  const current = new Date().toISOString()
+  const policies = model.pricePolicies ?? (model.pricePolicy ? [model.pricePolicy] : [])
+  const active = policies
+    .filter(
+      (policy) =>
+        policy.active !== false &&
+        (!policy.status || policy.status === 'ACTIVE') &&
+        policy.validFrom <= current &&
+        (!policy.validUntil || policy.validUntil >= current),
+    )
+    .sort((left, right) => right.validFrom.localeCompare(left.validFrom))
+  return (
+    (branchId
+      ? active.find((policy) => policy.branchId === branchId)
+      : undefined) ??
+    active.find((policy) => !policy.branchId) ??
+    null
+  )
+}
+
+function policyLabel(policy: CatalogPricePolicy | null) {
+  if (!policy) return 'Sin precio'
+  if (policy.validUntil) return `Vence ${formatDate(policy.validUntil)}`
+  return 'Precio vigente'
+}
+
 function CatalogList({
   catalog,
   units,
+  branches,
   canConfigurePrice,
   onConfigurePrice,
+  onEdit,
 }: {
   catalog: StockWorkspaceData['catalog']
   units: PhysicalUnit[]
+  branches: StockWorkspaceData['branches']
   canConfigurePrice: boolean
-  onConfigurePrice: (item: StockWorkspaceData['catalog'][number]) => void
+  onConfigurePrice: (
+    item: StockWorkspaceData['catalog'][number],
+    branchId: string,
+    policy: CatalogPricePolicy | null,
+  ) => void
+  onEdit: (item: StockWorkspaceData['catalog'][number]) => void
 }) {
+  const [catalogBranchId, setCatalogBranchId] = useState('')
   if (catalog.length === 0) {
     return (
       <EmptyTab
@@ -323,9 +366,35 @@ function CatalogList({
       />
     )
   }
+  const rows = catalog.map((item) => ({
+    item,
+    policy: effectivePolicy(item, catalogBranchId),
+  }))
   return (
-    <div className="stock-table-wrap stock-table-wrap--catalog">
-      <table className="stock-table stock-table--catalog">
+    <>
+      <div className="catalog-toolbar">
+        <label className="filter-field">
+          <span>Precio efectivo para</span>
+          <select
+            aria-label="Sucursal de política"
+            onChange={(event) => setCatalogBranchId(event.target.value)}
+            value={catalogBranchId}
+          >
+            <option value="">Organización</option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p>
+          Una política de sucursal tiene prioridad; si no existe, se usa la
+          vigente de la organización.
+        </p>
+      </div>
+      <div className="stock-table-wrap stock-table-wrap--catalog">
+        <table className="stock-table stock-table--catalog">
         <thead>
           <tr>
             <th>Marca</th>
@@ -333,11 +402,12 @@ function CatalogList({
             <th>Precio sugerido</th>
             <th>Precio mínimo</th>
             <th>Unidades físicas</th>
-            <th>Estado</th>
+            <th>Alcance / estado</th>
+            {canConfigurePrice && <th>Acciones</th>}
           </tr>
         </thead>
         <tbody>
-          {catalog.map((item) => (
+          {rows.map(({ item, policy }) => (
             <tr key={item.id}>
               <td><strong>{item.brand}</strong></td>
               <td>
@@ -347,18 +417,18 @@ function CatalogList({
                 )}
               </td>
               <td>
-                {item.pricePolicy
+                {policy
                   ? formatMoney(
-                      item.pricePolicy.listPrice,
-                      item.pricePolicy.currency,
+                      policy.listPrice,
+                      policy.currency,
                     )
                   : '—'}
               </td>
               <td>
-                {item.pricePolicy
+                {policy
                   ? formatMoney(
-                      item.pricePolicy.minimumPrice,
-                      item.pricePolicy.currency,
+                      policy.minimumPrice,
+                      policy.currency,
                     )
                   : '—'}
               </td>
@@ -366,28 +436,93 @@ function CatalogList({
                 {units.filter((unit) => unit.catalogModel.id === item.id).length}
               </td>
               <td>
-                {item.pricePolicy ? (
-                  <Badge tone="success">Precio vigente</Badge>
-                ) : canConfigurePrice ? (
-                  <div className="catalog-price-action">
-                    <Badge tone="danger">Sin precio configurado</Badge>
+                <div className="catalog-policy-state">
+                  <span>
+                    {policy?.branchId
+                      ? branches.find((branch) => branch.id === policy.branchId)
+                          ?.name ?? 'Sucursal'
+                      : 'Organización'}
+                  </span>
+                  <Badge tone={policy ? 'success' : 'danger'}>
+                    {policyLabel(policy)}
+                  </Badge>
+                </div>
+              </td>
+              {canConfigurePrice && (
+                <td>
+                  <div className="catalog-row-actions">
                     <button
                       className="button button--secondary"
-                      onClick={() => onConfigurePrice(item)}
+                      onClick={() => onEdit(item)}
                       type="button"
                     >
-                      Configurar precio
+                      Editar modelo
+                    </button>
+                    <button
+                      className="button button--secondary"
+                      onClick={() =>
+                        onConfigurePrice(item, catalogBranchId, policy)
+                      }
+                      type="button"
+                    >
+                      Actualizar precios
                     </button>
                   </div>
-                ) : (
-                  <Badge tone="danger">Sin precio configurado</Badge>
-                )}
-              </td>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+        </table>
+      </div>
+      <div className="catalog-card-list">
+        {rows.map(({ item, policy }) => (
+          <article className="catalog-card" key={item.id}>
+            <header>
+              <div>
+                <strong>{item.brand}</strong>
+                <span>{item.model}{item.version ? ` · ${item.version}` : ''}</span>
+              </div>
+              <Badge tone={policy ? 'success' : 'danger'}>
+                {policyLabel(policy)}
+              </Badge>
+            </header>
+            <dl>
+              <div>
+                <dt>Lista</dt>
+                <dd>{policy ? formatMoney(policy.listPrice, policy.currency) : '—'}</dd>
+              </div>
+              <div>
+                <dt>Mínimo</dt>
+                <dd>{policy ? formatMoney(policy.minimumPrice, policy.currency) : '—'}</dd>
+              </div>
+              <div>
+                <dt>Unidades</dt>
+                <dd>{units.filter((unit) => unit.catalogModel.id === item.id).length}</dd>
+              </div>
+            </dl>
+            {canConfigurePrice && (
+              <div className="catalog-row-actions">
+                <button
+                  className="button button--secondary"
+                  onClick={() => onEdit(item)}
+                  type="button"
+                >
+                  Editar modelo
+                </button>
+                <button
+                  className="button button--secondary"
+                  onClick={() => onConfigurePrice(item, catalogBranchId, policy)}
+                  type="button"
+                >
+                  Actualizar precios
+                </button>
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -606,7 +741,7 @@ function SuppliesList({
                   {busyId === supply.id ? 'Actualizando…' : nextAction.label}
                 </button>
               )}
-              {supply.status === 'EN_TRANSITO' &&
+              {(supply.status === 'PEDIDO' || supply.status === 'EN_TRANSITO') &&
                 capabilities.receiveSupply && (
                   <button
                     className="button button--primary"
@@ -615,7 +750,7 @@ function SuppliesList({
                     type="button"
                   >
                     <PackageCheck size={17} />
-                    Recibir
+                    Registrar recepción
                   </button>
                 )}
               {supply.status === 'PENDIENTE_APROBACION' && (
@@ -655,10 +790,23 @@ export function StockWorkspace({
   onCreateUnits,
   onUpsertAvailability,
   onConfigurePrice,
+  onUpdateCatalogModel,
   onTransitionSupply,
   onReceiveSupply,
 }: StockWorkspaceProps) {
-  const [tab, setTab] = useState<StockTab>('physical')
+  const searchParams = useMemo(
+    () => new URLSearchParams(window.location.search),
+    [],
+  )
+  const priceLinkHandled = useRef(false)
+  const requestedTab = searchParams.get('tab')
+  const [tab, setTab] = useState<StockTab>(
+    requestedTab === 'catalog' ||
+      requestedTab === 'providers' ||
+      requestedTab === 'supply'
+      ? requestedTab
+      : 'physical',
+  )
   const [search, setSearch] = useState('')
   const [condition, setCondition] =
     useState<FilterValue<VehicleCondition>>('ALL')
@@ -674,9 +822,14 @@ export function StockWorkspace({
     SupplierAvailability | 'new' | null
   >(null)
   const [receiving, setReceiving] = useState<SupplyOrder | null>(null)
-  const [pricing, setPricing] = useState<
+  const [editingCatalog, setEditingCatalog] = useState<
     StockWorkspaceData['catalog'][number] | null
   >(null)
+  const [pricing, setPricing] = useState<{
+    model: StockWorkspaceData['catalog'][number]
+    branchId: string
+    policy: CatalogPricePolicy | null
+  } | null>(null)
   const [selectedUnits, setSelectedUnits] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [busySupplyId, setBusySupplyId] = useState<string | null>(null)
@@ -694,6 +847,42 @@ export function StockWorkspace({
       ? ([['catalog', 'Catálogo de modelos']] as const)
       : []),
   ] satisfies Array<readonly [StockTab, string]>
+
+  useEffect(() => {
+    const versionId = searchParams.get('priceVersionId')
+    if (
+      !versionId ||
+      !capabilities.createCatalog ||
+      pricing ||
+      priceLinkHandled.current
+    ) {
+      return
+    }
+    const model = data.catalog.find((item) => item.id === versionId)
+    if (!model) return
+    priceLinkHandled.current = true
+    const requestedBranchId = searchParams.get('branchId') ?? ''
+    const consumedParams = new URLSearchParams(window.location.search)
+    consumedParams.delete('priceVersionId')
+    consumedParams.delete('branchId')
+    const consumedSearch = consumedParams.toString()
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${consumedSearch ? `?${consumedSearch}` : ''}${window.location.hash}`,
+    )
+    setTab('catalog')
+    setPricing({
+      model,
+      branchId: requestedBranchId,
+      policy: effectivePolicy(model, requestedBranchId),
+    })
+  }, [
+    capabilities.createCatalog,
+    data.catalog,
+    pricing,
+    searchParams,
+  ])
 
   const units = useMemo(
     () =>
@@ -1124,12 +1313,17 @@ export function StockWorkspace({
           )}
           {tab === 'catalog' && (
             <CatalogList
+              branches={data.branches}
               catalog={catalog}
               units={data.units}
               canConfigurePrice={capabilities.createCatalog}
-              onConfigurePrice={(item) => {
+              onConfigurePrice={(model, policyBranchId, policy) => {
                 setActionError(null)
-                setPricing(item)
+                setPricing({ model, branchId: policyBranchId, policy })
+              }}
+              onEdit={(item) => {
+                setActionError(null)
+                setEditingCatalog(item)
               }}
             />
           )}
@@ -1222,13 +1416,33 @@ export function StockWorkspace({
       )}
       {pricing && (
         <PricePolicyModal
+          branches={data.branches}
+          currentPolicy={pricing.policy}
           error={actionError}
-          model={pricing}
+          {...(pricing.branchId
+            ? { initialBranchId: pricing.branchId }
+            : {})}
+          model={pricing.model}
           onClose={() => setPricing(null)}
           onSubmit={(input) =>
             void runMutation(
               () => onConfigurePrice(input),
               () => setPricing(null),
+            )
+          }
+          submitting={busy}
+        />
+      )}
+      {editingCatalog && (
+        <CatalogModelModal
+          canEditSharedCatalog={capabilities.createSharedCatalog}
+          error={actionError}
+          model={editingCatalog}
+          onClose={() => setEditingCatalog(null)}
+          onSubmit={(input) =>
+            void runMutation(
+              () => onUpdateCatalogModel(input),
+              () => setEditingCatalog(null),
             )
           }
           submitting={busy}

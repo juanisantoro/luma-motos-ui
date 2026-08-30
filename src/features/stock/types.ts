@@ -59,7 +59,10 @@ export type CatalogModel = {
   model: string
   version: string | null
   active: boolean
+  scope?: 'GLOBAL' | 'RESTRINGIDO'
+  pricingStatus?: 'ACTIVE' | 'MISSING'
   pricePolicy: CatalogPricePolicy | null
+  pricePolicies?: CatalogPricePolicy[]
 }
 
 export type CatalogPricePolicy = {
@@ -71,6 +74,9 @@ export type CatalogPricePolicy = {
   minimumPrice: number
   validFrom: string
   validUntil: string | null
+  scope?: 'BRANCH' | 'ORGANIZATION'
+  status?: 'ACTIVE' | 'INACTIVE'
+  active?: boolean
 }
 
 export type PhysicalUnit = {
@@ -173,8 +179,22 @@ export type UpsertAvailabilityInput = {
 
 export type ConfigurePriceInput = {
   versionId: string
+  branchId?: string
+  currency: string
   listPrice: number
   minimumPrice: number
+  validFrom: string
+  validUntil?: string
+}
+
+export type UpdateCatalogModelInput = {
+  versionId: string
+  modelId: string
+  brandId: string
+  brandName?: string
+  modelName?: string
+  versionName: string
+  active: boolean
 }
 
 export type ReceiveSupplyInput = {
@@ -183,6 +203,7 @@ export type ReceiveSupplyInput = {
   year: number
   mileage: number
   licensePlate?: string
+  receivedAt: string
   idempotencyKey: string
 }
 

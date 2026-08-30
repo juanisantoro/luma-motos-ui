@@ -5,8 +5,6 @@ import {
 import type {
   CreateSalesOperationInput,
   CreateSalesTradeInInput,
-  CreateSupplyRequestInput,
-  LinkedSupplyRequest,
   SalesPricePolicy,
   SalesFinancialInstitutionPage,
   SalesSellerPage,
@@ -69,7 +67,7 @@ export function getSalesOperation(id: string, signal?: AbortSignal) {
   )
 }
 
-function listSalesPeople(
+async function listSalesPeople(
   resource: 'sellers' | 'contacts',
   query: {
     branchId: string
@@ -85,10 +83,36 @@ function listSalesPeople(
     if (value !== undefined && value !== '') search.set(key, String(value))
   })
   const suffix = search.size ? `?${search.toString()}` : ''
-  return request<SalesSellerPage>(
+  const first = await request<SalesSellerPage>(
     `/sales/operations/${resource}${suffix}`,
     signal ? { signal } : {},
   )
+  const loadedThrough = first.page * first.limit
+  if (first.items.length >= first.total || loadedThrough >= first.total) {
+    return first
+  }
+  const lastPage = Math.ceil(first.total / first.limit)
+  const remaining = await Promise.all(
+    Array.from(
+      { length: lastPage - first.page },
+      (_, index) => first.page + index + 1,
+    ).map((page) => {
+      const pageSearch = new URLSearchParams(search)
+      pageSearch.set('page', String(page))
+      return request<SalesSellerPage>(
+        `/sales/operations/${resource}?${pageSearch.toString()}`,
+        signal ? { signal } : {},
+      )
+    }),
+  )
+  return {
+    ...first,
+    page: 1,
+    items: [
+      ...first.items,
+      ...remaining.flatMap((result) => result.items),
+    ],
+  }
 }
 
 export function listSalesSellers(
@@ -154,13 +178,6 @@ export function replaceSalesPaymentPlan(
   input: ReplaceSalesPaymentPlanInput,
 ) {
   return request<SalesOperation>(`/sales/operations/${id}/payment-plan`, {
-    method: 'POST',
-    body: input,
-  })
-}
-
-export function createLinkedSupplyRequest(input: CreateSupplyRequestInput) {
-  return request<LinkedSupplyRequest>('/supply-requests', {
     method: 'POST',
     body: input,
   })

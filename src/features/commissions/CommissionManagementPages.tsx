@@ -70,41 +70,74 @@ export function SellerMeetingPage({
   const [error, setError] = useState('')
   const [agreementOpen, setAgreementOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0)
   const canAgree = hasPermission(user?.role.permissions, 'comisiones.acordar')
 
   useEffect(() => {
+    if (initialSuggestion) {
+      setSelectedId(initialSuggestion)
+      return
+    }
     const controller = new AbortController()
     setStatus('loading')
     setError('')
-    const load = initialSuggestion
-      ? gateway.getSuggestion(initialSuggestion, controller.signal)
-          .then((result) => {
-            setDetail(result)
-            setSelectedId(result.id)
-            setPeriod(result.period)
-          })
-      : gateway.listSuggestions(
+    void gateway.listSuggestions(
           { vehicleType, period, page: 1, limit: 100 },
           controller.signal,
-        ).then(async (result) => {
+        )
+      .then((result) => {
           setItems(result.items)
-          const selected = result.items.find((item) => item.id === selectedId) ?? result.items[0]
-          setSelectedId(selected?.id ?? '')
-          setDetail(selected ? await gateway.getSuggestion(selected.id, controller.signal) : null)
+          setSelectedId((current) => {
+           const selected =
+             result.items.find((item) => item.id === current) ?? result.items[0]
+           return selected?.id ?? ''
+          })
+          setStatus('success')
         })
-
-    void load
-      .then(() => setStatus('success'))
       .catch((loadError: unknown) => {
         if (controller.signal.aborted) return
         setError(commissionErrorMessage(loadError))
         setStatus('error')
       })
     return () => controller.abort()
-  }, [gateway, initialSuggestion, period, refreshKey, selectedId, vehicleType])
+  }, [gateway, initialSuggestion, period, refreshKey, vehicleType])
+
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null)
+      return
+    }
+    const controller = new AbortController()
+    setDetail(null)
+    setAgreementOpen(false)
+    setStatus('loading')
+    setError('')
+    void gateway
+      .getSuggestion(selectedId, controller.signal)
+      .then((result) => {
+        setDetail(result)
+        if (initialSuggestion) {
+          setPeriod((current) => current === result.period ? current : result.period)
+        }
+        setStatus('success')
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return
+        setError(commissionErrorMessage(loadError))
+        setStatus('error')
+      })
+    return () => controller.abort()
+  }, [detailRefreshKey, gateway, initialSuggestion, selectedId, vehicleType])
 
   const selectSeller = (id: string) => {
     setSelectedId(id)
+  }
+
+  const changePeriod = (nextPeriod: string) => {
+    setAgreementOpen(false)
+    setDetail(null)
+    setSelectedId('')
+    setPeriod(nextPeriod)
   }
 
   return (
@@ -121,7 +154,7 @@ export function SellerMeetingPage({
         <section className="commission-meeting-controls" aria-label="Seleccionar reunión">
           <label className="field">
             <span>Período</span>
-            <input aria-label="Período" type="month" value={period} onChange={(event) => setPeriod(event.target.value)} />
+            <input aria-label="Período" type="month" value={period} onChange={(event) => changePeriod(event.target.value)} />
           </label>
           <label className="field">
             <span>Vendedor</span>
@@ -137,7 +170,13 @@ export function SellerMeetingPage({
           status={status}
           error={error}
           empty={!detail}
-          onRetry={() => setRefreshKey((key) => key + 1)}
+          onRetry={() => {
+            if (selectedId) {
+              setDetailRefreshKey((key) => key + 1)
+            } else {
+              setRefreshKey((key) => key + 1)
+            }
+          }}
         >
           {detail && (
             <>
@@ -300,6 +339,9 @@ export function CommissionPaymentsPage({
   const [period, setPeriod] = useState(currentPeriod)
   const [items, setItems] = useState<CommissionSettlement[]>([])
   const [options, setOptions] = useState(emptyPaymentOptions)
+  const [optionsStatus, setOptionsStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [optionsError, setOptionsError] = useState('')
+  const [optionsRefreshKey, setOptionsRefreshKey] = useState(0)
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
@@ -308,13 +350,13 @@ export function CommissionPaymentsPage({
   useEffect(() => {
     const controller = new AbortController()
     setStatus('loading')
-    void Promise.all([
-      gateway.listPayable({ vehicleType, period, page: 1, limit: 50 }, controller.signal),
-      gateway.listPaymentOptions(controller.signal),
-    ])
-      .then(([result, optionResult]) => {
+    void gateway
+      .listPayable(
+        { vehicleType, period, page: 1, limit: 50 },
+        controller.signal,
+      )
+      .then((result) => {
         setItems(result.items)
-        setOptions(optionResult)
         setStatus('success')
       })
       .catch((loadError: unknown) => {
@@ -325,10 +367,30 @@ export function CommissionPaymentsPage({
     return () => controller.abort()
   }, [gateway, period, refreshKey, vehicleType])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    setOptionsStatus('loading')
+    setOptionsError('')
+    void gateway
+      .listPaymentOptions(controller.signal)
+      .then((result) => {
+        setOptions(result)
+        setOptionsStatus('success')
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return
+        setOptions(emptyPaymentOptions)
+        setOptionsError(commissionErrorMessage(loadError))
+        setOptionsStatus('error')
+      })
+    return () => controller.abort()
+  }, [gateway, optionsRefreshKey])
+
   return (
     <>
       <header className="page-heading"><div><p className="eyebrow">COMISIONES · TESORERÍA</p><h1>Pagar comisiones</h1><p>Liquidaciones acordadas y pendientes de pago completo.</p></div></header>
       <VehicleTypeNav active={vehicleType} path="/comisiones/pagar" />
+      {optionsStatus === 'error' && <StatePanel icon={FileSearch} title="No pudimos cargar las cuentas de pago" description={optionsError} tone="danger" action={<button className="button button--secondary" type="button" onClick={() => setOptionsRefreshKey((key) => key + 1)}>Reintentar cuentas</button>} />}
       <div className="commission-single-filter">
         <label className="field"><span>Período</span><input aria-label="Período" type="month" value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
       </div>
@@ -342,7 +404,7 @@ export function CommissionPaymentsPage({
                   <td><strong>{item.seller.name}</strong></td><td>{item.branch.name}</td><td>{formatPeriod(item.period)}</td>
                   <td>{item.computableSales}</td><td>{tierLabel(item.scale)}</td><td>{formatCommissionMoney(item.suggestedAmount)}</td>
                   <td><strong>{formatCommissionMoney(item.agreedAmount)}</strong></td><td><CommissionStatusBadge status={item.status} /></td>
-                  <td><button className="button button--primary button--compact" type="button" onClick={() => setPayment(item)}><CreditCard size={16} /> Hacer efectivo</button></td>
+                  <td><button className="button button--primary button--compact" type="button" disabled={optionsStatus !== 'success'} onClick={() => setPayment(item)}><CreditCard size={16} /> Hacer efectivo</button></td>
                 </tr>
               ))}</tbody>
             </table>
@@ -351,7 +413,7 @@ export function CommissionPaymentsPage({
             <article className="commission-card" key={item.id}>
               <header><div><strong>{item.seller.name}</strong><small>{item.branch.name} · {formatPeriod(item.period)}</small></div><CommissionStatusBadge status={item.status} /></header>
               <dl><div><dt>Ventas</dt><dd>{item.computableSales}</dd></div><div><dt>Sugerido</dt><dd>{formatCommissionMoney(item.suggestedAmount)}</dd></div><div><dt>A pagar</dt><dd><strong>{formatCommissionMoney(item.agreedAmount)}</strong></dd></div></dl>
-              <button className="button button--primary" type="button" onClick={() => setPayment(item)}>Hacer efectivo el pago</button>
+              <button className="button button--primary" type="button" disabled={optionsStatus !== 'success'} onClick={() => setPayment(item)}>Hacer efectivo el pago</button>
             </article>
           ))}</div>
         </CommissionLoadState>
@@ -372,23 +434,34 @@ export function PaidCommissionsPage({
   const [draft, setDraft] = useState(query)
   const [items, setItems] = useState<PaidCommission[]>([])
   const [options, setOptions] = useState(emptyOptions)
+  const [optionsStatus, setOptionsStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [optionsError, setOptionsError] = useState('')
+  const [optionsRefreshKey, setOptionsRefreshKey] = useState(0)
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [audit, setAudit] = useState<PaidCommission | null>(null)
 
   useEffect(() => {
-    setQuery((current) => ({ ...current, vehicleType, page: 1 }))
-    setDraft((current) => ({ ...current, vehicleType, page: 1 }))
+    setQuery((current) =>
+      current.vehicleType === vehicleType
+        ? current
+        : { ...current, vehicleType, page: 1 },
+    )
+    setDraft((current) =>
+      current.vehicleType === vehicleType
+        ? current
+        : { ...current, vehicleType, page: 1 },
+    )
   }, [vehicleType])
 
   useEffect(() => {
     const controller = new AbortController()
     setStatus('loading')
-    void Promise.all([gateway.listPaid(query, controller.signal), gateway.listOptions(controller.signal)])
-      .then(([result, optionResult]) => {
+    void gateway
+      .listPaid(query, controller.signal)
+      .then((result) => {
         setItems(result.items)
-        setOptions(optionResult)
         setStatus('success')
       })
       .catch((loadError: unknown) => {
@@ -399,6 +472,25 @@ export function PaidCommissionsPage({
     return () => controller.abort()
   }, [gateway, query, refreshKey])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    setOptionsStatus('loading')
+    setOptionsError('')
+    void gateway
+      .listOptions(controller.signal)
+      .then((result) => {
+        setOptions(result)
+        setOptionsStatus('success')
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return
+        setOptions(emptyOptions)
+        setOptionsError(commissionErrorMessage(loadError))
+        setOptionsStatus('error')
+      })
+    return () => controller.abort()
+  }, [gateway, optionsRefreshKey])
+
   const apply = (event: FormEvent) => {
     event.preventDefault()
     setQuery({ ...draft, vehicleType, page: 1, limit: 50 })
@@ -408,11 +500,12 @@ export function PaidCommissionsPage({
     <>
       <header className="page-heading"><div><p className="eyebrow">COMISIONES · HISTÓRICO</p><h1>Comisiones pagadas</h1><p>Histórico inalterable con escala, importes y medio de pago registrados.</p></div></header>
       <VehicleTypeNav active={vehicleType} path="/comisiones/pagadas" />
+      {optionsStatus === 'error' && <StatePanel icon={FileSearch} title="No pudimos cargar vendedores y sucursales" description={optionsError} tone="danger" action={<button className="button button--secondary" type="button" onClick={() => setOptionsRefreshKey((key) => key + 1)}>Reintentar opciones</button>} />}
       <details className="financial-filters commission-filters" open>
         <summary>Filtros</summary>
         <form onSubmit={apply}>
-          <label className="filter-field">Vendedor<select aria-label="Vendedor" value={draft.sellerId ?? ''} onChange={(event) => setDraft(withOptional(draft, 'sellerId', event.target.value || undefined))}><option value="">Todos</option>{options.sellers.map((seller) => <option key={seller.id} value={seller.id}>{seller.name}</option>)}</select></label>
-          <label className="filter-field">Sucursal<select aria-label="Sucursal" value={draft.branchId ?? ''} onChange={(event) => setDraft(withOptional(draft, 'branchId', event.target.value || undefined))}><option value="">Todas</option>{options.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
+          <label className="filter-field">Vendedor<select aria-label="Vendedor" disabled={optionsStatus === 'loading'} value={draft.sellerId ?? ''} onChange={(event) => setDraft(withOptional(draft, 'sellerId', event.target.value || undefined))}><option value="">Todos</option>{options.sellers.map((seller) => <option key={seller.id} value={seller.id}>{seller.name}</option>)}</select></label>
+          <label className="filter-field">Sucursal<select aria-label="Sucursal" disabled={optionsStatus === 'loading'} value={draft.branchId ?? ''} onChange={(event) => setDraft(withOptional(draft, 'branchId', event.target.value || undefined))}><option value="">Todas</option>{options.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
           <label className="filter-field">Fecha desde<input aria-label="Fecha desde" type="date" value={draft.paidFrom ?? ''} onChange={(event) => setDraft(withOptional(draft, 'paidFrom', event.target.value || undefined))} /></label>
           <label className="filter-field">Fecha hasta<input aria-label="Fecha hasta" type="date" value={draft.paidTo ?? ''} onChange={(event) => setDraft(withOptional(draft, 'paidTo', event.target.value || undefined))} /></label>
           <label className="filter-field">Año<input aria-label="Año" type="number" min="2000" max="2100" value={draft.year ?? ''} onChange={(event) => setDraft(withOptional(draft, 'year', event.target.value ? Number(event.target.value) : undefined))} /></label>

@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, NetworkError } from '../../shared/api/client'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { CreditAlert, useCreditCheck } from '../credit-checks'
@@ -131,6 +132,38 @@ function FieldError({ message }: { message: string | undefined }) {
   return message ? <small className="field-error">{message}</small> : null
 }
 
+function ReservationConflictModal({ onClose }: { onClose: () => void }) {
+  const dialogRef = useDialogFocus(onClose)
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <div
+        aria-labelledby="reservation-conflict-title"
+        aria-modal="true"
+        className="modal-card reservation-conflict-modal"
+        ref={dialogRef}
+        role="alertdialog"
+      >
+        <AlertTriangle size={28} aria-hidden="true" />
+        <h2 id="reservation-conflict-title">
+          Esta unidad acaba de ser reservada por otra operación
+        </h2>
+        <p>
+          Conservamos todos los demás datos y actualizamos el stock. Seleccioná
+          otra unidad disponible para continuar.
+        </p>
+        <button
+          autoFocus
+          className="button button--primary"
+          onClick={onClose}
+          type="button"
+        >
+          Elegir otra unidad
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function SectionHeading({
   id,
   number,
@@ -192,6 +225,10 @@ export function NewOperationPage({
     permissions,
     'proveedores.consultar',
   )
+  const canConfigurePrice =
+    hasPermission(permissions, 'catalogo.gestionar') &&
+    hasPermission(permissions, 'catalogo.consultar') &&
+    hasPermission(permissions, 'inventario.consultar')
   const organizationId = user?.globalAccess
     ? user.organization.id
     : undefined
@@ -252,6 +289,7 @@ export function NewOperationPage({
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [completion, setCompletion] = useState<Completion | null>(null)
+  const [reservationConflict, setReservationConflict] = useState(false)
 
   const creditCheck = useCreditCheck({
     documentType,
@@ -277,7 +315,8 @@ export function NewOperationPage({
             controller.signal,
           )
         : Promise.resolve([]),
-    ]).then(([branchResult, unitResult, availabilityResult]) => {
+    ]).then(
+      ([branchResult, unitResult, availabilityResult]) => {
       if (controller.signal.aborted) return
       const errors: Array<{ source: string; message: string }> = []
       if (branchResult.status === 'fulfilled') {
@@ -326,7 +365,8 @@ export function NewOperationPage({
       }
       setVehicleErrors(errors)
       setVehicleLoading(false)
-    })
+      },
+    )
     return () => controller.abort()
   }, [
     canViewAvailability,
@@ -678,6 +718,24 @@ export function NewOperationPage({
           : 'La operación, el cliente y sus condiciones comerciales quedaron guardados como borrador.',
       })
     } catch (error) {
+      if (
+        !persisted &&
+        error instanceof ApiError &&
+        error.status === 409 &&
+        error.details?.code === 'INVENTORY_UNIT_ALREADY_RESERVED' &&
+        selectedVehicle.source === 'PHYSICAL'
+      ) {
+        const unavailableUnitId = selectedVehicle.unit.id
+        setUnits((current) =>
+          current.filter((unit) => unit.id !== unavailableUnitId),
+        )
+        setVehicleKey('')
+        setPolicy(null)
+        setAgreedPrice('')
+        setReservationConflict(true)
+        setVehicleLoadKey((current) => current + 1)
+        return
+      }
       if (persisted) {
         setCompletion({
           kind: 'partial',
@@ -734,6 +792,11 @@ export function NewOperationPage({
 
   return (
     <>
+      {reservationConflict && (
+        <ReservationConflictModal
+          onClose={() => setReservationConflict(false)}
+        />
+      )}
       <header className="page-heading operation-page-heading">
         <div>
           <p className="eyebrow">VENTAS · CIRCUITO PRODUCTIVO</p>
@@ -867,7 +930,7 @@ export function NewOperationPage({
                     {condition === 'NUEVO' ? 'Nuevo' : 'Usado'} ·{' '}
                     {selectedVehicle.source === 'PHYSICAL'
                       ? `Stock físico · ${selectedVehicle.unit.branch.name}`
-                      : `Proveedor ${selectedVehicle.availability.supplier.name}`}
+                      : `Stock de ${selectedVehicle.availability.supplier.name} (${selectedVehicle.availability.quantity}) · Chasis al recibir`}
                   </span>
                 </div>
                 <dl>
@@ -891,7 +954,7 @@ export function NewOperationPage({
               </div>
             )}
 
-            {selectedVehicle?.source === 'SUPPLIER' && (
+            {selectedVehicle && selectedVehicle.source !== 'PHYSICAL' && (
               <label className="field operation-branch-field">
                 <span>Sucursal destino *</span>
                 <select
@@ -944,6 +1007,20 @@ export function NewOperationPage({
                     >
                       <RefreshCw size={15} /> Reintentar
                     </button>
+                    {canConfigurePrice && catalogModel && (
+                      <Link
+                        className="button button--secondary"
+                        to={`/stock/${vehicleType === 'MOTO' ? 'motos' : 'autos'}?tab=catalog&priceVersionId=${encodeURIComponent(catalogModel.id)}&branchId=${encodeURIComponent(branchId)}`}
+                      >
+                        Configurar precio
+                      </Link>
+                    )}
+                    {!canConfigurePrice && (
+                      <small>
+                        Solicitá a un usuario con permiso de catálogo que
+                        configure el precio para esta sucursal.
+                      </small>
+                    )}
                   </div>
                 )}
                 <FieldError message={fieldErrors.policy} />
@@ -1006,7 +1083,7 @@ export function NewOperationPage({
                 <select
                   aria-invalid={Boolean(fieldErrors.seller)}
                   data-field="seller"
-                  disabled={peopleStatus === 'loading'}
+                  disabled={peopleStatus === 'loading' || isSeller}
                   onChange={(event) => {
                     setSellerId(event.target.value)
                     clearError('seller')
@@ -1025,6 +1102,9 @@ export function NewOperationPage({
                     </option>
                   ))}
                 </select>
+                {isSeller && sellerId && (
+                  <small>Se asigna automáticamente al vendedor de la sesión.</small>
+                )}
                 <FieldError message={fieldErrors.seller} />
               </label>
               <label className="field">

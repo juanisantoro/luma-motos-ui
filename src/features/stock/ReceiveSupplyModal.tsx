@@ -1,6 +1,7 @@
 import { LoaderCircle, PackageCheck, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
+import { localIsoDate } from '../../shared/utils/date'
 import type { BranchOption, ReceiveSupplyInput, SupplyOrder } from './types'
 
 type ReceiveSupplyModalProps = {
@@ -33,6 +34,7 @@ export function ReceiveSupplyModal({
       year: Number(data.get('year')),
       mileage:
         supply.condition === 'NUEVO' ? 0 : Number(data.get('mileage')),
+      receivedAt: `${String(data.get('receivedAt'))}T12:00:00.000Z`,
       ...(licensePlate
         ? { licensePlate: licensePlate.toUpperCase() }
         : {}),
@@ -110,6 +112,15 @@ export function ReceiveSupplyModal({
                 name="branchId"
                 type="hidden"
                 value={supply.destinationBranch.id}
+              />
+            </label>
+            <label className="field">
+              <span>Fecha de recepción *</span>
+              <input
+                defaultValue={localIsoDate()}
+                name="receivedAt"
+                type="date"
+                required
               />
             </label>
             <label className="field">

@@ -4,6 +4,7 @@ import {
   BadgeDollarSign,
   CarFront,
   CheckCheck,
+  ChevronDown,
   ClipboardList,
   CircleDollarSign,
   HandCoins,
@@ -20,6 +21,7 @@ import {
   ScrollText,
   ShieldAlert,
   Settings2,
+  Warehouse,
   UsersRound,
   X,
   type LucideIcon,
@@ -38,199 +40,265 @@ type NavItem = {
   permissions?: string[]
   excludeRoles?: string[]
   activePrefix?: string
-  anyPermissions?: string[]
 }
 
-const navigation: NavItem[] = [
+type NavGroup = {
+  id: string
+  label: string
+  icon: LucideIcon
+  items: NavItem[]
+}
+
+const NAV_GROUPS_STORAGE_KEY = 'luma.ui.navigation.groups'
+
+const homeItem: NavItem = {
+  label: 'Inicio',
+  description: 'Resumen general',
+  to: '/',
+  icon: LayoutDashboard,
+}
+
+const navigationGroups: NavGroup[] = [
   {
-    label: 'Inicio',
-    description: 'Resumen general',
-    to: '/',
-    icon: LayoutDashboard,
-  },
-  {
-    label: 'Clientes',
-    description: 'Gestión comercial',
-    to: '/clientes',
-    icon: UsersRound,
-    permissions: ['clientes.consultar'],
-  },
-  {
-    label: 'Stock de motos',
-    description: 'Inventario y proveedores',
-    to: '/stock/motos',
-    icon: Bike,
-    permissions: ['inventario.consultar'],
-  },
-  {
-    label: 'Nueva operación de moto',
-    description: 'Venta y reserva de moto',
-    to: '/motos/operaciones/nueva',
-    icon: PlusCircle,
-    permissions: ['ventas.consultar', 'ventas.gestionar'],
-  },
-  {
-    label: 'Mis operaciones de motos',
-    description: 'Seguimiento personal de motos',
-    to: '/motos/mis-operaciones',
-    icon: ReceiptText,
-    permissions: ['ventas.consultar'],
-  },
-  {
-    label: 'Operaciones de motos',
-    description: 'Ventas y reservas de motos',
-    to: '/motos/operaciones',
+    id: 'sales',
+    label: 'Ventas',
     icon: ShoppingCart,
-    permissions: ['ventas.consultar'],
-    excludeRoles: ['VENDEDOR'],
+    items: [
+      {
+        label: 'Nueva operación de moto',
+        description: 'Venta y reserva de moto',
+        to: '/motos/operaciones/nueva',
+        icon: PlusCircle,
+        permissions: ['ventas.consultar', 'ventas.gestionar'],
+      },
+      {
+        label: 'Nueva operación de auto',
+        description: 'Venta y reserva de auto',
+        to: '/autos/operaciones/nueva',
+        icon: PlusCircle,
+        permissions: ['ventas.consultar', 'ventas.gestionar'],
+      },
+      {
+        label: 'Mis operaciones de motos',
+        description: 'Seguimiento personal',
+        to: '/motos/mis-operaciones',
+        icon: ReceiptText,
+        permissions: ['ventas.consultar'],
+      },
+      {
+        label: 'Operaciones de motos',
+        description: 'Ventas y reservas',
+        to: '/motos/operaciones',
+        icon: Bike,
+        permissions: ['ventas.consultar'],
+        excludeRoles: ['VENDEDOR'],
+      },
+      {
+        label: 'Aprobaciones de motos',
+        description: 'Control comercial',
+        to: '/motos/aprobaciones',
+        icon: CheckCheck,
+        permissions: ['ventas.consultar', 'ventas.aprobar'],
+      },
+      {
+        label: 'Mis operaciones de autos',
+        description: 'Seguimiento personal',
+        to: '/autos/mis-operaciones',
+        icon: ReceiptText,
+        permissions: ['ventas.consultar'],
+      },
+      {
+        label: 'Operaciones de autos',
+        description: 'Ventas y reservas',
+        to: '/autos/operaciones',
+        icon: CarFront,
+        permissions: ['ventas.consultar'],
+        excludeRoles: ['VENDEDOR'],
+      },
+      {
+        label: 'Aprobaciones de autos',
+        description: 'Control comercial',
+        to: '/autos/aprobaciones',
+        icon: CheckCheck,
+        permissions: ['ventas.consultar', 'ventas.aprobar'],
+      },
+      {
+        label: 'Clientes',
+        description: 'Gestión comercial',
+        to: '/clientes',
+        icon: UsersRound,
+        permissions: ['clientes.consultar'],
+      },
+      {
+        label: 'Clientes en rojo',
+        description: 'Consultas rechazadas',
+        to: '/consultas-crediticias',
+        icon: ShieldAlert,
+        permissions: ['consultas_crediticias.consultar'],
+      },
+    ],
   },
   {
-    label: 'Aprobaciones de motos',
-    description: 'Control comercial de motos',
-    to: '/motos/aprobaciones',
-    icon: CheckCheck,
-    permissions: ['ventas.consultar', 'ventas.aprobar'],
+    id: 'stock',
+    label: 'Stock y abastecimiento',
+    icon: Warehouse,
+    items: [
+      {
+        label: 'Stock de motos',
+        description: 'Inventario y proveedores',
+        to: '/stock/motos',
+        icon: Bike,
+        permissions: ['inventario.consultar'],
+      },
+      {
+        label: 'Stock de autos',
+        description: 'Inventario y proveedores',
+        to: '/stock/autos',
+        icon: CarFront,
+        permissions: ['inventario.consultar'],
+      },
+    ],
   },
   {
-    label: 'Stock de autos',
-    description: 'Inventario y proveedores',
-    to: '/stock/autos',
-    icon: CarFront,
-    permissions: ['inventario.consultar'],
-  },
-  {
-    label: 'Nueva operación de auto',
-    description: 'Venta y reserva de auto',
-    to: '/autos/operaciones/nueva',
-    icon: PlusCircle,
-    permissions: ['ventas.consultar', 'ventas.gestionar'],
-  },
-  {
-    label: 'Mis operaciones de autos',
-    description: 'Seguimiento personal de autos',
-    to: '/autos/mis-operaciones',
-    icon: ReceiptText,
-    permissions: ['ventas.consultar'],
-  },
-  {
-    label: 'Operaciones de autos',
-    description: 'Ventas y reservas de autos',
-    to: '/autos/operaciones',
-    icon: ShoppingCart,
-    permissions: ['ventas.consultar'],
-    excludeRoles: ['VENDEDOR'],
-  },
-  {
-    label: 'Aprobaciones de autos',
-    description: 'Control comercial de autos',
-    to: '/autos/aprobaciones',
-    icon: CheckCheck,
-    permissions: ['ventas.consultar', 'ventas.aprobar'],
-  },
-  {
-    label: 'Clientes en rojo',
-    description: 'Consultas crediticias',
-    to: '/consultas-crediticias',
-    icon: ShieldAlert,
-    permissions: ['consultas_crediticias.consultar'],
-  },
-  {
-    label: 'Compras de motos',
-    description: 'Proveedores y motos',
-    to: '/motos/compras',
-    icon: ShoppingCart,
-    permissions: ['compras.consultar'],
-  },
-  {
-    label: 'Compras de autos',
-    description: 'Proveedores y autos',
-    to: '/autos/compras',
-    icon: ShoppingCart,
-    permissions: ['compras.consultar'],
-  },
-  {
-    label: 'Ingresos de motos',
-    description: 'Cobros vinculados a motos',
-    to: '/motos/ingresos',
+    id: 'finance',
+    label: 'Administración financiera',
     icon: CircleDollarSign,
-    permissions: ['ingresos.consultar'],
+    items: [
+      {
+        label: 'Compras de motos',
+        description: 'Proveedores y motos',
+        to: '/motos/compras',
+        icon: Bike,
+        permissions: ['compras.consultar'],
+      },
+      {
+        label: 'Compras de autos',
+        description: 'Proveedores y autos',
+        to: '/autos/compras',
+        icon: CarFront,
+        permissions: ['compras.consultar'],
+      },
+      {
+        label: 'Ingresos de motos',
+        description: 'Cobros vinculados',
+        to: '/motos/ingresos',
+        icon: CircleDollarSign,
+        permissions: ['ingresos.consultar'],
+      },
+      {
+        label: 'Ingresos de autos',
+        description: 'Cobros vinculados',
+        to: '/autos/ingresos',
+        icon: CircleDollarSign,
+        permissions: ['ingresos.consultar'],
+      },
+      {
+        label: 'Gastos generales',
+        description: 'Egresos generales',
+        to: '/gastos',
+        icon: ReceiptText,
+        permissions: ['gastos.consultar'],
+      },
+    ],
   },
   {
-    label: 'Ingresos de autos',
-    description: 'Cobros vinculados a autos',
-    to: '/autos/ingresos',
-    icon: CircleDollarSign,
-    permissions: ['ingresos.consultar'],
-  },
-  {
-    label: 'Gastos',
-    description: 'Egresos generales',
-    to: '/gastos',
-    icon: ReceiptText,
-    permissions: ['gastos.consultar'],
-  },
-  {
-    label: 'Sugerido de comisiones',
-    description: 'Cálculo por escala',
-    to: '/comisiones/sugerido/motos',
-    activePrefix: '/comisiones/sugerido/',
+    id: 'commissions',
+    label: 'Comisiones',
     icon: BadgeDollarSign,
-    permissions: ['comisiones.consultar'],
+    items: [
+      {
+        label: 'Sugerido',
+        description: 'Cálculo por escala',
+        to: '/comisiones/sugerido/motos',
+        activePrefix: '/comisiones/sugerido/',
+        icon: BadgeDollarSign,
+        permissions: ['comisiones.consultar'],
+      },
+      {
+        label: 'Visualizar con vendedor',
+        description: 'Reunión y acuerdo',
+        to: '/comisiones/reunion/motos',
+        activePrefix: '/comisiones/reunion/',
+        icon: Presentation,
+        permissions: ['comisiones.consultar'],
+      },
+      {
+        label: 'Pagar',
+        description: 'Liquidaciones pendientes',
+        to: '/comisiones/pagar/motos',
+        activePrefix: '/comisiones/pagar/',
+        icon: HandCoins,
+        permissions: ['comisiones.pagar'],
+      },
+      {
+        label: 'Pagadas',
+        description: 'Histórico y auditoría',
+        to: '/comisiones/pagadas/motos',
+        activePrefix: '/comisiones/pagadas/',
+        icon: History,
+        permissions: ['comisiones.historial'],
+      },
+      {
+        label: 'Escalas',
+        description: 'Montos y vigencias',
+        to: '/comisiones/escalas/motos',
+        activePrefix: '/comisiones/escalas/',
+        icon: Settings2,
+        permissions: ['comisiones.configurar'],
+      },
+      {
+        label: 'Mis comisiones',
+        description: 'Progreso personal',
+        to: '/mis-comisiones',
+        icon: BadgeDollarSign,
+        permissions: ['comisiones.propias'],
+      },
+    ],
   },
   {
-    label: 'Visualizar con vendedor',
-    description: 'Reunión y acuerdo',
-    to: '/comisiones/reunion/motos',
-    activePrefix: '/comisiones/reunion/',
-    icon: Presentation,
-    permissions: ['comisiones.consultar'],
-  },
-  {
-    label: 'Pagar comisiones',
-    description: 'Liquidaciones pendientes',
-    to: '/comisiones/pagar/motos',
-    activePrefix: '/comisiones/pagar/',
-    icon: HandCoins,
-    permissions: ['comisiones.pagar'],
-  },
-  {
-    label: 'Comisiones pagadas',
-    description: 'Histórico y auditoría',
-    to: '/comisiones/pagadas/motos',
-    activePrefix: '/comisiones/pagadas/',
-    icon: History,
-    permissions: ['comisiones.historial'],
-  },
-  {
-    label: 'Configuración de escalas',
-    description: 'Montos y vigencias',
-    to: '/comisiones/escalas/motos',
-    activePrefix: '/comisiones/escalas/',
+    id: 'configuration',
+    label: 'Configuración',
     icon: Settings2,
-    permissions: ['comisiones.configurar'],
-  },
-  {
-    label: 'Mis comisiones',
-    description: 'Progreso personal',
-    to: '/mis-comisiones',
-    icon: BadgeDollarSign,
-    permissions: ['comisiones.propias'],
-  },
-  {
-    label: 'Usuarios y permisos',
-    description: 'Accesos y permisos',
-    to: '/usuarios',
-    icon: ClipboardList,
-    anyPermissions: ['usuarios.consultar', 'roles.consultar'],
-  },
-  {
-    label: 'Auditoría',
-    description: 'Actividad del sistema',
-    to: '/auditoria',
-    icon: ScrollText,
-    permissions: ['auditoria.consultar'],
+    items: [
+      {
+        label: 'Usuarios',
+        description: 'Personas y accesos',
+        to: '/usuarios',
+        icon: UsersRound,
+        permissions: ['usuarios.consultar'],
+      },
+      {
+        label: 'Roles y permisos',
+        description: 'Perfiles de acceso',
+        to: '/usuarios/roles',
+        icon: ClipboardList,
+        permissions: ['roles.consultar'],
+      },
+      {
+        label: 'Auditoría',
+        description: 'Actividad del sistema',
+        to: '/auditoria',
+        icon: ScrollText,
+        permissions: ['auditoria.consultar'],
+      },
+    ],
   },
 ]
+
+function storedOpenGroups() {
+  try {
+    const stored = JSON.parse(
+      sessionStorage.getItem(NAV_GROUPS_STORAGE_KEY) ?? '[]',
+    )
+    return new Set<string>(
+      Array.isArray(stored)
+        ? stored.filter((value): value is string => typeof value === 'string')
+        : [],
+    )
+  } catch {
+    return new Set<string>()
+  }
+}
 
 function initials(name: string | null, email: string) {
   const source = name?.trim() || email
@@ -251,6 +319,7 @@ export function AppLayout() {
   )
   const [collapsed, setCollapsed] = useState(compactByDefault)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [openGroups, setOpenGroups] = useState(storedOpenGroups)
   const sidebarRef = useRef<HTMLElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -295,38 +364,82 @@ export function AppLayout() {
     }
   }, [drawerOpen, isMobile])
 
+  const roleCode = user?.role.code
+  const permissions = user?.role.permissions ?? []
+  const visibleGroups = navigationGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) =>
+          !item.excludeRoles?.includes(roleCode ?? '') &&
+          (!item.permissions ||
+            item.permissions.every((permission) =>
+              hasPermission(permissions, permission),
+            )),
+      ),
+    }))
+    .filter((group) => group.items.length > 0)
+  const navigationItems = [
+    homeItem,
+    ...visibleGroups.flatMap((group) => group.items),
+  ]
+  const activeItem =
+    navigationItems
+      .filter((item) =>
+        item.to === '/'
+          ? location.pathname === '/'
+          : location.pathname.startsWith(item.activePrefix ?? item.to),
+      )
+      .sort(
+        (left, right) =>
+          (right.activePrefix ?? right.to).length -
+          (left.activePrefix ?? left.to).length,
+      )[0] ?? homeItem
+  const isItemActive = (item: Pick<NavItem, 'to'>) =>
+    item.to === activeItem.to
+  const activeGroup = visibleGroups.find((group) =>
+    group.items.some(isItemActive),
+  )
+  const sidebarCompact = collapsed && !isMobile
+  const visibleGroupKey = visibleGroups.map((group) => group.id).join('|')
+  const activeGroupId = activeGroup?.id
+
+  useEffect(() => {
+    const available = new Set(visibleGroupKey ? visibleGroupKey.split('|') : [])
+    setOpenGroups((current) => {
+      const next = new Set(
+        [...current].filter((groupId) => available.has(groupId)),
+      )
+      if (activeGroupId) next.add(activeGroupId)
+      const unchanged =
+        next.size === current.size &&
+        [...next].every((groupId) => current.has(groupId))
+      return unchanged ? current : next
+    })
+  }, [activeGroupId, roleCode, visibleGroupKey])
+
+  useEffect(() => {
+    sessionStorage.setItem(
+      NAV_GROUPS_STORAGE_KEY,
+      JSON.stringify([...openGroups]),
+    )
+  }, [openGroups])
+
   if (!user) return null
 
-  const items = navigation
-    .filter(
-      (item) =>
-        !item.excludeRoles?.includes(user.role.code) &&
-        (!item.permissions ||
-          item.permissions.every((permission) =>
-            hasPermission(user.role.permissions, permission),
-          )),
-    )
-    .filter(
-      (item) =>
-        !item.anyPermissions ||
-        item.anyPermissions.some((permission) =>
-          hasPermission(user.role.permissions, permission),
-        ),
-    )
-    .map((item) =>
-      item.to === '/usuarios' &&
-      !hasPermission(user.role.permissions, 'usuarios.consultar')
-        ? { ...item, to: '/usuarios/roles' }
-        : item,
-    )
-  const isItemActive = (item: Pick<NavItem, 'to' | 'activePrefix'>) =>
-    item.to === '/'
-      ? location.pathname === '/'
-      : item.activePrefix
-        ? location.pathname.startsWith(item.activePrefix)
-        : location.pathname.startsWith(item.to)
-  const activeItem = items.find(isItemActive) ?? items[0]
-  const sidebarCompact = collapsed && !isMobile
+  const toggleGroup = (groupId: string) => {
+    if (sidebarCompact) {
+      setCollapsed(false)
+      setOpenGroups((current) => new Set(current).add(groupId))
+      return
+    }
+    setOpenGroups((current) => {
+      const next = new Set(current)
+      if (next.has(groupId)) next.delete(groupId)
+      else next.add(groupId)
+      return next
+    })
+  }
 
   return (
     <div className={`app-shell ${sidebarCompact ? 'app-shell--collapsed' : ''}`}>
@@ -359,27 +472,97 @@ export function AppLayout() {
           )}
         </div>
         <nav className="sidebar__nav">
-          {!sidebarCompact && <p className="sidebar__group">GESTIÓN</p>}
-          {items.map(({ icon: Icon, ...item }) => (
-            <NavLink
-              className={() =>
-                `nav-item ${isItemActive(item) ? 'nav-item--active' : ''}`
-              }
-              end={item.to === '/' || item.to.endsWith('/operaciones')}
-              key={item.to}
-              title={sidebarCompact ? item.label : undefined}
-              to={item.to}
-              onClick={() => setDrawerOpen(false)}
-            >
-              <Icon className="nav-item__icon" size={20} aria-hidden="true" />
-              {!sidebarCompact && (
-                <span>
-                  <strong>{item.label}</strong>
-                  <small>{item.description}</small>
-                </span>
-              )}
-            </NavLink>
-          ))}
+          <NavLink
+            className={() =>
+              `nav-item nav-item--root ${isItemActive(homeItem) ? 'nav-item--active' : ''}`
+            }
+            end
+            title={sidebarCompact ? homeItem.label : undefined}
+            to={homeItem.to}
+            onClick={() => setDrawerOpen(false)}
+          >
+            <LayoutDashboard
+              className="nav-item__icon"
+              size={20}
+              aria-hidden="true"
+            />
+            {!sidebarCompact && (
+              <span>
+                <strong>{homeItem.label}</strong>
+                <small>{homeItem.description}</small>
+              </span>
+            )}
+          </NavLink>
+          <div className="nav-groups">
+            {visibleGroups.map((group) => {
+              const GroupIcon = group.icon
+              const expanded = !sidebarCompact && openGroups.has(group.id)
+              const containsActive = activeGroup?.id === group.id
+              const panelId = `navigation-group-${group.id}`
+              return (
+                <section className="nav-group" key={group.id}>
+                  <button
+                    aria-controls={panelId}
+                    aria-expanded={expanded}
+                    aria-label={
+                      sidebarCompact
+                        ? `Abrir grupo ${group.label}`
+                        : undefined
+                    }
+                    className={`nav-group__toggle ${containsActive ? 'nav-group__toggle--active' : ''}`}
+                    onClick={() => toggleGroup(group.id)}
+                    title={sidebarCompact ? group.label : undefined}
+                    type="button"
+                  >
+                    <GroupIcon size={20} aria-hidden="true" />
+                    {!sidebarCompact && (
+                      <>
+                        <span>{group.label}</span>
+                        <ChevronDown
+                          className="nav-group__chevron"
+                          size={17}
+                          aria-hidden="true"
+                        />
+                      </>
+                    )}
+                  </button>
+                  <div
+                    aria-hidden={!expanded}
+                    className={`nav-group__items ${expanded ? 'nav-group__items--open' : ''}`}
+                    id={panelId}
+                    inert={!expanded}
+                  >
+                    <div className="nav-group__items-inner">
+                      {group.items.map(({ icon: Icon, ...item }) => (
+                        <NavLink
+                          className={() =>
+                            `nav-item nav-item--nested ${isItemActive(item) ? 'nav-item--active' : ''}`
+                          }
+                          end={
+                            item.to === '/' ||
+                            item.to.endsWith('/operaciones')
+                          }
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setDrawerOpen(false)}
+                        >
+                          <Icon
+                            className="nav-item__icon"
+                            size={18}
+                            aria-hidden="true"
+                          />
+                          <span>
+                            <strong>{item.label}</strong>
+                            <small>{item.description}</small>
+                          </span>
+                        </NavLink>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              )
+            })}
+          </div>
         </nav>
         <div className="sidebar__account">
           <span className="avatar" aria-hidden="true">

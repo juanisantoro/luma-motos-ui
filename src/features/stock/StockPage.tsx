@@ -33,6 +33,7 @@ export function StockPage({
       const catalogRead = can('catalogo.consultar')
       const suppliersRead = can('proveedores.consultar')
       const supplyRead = can('abastecimiento.consultar')
+      const canOperateSupply = user?.role.code !== 'VENDEDOR'
       return {
         viewCatalog: catalogRead,
         viewAvailability: suppliersRead,
@@ -44,11 +45,14 @@ export function StockPage({
           can('catalogo.gestionar') &&
           catalogRead,
         manageAvailability:
+          canOperateSupply &&
           can('proveedores.gestionar') &&
           suppliersRead &&
           catalogRead,
-        manageSupply: can('abastecimiento.gestionar') && supplyRead,
-        receiveSupply: can('abastecimiento.recibir') && supplyRead,
+        manageSupply:
+          canOperateSupply && can('abastecimiento.gestionar') && supplyRead,
+        receiveSupply:
+          canOperateSupply && can('abastecimiento.recibir') && supplyRead,
       }
     },
     [user],
@@ -172,6 +176,9 @@ export function StockPage({
         mutateAndReload(() =>
           gateway.configurePrice(input, targetOrganizationId),
         )
+      }
+      onUpdateCatalogModel={(input) =>
+        mutateAndReload(() => gateway.updateCatalogModel(input))
       }
       vehicleType={vehicleType}
     />

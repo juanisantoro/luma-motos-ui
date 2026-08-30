@@ -5,6 +5,7 @@ import type {
   StockCapabilities,
   StockWorkspaceData,
   SupplyStatus,
+  UpdateCatalogModelInput,
   UpsertAvailabilityInput,
   VehicleKind,
 } from './types'
@@ -28,6 +29,7 @@ export type StockGateway = {
     input: ConfigurePriceInput,
     organizationId?: string,
   ) => Promise<void>
+  updateCatalogModel: (input: UpdateCatalogModelInput) => Promise<void>
   transitionSupply: (
     supplyId: string,
     status: SupplyStatus,

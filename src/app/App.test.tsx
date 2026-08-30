@@ -264,6 +264,10 @@ describe('autenticación y autorización', () => {
   })
 
   it('restaura la sesión y arma la navegación con permisos del backend', async () => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 1366,
+    })
     const restrictedUser: AuthUser = {
       ...baseUser,
       role: {
@@ -273,15 +277,23 @@ describe('autenticación y autorización', () => {
     }
     sessionStorage.setItem(AUTH_TOKEN_KEY, 'persisted-token')
     const fetchMock = mockFetch(jsonResponse(restrictedUser))
+    const user = userEvent.setup()
 
     render(<App />)
 
     expect(
       await screen.findByRole('heading', { name: 'Buen día, Lucía' }),
     ).toBeInTheDocument()
+    const configuration = screen.getByRole('button', { name: 'Configuración' })
+    expect(configuration).toHaveAttribute('aria-expanded', 'false')
+    await user.click(configuration)
+    expect(configuration).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('link', { name: /Usuarios/ })).toBeInTheDocument()
     expect(
       screen.queryByRole('link', { name: /Clientes/ }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Stock y abastecimiento' }),
     ).not.toBeInTheDocument()
 
     const [, request] = fetchMock.mock.calls[0] as [string, RequestInit]
@@ -291,6 +303,10 @@ describe('autenticación y autorización', () => {
   })
 
   it('lleva a roles desde el menú cuando sólo tiene permisos de roles', async () => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 1366,
+    })
     const rolesUser: AuthUser = {
       ...baseUser,
       role: {
@@ -300,11 +316,18 @@ describe('autenticación y autorización', () => {
     }
     sessionStorage.setItem(AUTH_TOKEN_KEY, 'roles-token')
     mockFetch(jsonResponse(rolesUser))
+    const user = userEvent.setup()
     render(<App />)
 
+    await user.click(
+      await screen.findByRole('button', { name: 'Configuración' }),
+    )
     expect(
-      await screen.findByRole('link', { name: /Usuarios y permisos/ }),
+      await screen.findByRole('link', { name: /Roles y permisos/ }),
     ).toHaveAttribute('href', '/usuarios/roles')
+    expect(
+      screen.queryByRole('link', { name: /^Usuarios/ }),
+    ).not.toBeInTheDocument()
   })
 
   it('expulsa una sesión revocada antes de permitir más navegación', async () => {
@@ -445,10 +468,57 @@ describe('navegación responsive', () => {
     await waitFor(() => expect(menu).toHaveAttribute('aria-expanded', 'false'))
     expect(menu).toHaveFocus()
   })
+
+  it('cierra el drawer al navegar desde un grupo en móvil', async () => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 393,
+    })
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'mobile-token')
+    mockFetch(jsonResponse(baseUser))
+    const user = userEvent.setup()
+
+    render(<App />)
+
+    const menu = await screen.findByRole('button', { name: 'Abrir menú' })
+    await user.click(menu)
+    await user.click(screen.getByRole('button', { name: 'Configuración' }))
+    await user.click(screen.getByRole('link', { name: /^Usuarios/ }))
+    await waitFor(() => expect(menu).toHaveAttribute('aria-expanded', 'false'))
+  })
+
+  it('expande el sidebar colapsado al activar un grupo', async () => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 1024,
+    })
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'compact-token')
+    mockFetch(jsonResponse(baseUser))
+    const user = userEvent.setup()
+
+    render(<App />)
+
+    const group = await screen.findByRole('button', {
+      name: 'Abrir grupo Configuración',
+    })
+    expect(group).toHaveAttribute('aria-expanded', 'false')
+    await user.click(group)
+    expect(
+      screen.getByRole('button', { name: 'Contraer menú' }),
+    ).toHaveAttribute('aria-expanded', 'true')
+    expect(
+      screen.getByRole('button', { name: 'Configuración' }),
+    ).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('link', { name: /^Usuarios/ })).toBeInTheDocument()
+  })
 })
 
 describe('navegación de stock', () => {
   it('expone rutas separadas para motos y autos sólo con permiso real', async () => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 1366,
+    })
     const stockUser: AuthUser = {
       ...baseUser,
       role: {
@@ -474,6 +544,9 @@ describe('navegación de stock', () => {
       await screen.findByRole('heading', { name: 'Stock de motos' }),
     ).toBeInTheDocument()
     expect(
+      screen.getByRole('button', { name: 'Stock y abastecimiento' }),
+    ).toHaveAttribute('aria-expanded', 'true')
+    expect(
       screen.getByRole('link', { name: /Stock de motos/ }),
     ).toBeInTheDocument()
     expect(
@@ -492,6 +565,10 @@ describe('navegación de stock', () => {
 
   describe('navegación de ventas', () => {
     it('consulta Mis operaciones con mine=true y oculta acciones sin permisos', async () => {
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        value: 1366,
+      })
       const salesUser: AuthUser = {
         ...baseUser,
         role: {

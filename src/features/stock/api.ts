@@ -19,6 +19,7 @@ import type {
   SupplierOption,
   SupplyOrder,
   SupplyStatus,
+  UpdateCatalogModelInput,
   UnitStatus,
   UpsertAvailabilityInput,
   VehicleCondition,
@@ -59,11 +60,18 @@ type EmbeddedModelDto = {
 type VersionSummaryDto = {
   id: string
   name: string
+  scope?: 'GLOBAL' | 'RESTRINGIDO'
   model: EmbeddedModelDto
 }
 
 type VersionDto = VersionSummaryDto & {
   active: boolean
+  hasActivePricePolicy?: boolean
+  pricingStatus?: 'ACTIVE' | 'MISSING'
+  activePricePolicy?: (Omit<PricePolicyDto, 'versionId'> & {
+    scope: 'BRANCH' | 'ORGANIZATION'
+    status: 'ACTIVE'
+  }) | null
 }
 
 type PricePolicyDto = {
@@ -75,6 +83,9 @@ type PricePolicyDto = {
   minimumPrice: string
   validFrom: string
   validUntil: string | null
+  scope?: 'BRANCH' | 'ORGANIZATION'
+  status?: 'ACTIVE' | 'INACTIVE'
+  active?: boolean
 }
 
 type BranchDto = {
@@ -205,8 +216,16 @@ function vehicleModel(dto: ModelDto): CatalogVehicleModel {
 function catalogVersion(
   dto: VersionSummaryDto,
   active = true,
-  pricePolicy: CatalogPricePolicy | null = null,
+  selectedPricePolicy: CatalogPricePolicy | null = null,
+  pricePolicies: CatalogPricePolicy[] = selectedPricePolicy
+    ? [selectedPricePolicy]
+    : [],
 ): CatalogModel {
+  const versionDto = dto as VersionDto
+  const activePolicy =
+    versionDto.activePricePolicy
+      ? pricePolicy({ ...versionDto.activePricePolicy, versionId: dto.id })
+      : selectedPricePolicy
   return {
     id: dto.id,
     brandId: dto.model.brand.id,
@@ -216,7 +235,13 @@ function catalogVersion(
     model: dto.model.name,
     version: dto.name,
     active,
-    pricePolicy,
+    ...(dto.scope ? { scope: dto.scope } : {}),
+    ...(versionDto.pricingStatus
+      ? { pricingStatus: versionDto.pricingStatus }
+      : {}),
+    pricePolicy: activePolicy,
+    pricePolicies:
+      activePolicy && pricePolicies.length === 0 ? [activePolicy] : pricePolicies,
   }
 }
 
@@ -230,6 +255,9 @@ function pricePolicy(dto: PricePolicyDto): CatalogPricePolicy {
     minimumPrice: Number(dto.minimumPrice),
     validFrom: dto.validFrom,
     validUntil: dto.validUntil,
+    ...(dto.scope ? { scope: dto.scope } : {}),
+    ...(dto.status ? { status: dto.status } : {}),
+    ...(dto.active !== undefined ? { active: dto.active } : {}),
   }
 }
 
@@ -309,6 +337,19 @@ export function listSalesSupplierAvailability(
     { vehicleType, organizationId },
     signal,
   ).then((items) => items.map(availability))
+}
+
+export function listSalesCatalogModels(
+  vehicleType: VehicleKind,
+  organizationId?: string,
+  branchId?: string,
+  signal?: AbortSignal,
+) {
+  return requestAll<VersionDto>(
+    '/catalog/versions',
+    { vehicleType, active: true, organizationId, branchId },
+    signal,
+  ).then((items) => items.map((item) => catalogVersion(item)))
 }
 
 function supplyRequest(dto: SupplyRequestDto): SupplyOrder {
@@ -465,10 +506,14 @@ async function configurePrice(
     method: 'POST',
     body: {
       versionId: input.versionId,
-      currency: 'ARS',
+      ...(input.branchId ? { branchId: input.branchId } : {}),
+      currency: input.currency,
       listPrice: input.listPrice,
       minimumPrice: input.minimumPrice,
-      validFrom: `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`,
+      validFrom: `${input.validFrom}T00:00:00.000Z`,
+      ...(input.validUntil
+        ? { validUntil: `${input.validUntil}T23:59:59.999Z` }
+        : {}),
       organizationId,
     },
   })
@@ -490,8 +535,10 @@ async function ensureDraftPrice(
   await configurePrice(
     {
       versionId,
+      currency: 'ARS',
       listPrice: draft.listPrice,
       minimumPrice: draft.minimumPrice,
+      validFrom: new Date().toISOString().slice(0, 10),
     },
     organizationId,
   )
@@ -568,27 +615,26 @@ async function loadWorkspace(
   const units = unitDtos.map(physicalUnit)
   const supplies = supplyDtos.map(supplyRequest)
   const branches = uniqueById(branchDtos.map(branch))
-  const policiesByVersion = new Map<string, CatalogPricePolicy>()
-  policyDtos
-    .map(pricePolicy)
-    .sort((left, right) => Number(Boolean(left.branchId)) - Number(Boolean(right.branchId)))
-    .forEach((policy) => {
-      if (!policiesByVersion.has(policy.versionId)) {
-        policiesByVersion.set(policy.versionId, policy)
-      }
-    })
+  const policiesByVersion = new Map<string, CatalogPricePolicy[]>()
+  policyDtos.map(pricePolicy).forEach((policy) => {
+    const policies = policiesByVersion.get(policy.versionId) ?? []
+    policies.push(policy)
+    policiesByVersion.set(policy.versionId, policies)
+  })
 
   return {
     branches,
     suppliers: supplierDtos.map(supplier),
     models: modelDtos.map(vehicleModel),
-    catalog: versionDtos.map((item) =>
-      catalogVersion(
-        item,
-        item.active,
-        policiesByVersion.get(item.id) ?? null,
-      ),
-    ),
+    catalog: versionDtos.map((item) => {
+      const policies = policiesByVersion.get(item.id) ?? []
+      const organizationPolicy =
+        policies
+          .filter((policy) => !policy.branchId)
+          .sort((left, right) => right.validFrom.localeCompare(left.validFrom))[0] ??
+        null
+      return catalogVersion(item, item.active, organizationPolicy, policies)
+    }),
     units,
     availability: availabilityDtos.map(availability),
     supplies,
@@ -639,6 +685,27 @@ export const stockApiGateway: StockGateway = {
     })
   },
   configurePrice,
+  async updateCatalogModel(input: UpdateCatalogModelInput) {
+    if (input.brandName) {
+      await request<BrandDto>(`/catalog/brands/${input.brandId}`, {
+        method: 'PATCH',
+        body: { name: input.brandName },
+      })
+    }
+    if (input.modelName) {
+      await request<ModelDto>(`/catalog/models/${input.modelId}`, {
+        method: 'PATCH',
+        body: { name: input.modelName },
+      })
+    }
+    await request<VersionDto>(`/catalog/versions/${input.versionId}`, {
+      method: 'PATCH',
+      body: {
+        name: input.versionName,
+        active: input.active,
+      },
+    })
+  },
   async transitionSupply(supplyId, status) {
     await request<SupplyRequestDto>(
       `/supply-requests/${supplyId}/transitions`,
@@ -655,6 +722,7 @@ export const stockApiGateway: StockGateway = {
           branchId: input.branchId,
           manufactureYear: input.year,
           mileageKm: input.mileage,
+          receivedAt: input.receivedAt,
           licensePlate: input.licensePlate,
           idempotencyKey: input.idempotencyKey,
         },

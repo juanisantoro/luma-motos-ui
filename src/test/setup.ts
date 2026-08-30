@@ -2,9 +2,20 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
+Object.defineProperty(window, 'innerWidth', {
+  configurable: true,
+  value: 1366,
+  writable: true,
+})
+
 afterEach(() => {
   cleanup()
   sessionStorage.clear()
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: 1366,
+    writable: true,
+  })
 })
 
 Object.defineProperty(window, 'matchMedia', {

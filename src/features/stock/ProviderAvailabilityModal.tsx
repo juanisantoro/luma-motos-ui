@@ -54,11 +54,10 @@ export function ProviderAvailabilityModal({
   })
   const [validationError, setValidationError] = useState<string | null>(null)
   const noun = vehicleType === 'AUTO' ? 'autos' : 'motos'
-  const pricedCatalog = useMemo(
+  const activeCatalog = useMemo(
     () =>
       catalog.filter(
-        (item) =>
-          item.vehicleType === vehicleType && item.active && item.pricePolicy,
+        (item) => item.vehicleType === vehicleType && item.active,
       ),
     [catalog, vehicleType],
   )
@@ -161,16 +160,28 @@ export function ProviderAvailabilityModal({
                   <option value="">
                     Seleccionar del catálogo de {noun}
                   </option>
-                  {pricedCatalog.map((item) => (
+                  {activeCatalog.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.brand} {item.model}
                       {item.version && item.version !== item.model
                         ? ` · ${item.version}`
                         : ''}
+                      {!item.pricePolicy ? ' · Sin precio configurado' : ''}
                     </option>
                   ))}
                 </select>
               </label>
+            )}
+
+            {!createCatalog && activeCatalog.length === 0 && (
+              <div className="stock-catalog-empty field--wide" role="status">
+                <strong>No hay modelos cargados</strong>
+                <span>
+                  {canCreateCatalog
+                    ? 'Marcá “La marca o modelo no existe” para crearlo con su política de precio.'
+                    : 'Solicitá a un usuario autorizado que cargue el catálogo.'}
+                </span>
+              </div>
             )}
 
             {!availability && canCreateCatalog && (

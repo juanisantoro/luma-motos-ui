@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AUTH_TOKEN_KEY } from '../../shared/api/client'
 import {
   listSalesBranches,
+  listSalesCatalogModels,
   listSalesPhysicalUnits,
   listSalesSupplierAvailability,
   stockApiGateway,
@@ -71,6 +72,55 @@ afterEach(() => {
 })
 
 describe('contrato API de stock', () => {
+  it('mapea la política efectiva de sucursal expuesta por catálogo', async () => {
+    sessionStorage.setItem(AUTH_TOKEN_KEY, 'stock-token')
+    const activePricePolicy = {
+      id: 'policy-branch',
+      branchId: branch.id,
+      currency: 'ARS',
+      listPrice: '2600000',
+      minimumPrice: '2500000',
+      validFrom: '2026-08-01T00:00:00.000Z',
+      validUntil: null,
+      scope: 'BRANCH',
+      status: 'ACTIVE',
+    }
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      json(
+        page([
+          {
+            ...version,
+            hasActivePricePolicy: true,
+            pricingStatus: 'ACTIVE',
+            activePricePolicy,
+          },
+        ]),
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await listSalesCatalogModels(
+      'MOTO',
+      undefined,
+      branch.id,
+    )
+
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        pricingStatus: 'ACTIVE',
+        pricePolicy: expect.objectContaining({
+          id: 'policy-branch',
+          branchId: branch.id,
+          listPrice: 2_600_000,
+          scope: 'BRANCH',
+        }),
+      }),
+    )
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
+      `branchId=${encodeURIComponent(branch.id)}`,
+    )
+  })
+
   it('carga para ventas sólo sucursales, stock disponible y proveedores', async () => {
     sessionStorage.setItem(AUTH_TOKEN_KEY, 'stock-token')
     const fetchMock = vi
@@ -358,6 +408,7 @@ describe('contrato API de stock', () => {
       branchId: branch.id,
       year: 2026,
       mileage: 0,
+      receivedAt: '2026-08-29T12:00:00.000Z',
       idempotencyKey: 'receive-key-1',
     })
 
@@ -377,6 +428,7 @@ describe('contrato API de stock', () => {
       branchId: 'branch-1',
       manufactureYear: 2026,
       mileageKm: 0,
+      receivedAt: '2026-08-29T12:00:00.000Z',
       idempotencyKey: 'receive-key-1',
     })
   })
