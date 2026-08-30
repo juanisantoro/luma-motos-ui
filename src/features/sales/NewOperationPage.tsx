@@ -232,7 +232,9 @@ export function NewOperationPage({
   const organizationId = user?.globalAccess
     ? user.organization.id
     : undefined
+  const peopleOrganizationId = user?.organization.id
   const isSeller = user?.role.code === 'VENDEDOR'
+  const hasFixedBranch = Boolean(user?.branch?.id) && !user?.globalAccess
 
   const [documentType, setDocumentType] = useState<'DNI' | 'CI'>('DNI')
   const [documentNumber, setDocumentNumber] = useState('')
@@ -257,6 +259,10 @@ export function NewOperationPage({
   const [notes, setNotes] = useState('')
 
   const [branches, setBranches] = useState<BranchOption[]>([])
+  const [branchStatus, setBranchStatus] = useState<
+    'loading' | 'success' | 'error'
+  >('loading')
+  const [branchError, setBranchError] = useState('')
   const [units, setUnits] = useState<PhysicalUnit[]>([])
   const [availability, setAvailability] = useState<SupplierAvailability[]>([])
   const [vehicleLoading, setVehicleLoading] = useState(true)
@@ -303,10 +309,35 @@ export function NewOperationPage({
 
   useEffect(() => {
     const controller = new AbortController()
+    setBranchStatus('loading')
+    setBranchError('')
+    void listSalesBranches(organizationId, controller.signal)
+      .then((items) => {
+        if (controller.signal.aborted) return
+        setBranches(items)
+        setBranchId((current) => {
+          if (items.some((branch) => branch.id === current)) return current
+          return (
+            items.find((branch) => branch.id === user?.branch?.id)?.id ?? ''
+          )
+        })
+        setBranchStatus('success')
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return
+        setBranches([])
+        setBranchId('')
+        setBranchError(resourceError(error))
+        setBranchStatus('error')
+      })
+    return () => controller.abort()
+  }, [organizationId, user?.branch?.id, vehicleLoadKey])
+
+  useEffect(() => {
+    const controller = new AbortController()
     setVehicleLoading(true)
     setVehicleErrors([])
     void Promise.allSettled([
-      listSalesBranches(organizationId, controller.signal),
       listSalesPhysicalUnits(vehicleType, organizationId, controller.signal),
       canViewAvailability
         ? listSalesSupplierAvailability(
@@ -316,29 +347,9 @@ export function NewOperationPage({
           )
         : Promise.resolve([]),
     ]).then(
-      ([branchResult, unitResult, availabilityResult]) => {
+      ([unitResult, availabilityResult]) => {
       if (controller.signal.aborted) return
       const errors: Array<{ source: string; message: string }> = []
-      if (branchResult.status === 'fulfilled') {
-        setBranches(branchResult.value)
-        setBranchId((current) => {
-          if (branchResult.value.some((branch) => branch.id === current)) {
-            return current
-          }
-          return (
-            branchResult.value.find((branch) => branch.id === user?.branch?.id)
-              ?.id ??
-            branchResult.value[0]?.id ??
-            ''
-          )
-        })
-      } else {
-        setBranches([])
-        errors.push({
-          source: 'Sucursales',
-          message: resourceError(branchResult.reason),
-        })
-      }
       if (unitResult.status === 'fulfilled') {
         setUnits(unitResult.value)
       } else {
@@ -371,10 +382,20 @@ export function NewOperationPage({
   }, [
     canViewAvailability,
     organizationId,
-    user?.branch?.id,
     vehicleLoadKey,
     vehicleType,
   ])
+
+  const vehicleErrorsWithBranches = useMemo(
+    () =>
+      branchStatus === 'error'
+        ? [
+            { source: 'Sucursales', message: branchError },
+            ...vehicleErrors,
+          ]
+        : vehicleErrors,
+    [branchError, branchStatus, vehicleErrors],
+  )
 
   const vehicleOptions = useMemo<OperationVehicleOption[]>(() => {
     const physical = units
@@ -402,19 +423,19 @@ export function NewOperationPage({
   const condition = selectedCondition(selectedVehicle)
 
   useEffect(() => {
-    if (!branchId) {
-      setSellers([])
-      setContacts([])
-      setPeopleStatus('idle')
-      return
-    }
     const controller = new AbortController()
+    setSellers([])
+    setContacts([])
+    setSellerId('')
+    setContactId('')
     setPeopleStatus('loading')
     setPeopleError('')
     const query = {
-      branchId,
+      page: 1,
       limit: 100,
-      ...(organizationId ? { organizationId } : {}),
+      ...(peopleOrganizationId
+        ? { organizationId: peopleOrganizationId }
+        : {}),
     }
     void Promise.allSettled([
       listSalesSellers(query, controller.signal),
@@ -428,18 +449,19 @@ export function NewOperationPage({
           if (sellerResult.value.items.some((person) => person.id === current)) {
             return current
           }
-          const currentUser =
-            sellerResult.value.items.find((person) => person.isCurrentUser) ??
-            sellerResult.value.items.find(
-              (person) =>
-                user?.name &&
-                person.fullName.localeCompare(user.name, 'es', {
-                  sensitivity: 'base',
-                }) === 0,
-            ) ??
-            (isSeller && sellerResult.value.items.length === 1
-              ? sellerResult.value.items[0]
-              : undefined)
+          const currentUser = isSeller
+            ? sellerResult.value.items.find((person) => person.isCurrentUser) ??
+              sellerResult.value.items.find(
+                (person) =>
+                  user?.name &&
+                  person.fullName.localeCompare(user.name, 'es', {
+                    sensitivity: 'base',
+                  }) === 0,
+              ) ??
+              (sellerResult.value.items.length === 1
+                ? sellerResult.value.items[0]
+                : undefined)
+            : undefined
           return currentUser?.id ?? ''
         })
       } else {
@@ -462,9 +484,8 @@ export function NewOperationPage({
     })
     return () => controller.abort()
   }, [
-    branchId,
     isSeller,
-    organizationId,
+    peopleOrganizationId,
     peopleLoadKey,
     user?.name,
   ])
@@ -565,8 +586,8 @@ export function NewOperationPage({
     setAgreedPrice('')
     if (option.source === 'PHYSICAL') {
       setBranchId(option.unit.branch.id)
-    } else if (!branchId) {
-      setBranchId(user?.branch?.id ?? branches[0]?.id ?? '')
+    } else if (!branchId && user?.branch?.id) {
+      setBranchId(user.branch.id)
     }
   }
 
@@ -902,7 +923,7 @@ export function NewOperationPage({
               description="Buscá una unidad física o disponibilidad real de proveedor."
             />
             <OperationVehiclePicker
-              errors={vehicleErrors}
+              errors={vehicleErrorsWithBranches}
               loading={vehicleLoading}
               onRetry={() => setVehicleLoadKey((current) => current + 1)}
               onSearch={setVehicleSearch}
@@ -956,7 +977,7 @@ export function NewOperationPage({
 
             {selectedVehicle && selectedVehicle.source !== 'PHYSICAL' && (
               <label className="field operation-branch-field">
-                <span>Sucursal destino *</span>
+                <span>Sucursal de la operación *</span>
                 <select
                   aria-invalid={Boolean(fieldErrors.branch)}
                   data-field="branch"
@@ -964,15 +985,34 @@ export function NewOperationPage({
                     setBranchId(event.target.value)
                     clearError('branch')
                   }}
+                  disabled={branchStatus === 'loading' || hasFixedBranch}
                   value={branchId}
                 >
-                  <option value="">Seleccionar sucursal</option>
+                  <option value="">
+                    {branchStatus === 'loading'
+                      ? 'Cargando sucursales…'
+                      : 'Seleccionar sucursal'}
+                  </option>
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
                     </option>
                   ))}
                 </select>
+                {branchStatus === 'error' && (
+                  <small className="field-error">{branchError}</small>
+                )}
+                {hasFixedBranch && (
+                  <small>
+                    La sucursal queda fijada por el alcance de tu usuario.
+                  </small>
+                )}
+                {!branchId && branchStatus === 'success' && (
+                  <small>
+                    Seleccioná la sucursal donde se reservará y recibirá la
+                    unidad.
+                  </small>
+                )}
                 <FieldError message={fieldErrors.branch} />
               </label>
             )}
@@ -1093,7 +1133,9 @@ export function NewOperationPage({
                   <option value="">
                     {peopleStatus === 'loading'
                       ? 'Cargando vendedores…'
-                      : 'Seleccionar vendedor'}
+                      : peopleStatus === 'success' && sellers.length === 0
+                        ? 'No hay vendedores elegibles en la organización'
+                        : 'Seleccionar vendedor'}
                   </option>
                   {sellers.map((seller) => (
                     <option key={seller.id} value={seller.id}>
@@ -1105,6 +1147,11 @@ export function NewOperationPage({
                 {isSeller && sellerId && (
                   <small>Se asigna automáticamente al vendedor de la sesión.</small>
                 )}
+                {peopleStatus === 'success' && sellers.length === 0 && (
+                  <small className="field-error">
+                    La organización no tiene vendedores elegibles.
+                  </small>
+                )}
                 <FieldError message={fieldErrors.seller} />
               </label>
               <label className="field">
@@ -1114,13 +1161,22 @@ export function NewOperationPage({
                   onChange={(event) => setContactId(event.target.value)}
                   value={contactId}
                 >
-                  <option value="">Sin contacto asignado</option>
+                  <option value="">
+                    {peopleStatus === 'success' && contacts.length === 0
+                      ? 'No hay contactos elegibles en la organización'
+                      : 'Sin contacto asignado'}
+                  </option>
                   {contacts.map((person) => (
                     <option key={person.id} value={person.id}>
                       {person.fullName}
                     </option>
                   ))}
                 </select>
+                {peopleStatus === 'success' && contacts.length === 0 && (
+                  <small className="field-error">
+                    La organización no tiene contactos elegibles.
+                  </small>
+                )}
               </label>
               <div className="field">
                 <span>Usuario que carga</span>

@@ -7,6 +7,10 @@ import { NewOperationPage } from './NewOperationPage'
 
 const mocks = vi.hoisted(() => ({
   authRoleCode: 'VENDEDOR',
+  authHasBranch: true,
+  authGlobalAccess: false,
+  authName: 'Vendedor Uno',
+  authOrganizationId: 'org-1',
   listBranches: vi.fn(),
   listUnits: vi.fn(),
   listAvailability: vi.fn(),
@@ -26,10 +30,16 @@ vi.mock('../auth/AuthContext', () => ({
     user: {
       id: 'user-1',
       email: 'vendedor@luma.test',
-      name: 'Vendedor Uno',
-      globalAccess: false,
-      organization: { id: 'org-1', name: 'Luma', code: 'LUMA_CENTRAL' },
-      branch: { id: 'branch-1', code: 'CENTRO', name: 'Centro' },
+      name: mocks.authName,
+      globalAccess: mocks.authGlobalAccess,
+      organization: {
+        id: mocks.authOrganizationId,
+        name: 'Luma',
+        code: 'LUMA_CENTRAL',
+      },
+      branch: mocks.authHasBranch
+        ? { id: 'branch-1', code: 'CENTRO', name: 'Centro' }
+        : null,
       role: {
         code: mocks.authRoleCode,
         permissions: [
@@ -146,6 +156,10 @@ function operation(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.authRoleCode = 'VENDEDOR'
+  mocks.authHasBranch = true
+  mocks.authGlobalAccess = false
+  mocks.authName = 'Vendedor Uno'
+  mocks.authOrganizationId = 'org-1'
   mocks.useCreditCheck.mockReturnValue({
     state: { status: 'idle' },
     retry: vi.fn(),
@@ -280,6 +294,84 @@ describe('Nueva operación productiva', () => {
     expect(seller).toBeEnabled()
     await user.selectOptions(seller, 'seller-2')
     expect(seller).toHaveValue('seller-2')
+  })
+
+  it('carga personas de toda la organización para un administrador sin sucursal', async () => {
+    mocks.authRoleCode = 'ADMINISTRADOR'
+    mocks.authHasBranch = false
+    mocks.authGlobalAccess = true
+    mocks.authName = 'Juan Ignacio Santoro'
+    const view = renderPage()
+
+    const seller = await screen.findByLabelText('Quién hizo la venta *')
+    expect(seller).toBeEnabled()
+    await waitFor(() =>
+      expect(mocks.listSellers).toHaveBeenCalledWith(
+        {
+          page: 1,
+          limit: 100,
+          organizationId: 'org-1',
+        },
+        expect.any(AbortSignal),
+      ),
+    )
+    expect(await screen.findByLabelText('Quién hizo la venta *')).toHaveValue(
+      '',
+    )
+    expect(within(seller).getAllByRole('option')).toHaveLength(3)
+    expect(
+      within(screen.getByLabelText('Quién fue el contacto')).getAllByRole(
+        'option',
+      ),
+    ).toHaveLength(3)
+
+    mocks.authOrganizationId = 'org-2'
+    mocks.listSellers.mockResolvedValueOnce({
+      items: [
+        {
+          id: 'seller-org-2',
+          employeeCode: 'V200',
+          fullName: 'Vendedor Organización Dos',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 100,
+    })
+    mocks.listContacts.mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 100,
+    })
+    view.rerender(
+      <MemoryRouter>
+        <NewOperationPage vehicleType="MOTO" />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() =>
+      expect(mocks.listSellers).toHaveBeenLastCalledWith(
+        {
+          page: 1,
+          limit: 100,
+          organizationId: 'org-2',
+        },
+        expect.any(AbortSignal),
+      ),
+    )
+    expect(
+      within(screen.getByLabelText('Quién hizo la venta *')).queryByRole(
+        'option',
+        { name: 'Vendedor Uno · usuario actual' },
+      ),
+    ).not.toBeInTheDocument()
+    expect(
+      within(screen.getByLabelText('Quién hizo la venta *')).getByRole(
+        'option',
+        { name: 'Vendedor Organización Dos' },
+      ),
+    ).toBeInTheDocument()
   })
 
   it('envía persona embebida, plan y operación física sin seleccionar cliente', async () => {

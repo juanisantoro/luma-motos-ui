@@ -279,4 +279,22 @@ describe('contrato API de operaciones', () => {
       )
     })
 
+    it('consulta vendedores organizacionales sin inferir una sucursal', async () => {
+      sessionStorage.setItem(AUTH_TOKEN_KEY, 'sales-token')
+      const fetchMock = vi.fn().mockResolvedValueOnce(
+        json({ items: [], total: 0, page: 1, limit: 100 }),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+
+      await listSalesSellers({
+        organizationId: 'org-1',
+        page: 1,
+        limit: 100,
+      })
+
+      expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+        `${API_URL}/sales/operations/sellers?organizationId=org-1&page=1&limit=100`,
+      )
+    })
+
 })

@@ -70,7 +70,7 @@ export function getSalesOperation(id: string, signal?: AbortSignal) {
 async function listSalesPeople(
   resource: 'sellers' | 'contacts',
   query: {
-    branchId: string
+    branchId?: string
     search?: string
     organizationId?: string
     page?: number
