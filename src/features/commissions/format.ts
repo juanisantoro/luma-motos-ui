@@ -3,6 +3,7 @@ import { localIsoDate } from '../../shared/utils/date'
 export { localIsoDate }
 
 import type {
+  CommissionPolicyAmbito,
   CommissionStatus,
   CommissionTier,
   CommissionVehicleType,
@@ -15,6 +16,14 @@ import type {
 export const vehicleLabels: Record<CommissionVehicleType, string> = {
   MOTO: 'Motos',
   AUTO: 'Autos',
+}
+
+// Vendor scale catalog vs. the exclusive manager (GERENTE) scale catalog -
+// used to label CommissionScalePolicy rows/tabs so the two are never
+// visually confused with each other.
+export const ambitoLabels: Record<CommissionPolicyAmbito, string> = {
+  VENDEDOR: 'Vendedores',
+  GERENCIA: 'Gerencia',
 }
 
 export const statusLabels: Record<CommissionStatus, string> = {

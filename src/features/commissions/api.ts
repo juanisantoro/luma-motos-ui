@@ -8,6 +8,7 @@ import type {
   CommissionOptions,
   CommissionPage,
   CommissionPaymentOptions,
+  CommissionPolicyAmbito,
   CommissionScalePolicy,
   CommissionSummary,
   CommissionSettlement,
@@ -181,11 +182,13 @@ function listPaid(query: PaidCommissionQuery, signal?: AbortSignal) {
 
 function listPolicies(
   vehicleType: CommissionVehicleType,
+  ambito: CommissionPolicyAmbito,
   signal?: AbortSignal,
 ) {
   return request<CommissionPage<CommissionScalePolicy>>(
     queryPath('/commissions/policies', {
       vehicleType,
+      ambito,
       page: 1,
       limit: 100,
     }),

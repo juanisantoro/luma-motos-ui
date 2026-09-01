@@ -131,8 +131,11 @@ export function UserFormPage({
       commissionGateway.getManagerConfig
         ? commissionGateway.getManagerConfig(managerPersonnelId, controller.signal)
         : Promise.resolve(null),
-      commissionGateway.listPolicies('MOTO', controller.signal),
-      commissionGateway.listPolicies('AUTO', controller.signal),
+      // Ambito GERENCIA specifically - the vendor scale catalog (the one
+      // CommissionScalesPage's "Vendedores" tab manages) must never appear
+      // as an option here.
+      commissionGateway.listPolicies('MOTO', 'GERENCIA', controller.signal),
+      commissionGateway.listPolicies('AUTO', 'GERENCIA', controller.signal),
     ])
       .then(([config, motoPolicies, autoPolicies]) => {
         setManagerPolicies([
@@ -437,12 +440,13 @@ export function UserFormPage({
                   <div className="commission-policy-missing" role="status">
                     <SlidersHorizontal size={22} />
                     <div>
-                      <strong>Todavía no hay ninguna escala de comisión creada</strong>
+                      <strong>Todavía no hay ninguna escala de gerencia creada</strong>
                       <span>
-                        Creá una escala de motos o de autos para poder asignarle esta comisión al gerente:{' '}
-                        <Link to="/comisiones/escalas/motos">crear escala de motos</Link>
+                        Las escalas de gerencia son un catálogo aparte del de vendedores. Creá una escala de
+                        motos o de autos para poder asignarle esta comisión al gerente:{' '}
+                        <Link to="/comisiones/escalas/gerencia/motos">crear escala de motos de gerencia</Link>
                         {' · '}
-                        <Link to="/comisiones/escalas/autos">crear escala de autos</Link>.
+                        <Link to="/comisiones/escalas/gerencia/autos">crear escala de autos de gerencia</Link>.
                       </span>
                     </div>
                   </div>

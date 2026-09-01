@@ -85,6 +85,7 @@ const detail: CommissionDetail = {
 const policy: CommissionScalePolicy = {
   id: 'policy-1',
   vehicleType: 'MOTO',
+  ambito: 'VENDEDOR',
   currency: 'ARS',
   validFrom: '2026-08-01',
   validTo: null,
@@ -232,6 +233,7 @@ describe('comisiones productivas', () => {
   it('valida límites contiguos, sin solapamientos y con último tramo abierto', () => {
     expect(validateScalePolicy({
       vehicleType: 'MOTO',
+      ambito: 'VENDEDOR',
       currency: 'ARS',
       validFrom: '2026-08-01',
       status: 'ACTIVE',
@@ -239,6 +241,7 @@ describe('comisiones productivas', () => {
     })).toEqual([])
     expect(validateScalePolicy({
       vehicleType: 'AUTO',
+      ambito: 'VENDEDOR',
       currency: 'ARS',
       validFrom: '2026-08-01',
       status: 'ACTIVE',

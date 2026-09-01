@@ -1,9 +1,11 @@
 import { ArrowDown, ArrowUp, Plus, RefreshCw, Save, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
+import { NavLink } from 'react-router-dom'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { VehicleTypeNav } from './components'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import {
+  ambitoLabels,
   commissionErrorMessage,
   formatCommissionDate,
   formatCommissionMoney,
@@ -14,6 +16,7 @@ import {
 } from './format'
 import type {
   CommissionGateway,
+  CommissionPolicyAmbito,
   CommissionScalePolicy,
   CommissionVehicleType,
   SaveScalePolicyInput,
@@ -37,9 +40,11 @@ function newTier(minUnits = '1'): DraftTier {
 
 export function CommissionScalesPage({
   vehicleType,
+  ambito,
   gateway,
 }: {
   vehicleType: CommissionVehicleType
+  ambito: CommissionPolicyAmbito
   gateway: CommissionGateway
 }) {
   const [policies, setPolicies] = useState<CommissionScalePolicy[]>([])
@@ -54,10 +59,17 @@ export function CommissionScalesPage({
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    setTiers([newTier()])
+    setValidTo('')
+    setValidation([])
+    setNotice('')
+  }, [ambito, vehicleType])
+
+  useEffect(() => {
     const controller = new AbortController()
     setStatus('loading')
     setError('')
-    void gateway.listPolicies(vehicleType, controller.signal)
+    void gateway.listPolicies(vehicleType, ambito, controller.signal)
       .then((result) => {
         setPolicies(result.items)
         setStatus('success')
@@ -68,7 +80,7 @@ export function CommissionScalesPage({
         setStatus('error')
       })
     return () => controller.abort()
-  }, [gateway, refreshKey, vehicleType])
+  }, [ambito, gateway, refreshKey, vehicleType])
 
   const updateTier = (key: string, field: keyof Omit<DraftTier, 'key'>, value: string) => {
     setTiers((current) => current.map((tier) => tier.key === key ? { ...tier, [field]: value } : tier))
@@ -90,6 +102,7 @@ export function CommissionScalesPage({
     event.preventDefault()
     const input: SaveScalePolicyInput = {
       vehicleType,
+      ambito,
       currency: 'ARS',
       validFrom,
       ...(validTo ? { validTo } : {}),
@@ -109,7 +122,7 @@ export function CommissionScalesPage({
     setError('')
     try {
       await gateway.savePolicy(input)
-      const successMessage = `Nueva escala de ${vehicleLabels[vehicleType].toLowerCase()} guardada. Los históricos no se modificaron.`
+      const successMessage = `Nueva escala de ${ambitoLabels[ambito].toLowerCase()} (${vehicleLabels[vehicleType].toLowerCase()}) guardada. Los históricos no se modificaron.`
       setNotice(successMessage)
       setTiers([newTier()])
       setValidTo('')
@@ -130,33 +143,57 @@ export function CommissionScalesPage({
     <>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">COMISIONES · CONFIGURACIÓN</p>
-          <h1>Configuración de escalas</h1>
-          <p>Definí rangos y un monto fijo total por período. El cálculo ocurre exclusivamente en el backend.</p>
+          <p className="eyebrow">COMISIONES · CONFIGURACIÓN{ambito === 'GERENCIA' ? ' · GERENCIA' : ''}</p>
+          <h1>Configuración de escalas{ambito === 'GERENCIA' ? ' de gerencia' : ''}</h1>
+          <p>
+            {ambito === 'GERENCIA'
+              ? 'Catálogo exclusivo para gerentes, separado del de vendedores. Definí rangos y un monto fijo total por período.'
+              : 'Definí rangos y un monto fijo total por período. El cálculo ocurre exclusivamente en el backend.'}
+          </p>
         </div>
       </header>
-      <VehicleTypeNav active={vehicleType} path="/comisiones/escalas" />
+      <VehicleTypeNav active={vehicleType} path={ambito === 'GERENCIA' ? '/comisiones/escalas/gerencia' : '/comisiones/escalas'} />
+      <nav className="commission-type-nav" aria-label="Ámbito">
+        <NavLink
+          className={ambito === 'VENDEDOR' ? 'active' : ''}
+          to={`/comisiones/escalas/${vehicleType.toLowerCase()}s`}
+        >
+          {ambitoLabels.VENDEDOR}
+        </NavLink>
+        <NavLink
+          className={ambito === 'GERENCIA' ? 'active' : ''}
+          to={`/comisiones/escalas/gerencia/${vehicleType.toLowerCase()}s`}
+        >
+          {ambitoLabels.GERENCIA}
+        </NavLink>
+      </nav>
       <div className="commission-history-warning">
         <SlidersHorizontal size={20} />
         <p><strong>Los cambios tienen vigencia hacia adelante.</strong> Las liquidaciones pagadas conservan la escala y el monto que tenían al momento del pago.</p>
       </div>
 
       <section className="commission-policy-list">
-        <div className="commission-section-heading"><div><h2>Escalas vigentes</h2><p>{vehicleLabels[vehicleType]} se administra como un circuito independiente.</p></div></div>
+        <div className="commission-section-heading"><div><h2>Escalas vigentes</h2><p>{vehicleLabels[vehicleType]} · {ambitoLabels[ambito]} se administra como un circuito independiente.</p></div></div>
         {status === 'loading' && <div className="commission-loading"><RefreshCw className="spin" size={22} /> Cargando escalas…</div>}
         {status === 'error' && <StatePanel icon={RefreshCw} title="No pudimos cargar las escalas" description={error} tone="danger" action={<button className="button button--primary" type="button" onClick={() => setRefreshKey((key) => key + 1)}>Reintentar</button>} />}
         {status === 'success' && active.length === 0 && (
           <StatePanel
             icon={SlidersHorizontal}
             title="Escalas no configuradas"
-            description={`No hay una política activa para ${vehicleLabels[vehicleType].toLowerCase()}. Hasta configurarla, el sistema no sugerirá montos.`}
+            description={`No hay una política activa de ${ambitoLabels[ambito].toLowerCase()} para ${vehicleLabels[vehicleType].toLowerCase()}. Hasta configurarla, el sistema no sugerirá montos.`}
           />
         )}
         {status === 'success' && active.map((policy) => (
           <article className="commission-policy-card" key={policy.id}>
             <header>
-              <div><strong>Vigente desde {formatCommissionDate(policy.validFrom)}</strong><span>{policy.validTo ? `hasta ${formatCommissionDate(policy.validTo)}` : 'sin fecha de fin'}</span></div>
-              <span className="status-badge status-badge--success">Activa</span>
+              <div>
+                <strong>Vigente desde {formatCommissionDate(policy.validFrom)}</strong>
+                <span>{policy.validTo ? `hasta ${formatCommissionDate(policy.validTo)}` : 'sin fecha de fin'}</span>
+              </div>
+              <div className="commission-policy-card__badges">
+                <span className={`status-badge ${policy.ambito === 'GERENCIA' ? 'status-badge--warning' : ''}`}>{ambitoLabels[policy.ambito]}</span>
+                <span className="status-badge status-badge--success">Activa</span>
+              </div>
             </header>
             <div className="commission-tier-strip">
               {policy.tiers.map((tier) => <article key={tier.id}><small>{tierLabel(tier)} ventas</small><strong>{formatCommissionMoney(tier.fixedAmount)}</strong><span>total del período</span></article>)}
@@ -166,7 +203,7 @@ export function CommissionScalesPage({
       </section>
 
       <section className="commission-scale-editor">
-        <header><div><p className="eyebrow">NUEVA VIGENCIA</p><h2>Crear escala de {vehicleLabels[vehicleType].toLowerCase()}</h2></div></header>
+        <header><div><p className="eyebrow">NUEVA VIGENCIA · {ambitoLabels[ambito].toUpperCase()}</p><h2>Crear escala de {vehicleLabels[vehicleType].toLowerCase()}{ambito === 'GERENCIA' ? ' para gerencia' : ''}</h2></div></header>
         {notice && <div className="form-alert" role="status">{notice}</div>}
         {error && <div className="form-alert form-alert--error" role="alert">{error}</div>}
         {validation.length > 0 && <div className="form-alert form-alert--error" role="alert"><strong>Revisá la escala:</strong><ul>{validation.map((message) => <li key={message}>{message}</li>)}</ul></div>}

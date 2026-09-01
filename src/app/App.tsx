@@ -296,8 +296,10 @@ export function App() {
                 <Route path="comisiones/pagadas/autos" element={<PaidCommissionsPage vehicleType="AUTO" gateway={commissionApiGateway} />} />
               </Route>
               <Route element={<PermissionRoute permission="comisiones.configurar" />}>
-                <Route path="comisiones/escalas/motos" element={<CommissionScalesPage vehicleType="MOTO" gateway={commissionApiGateway} />} />
-                <Route path="comisiones/escalas/autos" element={<CommissionScalesPage vehicleType="AUTO" gateway={commissionApiGateway} />} />
+                <Route path="comisiones/escalas/motos" element={<CommissionScalesPage vehicleType="MOTO" ambito="VENDEDOR" gateway={commissionApiGateway} />} />
+                <Route path="comisiones/escalas/autos" element={<CommissionScalesPage vehicleType="AUTO" ambito="VENDEDOR" gateway={commissionApiGateway} />} />
+                <Route path="comisiones/escalas/gerencia/motos" element={<CommissionScalesPage vehicleType="MOTO" ambito="GERENCIA" gateway={commissionApiGateway} />} />
+                <Route path="comisiones/escalas/gerencia/autos" element={<CommissionScalesPage vehicleType="AUTO" ambito="GERENCIA" gateway={commissionApiGateway} />} />
               </Route>
               <Route element={<PermissionRoute permission="comisiones.propias" />}>
                 <Route path="mis-comisiones" element={<MyCommissionsPage gateway={commissionApiGateway} />} />

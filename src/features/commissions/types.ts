@@ -8,6 +8,11 @@ export type CommissionStatus =
 
 export type CommissionConfigurationStatus = 'CONFIGURED' | 'NOT_CONFIGURED'
 export type CommissionPolicyStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE'
+// Separates the vendor scale catalog from the exclusive manager (GERENTE)
+// scale catalog - same politicas_comisiones/escalas_comisiones table on the
+// backend, just a different ambito. Every listPolicies/savePolicy call has
+// to be explicit about which one it means; there is no ambient default.
+export type CommissionPolicyAmbito = 'VENDEDOR' | 'GERENCIA'
 
 export type CommissionTier = {
   id: string
@@ -21,6 +26,7 @@ export type CommissionTier = {
 export type CommissionScalePolicy = {
   id: string
   vehicleType: CommissionVehicleType
+  ambito: CommissionPolicyAmbito
   currency: 'ARS'
   validFrom: string
   validTo: string | null
@@ -161,6 +167,7 @@ export type PaymentInput = {
 
 export type SaveScalePolicyInput = {
   vehicleType: CommissionVehicleType
+  ambito: CommissionPolicyAmbito
   currency: 'ARS'
   validFrom: string
   validTo?: string
@@ -329,6 +336,7 @@ export type CommissionGateway = {
   ) => Promise<CommissionPage<PaidCommission>>
   listPolicies: (
     vehicleType: CommissionVehicleType,
+    ambito: CommissionPolicyAmbito,
     signal?: AbortSignal,
   ) => Promise<CommissionPage<CommissionScalePolicy>>
   savePolicy: (

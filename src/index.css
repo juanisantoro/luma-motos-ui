@@ -2989,6 +2989,13 @@ a {
   gap: 4px;
 }
 
+.commission-policy-card__badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .commission-policy-card > header span:not(.status-badge) {
   color: var(--muted);
   font-size: 11px;

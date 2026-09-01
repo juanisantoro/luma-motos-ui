@@ -122,7 +122,10 @@ export function SuggestedCommissionsPage({
     setPolicyStatus('loading')
     setPolicyError('')
     void gateway
-      .listPolicies(vehicleType, controller.signal)
+      // This page only ever deals with vendor suggestions/settlements, so
+      // the vendor scale catalog (ambito VENDEDOR) is the only one it can
+      // ask for here - a GERENCIA policy must never surface in this list.
+      .listPolicies(vehicleType, 'VENDEDOR', controller.signal)
       .then((result) => {
         setPolicies(result.items)
         setPolicyStatus('success')
