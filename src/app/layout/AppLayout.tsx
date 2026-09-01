@@ -10,12 +10,12 @@ import {
   FileCheck2,
   HandCoins,
   History,
+  Images,
   LayoutDashboard,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  PlusCircle,
   Presentation,
   ReceiptText,
   ShoppingCart,
@@ -43,11 +43,24 @@ type NavItem = {
   activePrefix?: string
 }
 
-type NavGroup = {
+type NavSubGroup = {
   id: string
   label: string
   icon: LucideIcon
   items: NavItem[]
+}
+
+type NavEntry = NavItem | NavSubGroup
+
+type NavGroup = {
+  id: string
+  label: string
+  icon: LucideIcon
+  items: NavEntry[]
+}
+
+function isNavSubGroup(entry: NavEntry): entry is NavSubGroup {
+  return 'items' in entry
 }
 
 const NAV_GROUPS_STORAGE_KEY = 'luma.ui.navigation.groups'
@@ -66,63 +79,70 @@ const navigationGroups: NavGroup[] = [
     icon: ShoppingCart,
     items: [
       {
-        label: 'Nueva operación de moto',
-        description: 'Venta y reserva de moto',
-        to: '/motos/operaciones/nueva',
-        icon: PlusCircle,
-        permissions: ['ventas.consultar', 'ventas.gestionar'],
-      },
-      {
-        label: 'Nueva operación de auto',
-        description: 'Venta y reserva de auto',
-        to: '/autos/operaciones/nueva',
-        icon: PlusCircle,
-        permissions: ['ventas.consultar', 'ventas.gestionar'],
-      },
-      {
-        label: 'Mis operaciones de motos',
-        description: 'Seguimiento personal',
-        to: '/motos/mis-operaciones',
-        icon: ReceiptText,
-        permissions: ['ventas.consultar'],
-      },
-      {
-        label: 'Operaciones de motos',
-        description: 'Ventas y reservas',
-        to: '/motos/operaciones',
+        id: 'sales-motos',
+        label: 'Operaciones moto',
         icon: Bike,
-        permissions: ['ventas.consultar'],
-        excludeRoles: ['VENDEDOR'],
+        items: [
+          {
+            label: 'Mis operaciones',
+            description: 'Seguimiento personal',
+            to: '/motos/mis-operaciones',
+            icon: ReceiptText,
+            permissions: ['ventas.consultar'],
+          },
+          {
+            label: 'Operaciones',
+            description: 'Ventas y reservas',
+            to: '/motos/operaciones',
+            icon: Bike,
+            permissions: ['ventas.consultar'],
+            excludeRoles: ['VENDEDOR'],
+          },
+          {
+            label: 'Aprobaciones',
+            description: 'Control comercial',
+            to: '/motos/aprobaciones',
+            icon: CheckCheck,
+            permissions: ['ventas.consultar', 'ventas.aprobar'],
+          },
+        ],
       },
       {
-        label: 'Aprobaciones de motos',
-        description: 'Control comercial',
-        to: '/motos/aprobaciones',
-        icon: CheckCheck,
-        permissions: ['ventas.consultar', 'ventas.aprobar'],
-      },
-      {
-        label: 'Mis operaciones de autos',
-        description: 'Seguimiento personal',
-        to: '/autos/mis-operaciones',
-        icon: ReceiptText,
-        permissions: ['ventas.consultar'],
-      },
-      {
-        label: 'Operaciones de autos',
-        description: 'Ventas y reservas',
-        to: '/autos/operaciones',
+        id: 'sales-autos',
+        label: 'Operaciones auto',
         icon: CarFront,
-        permissions: ['ventas.consultar'],
-        excludeRoles: ['VENDEDOR'],
+        items: [
+          {
+            label: 'Mis operaciones',
+            description: 'Seguimiento personal',
+            to: '/autos/mis-operaciones',
+            icon: ReceiptText,
+            permissions: ['ventas.consultar'],
+          },
+          {
+            label: 'Operaciones',
+            description: 'Ventas y reservas',
+            to: '/autos/operaciones',
+            icon: CarFront,
+            permissions: ['ventas.consultar'],
+            excludeRoles: ['VENDEDOR'],
+          },
+          {
+            label: 'Aprobaciones',
+            description: 'Control comercial',
+            to: '/autos/aprobaciones',
+            icon: CheckCheck,
+            permissions: ['ventas.consultar', 'ventas.aprobar'],
+          },
+        ],
       },
-      {
-        label: 'Aprobaciones de autos',
-        description: 'Control comercial',
-        to: '/autos/aprobaciones',
-        icon: CheckCheck,
-        permissions: ['ventas.consultar', 'ventas.aprobar'],
-      },
+    ],
+  },
+  {
+    id: 'clients',
+    label: 'Clientes',
+    icon: UsersRound,
+    items: [
       {
         label: 'Clientes',
         description: 'Gestión comercial',
@@ -157,6 +177,27 @@ const navigationGroups: NavGroup[] = [
         to: '/stock/autos',
         icon: CarFront,
         permissions: ['inventario.consultar'],
+      },
+    ],
+  },
+  {
+    id: 'catalog',
+    label: 'Catálogo',
+    icon: Images,
+    items: [
+      {
+        label: 'Catálogo de motos',
+        description: 'Modelos, stock y proveedor',
+        to: '/catalogo/motos',
+        icon: Bike,
+        permissions: ['catalogo.consultar'],
+      },
+      {
+        label: 'Catálogo de autos',
+        description: 'Modelos, stock y proveedor',
+        to: '/catalogo/autos',
+        icon: CarFront,
+        permissions: ['catalogo.consultar'],
       },
     ],
   },
@@ -381,22 +422,33 @@ export function AppLayout() {
 
   const roleCode = user?.role.code
   const permissions = user?.role.permissions ?? []
+  const passesAccess = (item: Pick<NavItem, 'excludeRoles' | 'permissions'>) =>
+    !item.excludeRoles?.includes(roleCode ?? '') &&
+    (!item.permissions ||
+      item.permissions.every((permission) =>
+        hasPermission(permissions, permission),
+      ))
   const visibleGroups = navigationGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter(
-        (item) =>
-          !item.excludeRoles?.includes(roleCode ?? '') &&
-          (!item.permissions ||
-            item.permissions.every((permission) =>
-              hasPermission(permissions, permission),
-            )),
-      ),
+      items: group.items
+        .map((entry) =>
+          isNavSubGroup(entry)
+            ? { ...entry, items: entry.items.filter(passesAccess) }
+            : entry,
+        )
+        .filter((entry) =>
+          isNavSubGroup(entry) ? entry.items.length > 0 : passesAccess(entry),
+        ),
     }))
     .filter((group) => group.items.length > 0)
   const navigationItems = [
     homeItem,
-    ...visibleGroups.flatMap((group) => group.items),
+    ...visibleGroups.flatMap((group) =>
+      group.items.flatMap((entry) =>
+        isNavSubGroup(entry) ? entry.items : [entry],
+      ),
+    ),
   ]
   const activeItem =
     navigationItems
@@ -412,12 +464,24 @@ export function AppLayout() {
       )[0] ?? homeItem
   const isItemActive = (item: Pick<NavItem, 'to'>) =>
     item.to === activeItem.to
+  const entryContainsActive = (entry: NavEntry): boolean =>
+    isNavSubGroup(entry) ? entry.items.some(isItemActive) : isItemActive(entry)
   const activeGroup = visibleGroups.find((group) =>
-    group.items.some(isItemActive),
+    group.items.some(entryContainsActive),
   )
+  const activeSubGroup = visibleGroups
+    .flatMap((group) => group.items)
+    .filter(isNavSubGroup)
+    .find((subGroup) => subGroup.items.some(isItemActive))
   const sidebarCompact = collapsed && !isMobile
-  const visibleGroupKey = visibleGroups.map((group) => group.id).join('|')
+  const visibleGroupKey = visibleGroups
+    .flatMap((group) => [
+      group.id,
+      ...group.items.filter(isNavSubGroup).map((subGroup) => subGroup.id),
+    ])
+    .join('|')
   const activeGroupId = activeGroup?.id
+  const activeSubGroupId = activeSubGroup?.id
 
   useEffect(() => {
     const available = new Set(visibleGroupKey ? visibleGroupKey.split('|') : [])
@@ -426,12 +490,13 @@ export function AppLayout() {
         [...current].filter((groupId) => available.has(groupId)),
       )
       if (activeGroupId) next.add(activeGroupId)
+      if (activeSubGroupId) next.add(activeSubGroupId)
       const unchanged =
         next.size === current.size &&
         [...next].every((groupId) => current.has(groupId))
       return unchanged ? current : next
     })
-  }, [activeGroupId, roleCode, visibleGroupKey])
+  }, [activeGroupId, activeSubGroupId, roleCode, visibleGroupKey])
 
   useEffect(() => {
     sessionStorage.setItem(
@@ -454,6 +519,71 @@ export function AppLayout() {
       else next.add(groupId)
       return next
     })
+  }
+
+  const renderNavItem = (item: NavItem) => {
+    const Icon = item.icon
+    return (
+      <NavLink
+        className={() =>
+          `nav-item nav-item--nested ${isItemActive(item) ? 'nav-item--active' : ''}`
+        }
+        end={item.to === '/' || item.to.endsWith('/operaciones')}
+        key={item.to}
+        to={item.to}
+        onClick={() => setDrawerOpen(false)}
+      >
+        <Icon className="nav-item__icon" size={18} aria-hidden="true" />
+        <span>
+          <strong>{item.label}</strong>
+          <small>{item.description}</small>
+        </span>
+      </NavLink>
+    )
+  }
+
+  const renderSubGroup = (subGroup: NavSubGroup) => {
+    const SubGroupIcon = subGroup.icon
+    const expanded = !sidebarCompact && openGroups.has(subGroup.id)
+    const containsActive = activeSubGroupId === subGroup.id
+    const panelId = `navigation-group-${subGroup.id}`
+    return (
+      <section className="nav-group nav-group--sub" key={subGroup.id}>
+        <button
+          aria-controls={panelId}
+          aria-expanded={expanded}
+          aria-label={
+            sidebarCompact ? `Abrir grupo ${subGroup.label}` : undefined
+          }
+          className={`nav-group__toggle ${containsActive ? 'nav-group__toggle--active' : ''}`}
+          onClick={() => toggleGroup(subGroup.id)}
+          title={sidebarCompact ? subGroup.label : undefined}
+          type="button"
+        >
+          <SubGroupIcon size={18} aria-hidden="true" />
+          {!sidebarCompact && (
+            <>
+              <span>{subGroup.label}</span>
+              <ChevronDown
+                className="nav-group__chevron"
+                size={16}
+                aria-hidden="true"
+              />
+            </>
+          )}
+        </button>
+        <div
+          aria-hidden={!expanded}
+          className={`nav-group__items ${expanded ? 'nav-group__items--open' : ''}`}
+          id={panelId}
+          inert={!expanded}
+        >
+          <div className="nav-group__items-inner">
+            {subGroup.items.map((item) => renderNavItem(item))}
+          </div>
+        </div>
+      </section>
+    )
   }
 
   return (
@@ -548,30 +678,11 @@ export function AppLayout() {
                     inert={!expanded}
                   >
                     <div className="nav-group__items-inner">
-                      {group.items.map(({ icon: Icon, ...item }) => (
-                        <NavLink
-                          className={() =>
-                            `nav-item nav-item--nested ${isItemActive(item) ? 'nav-item--active' : ''}`
-                          }
-                          end={
-                            item.to === '/' ||
-                            item.to.endsWith('/operaciones')
-                          }
-                          key={item.to}
-                          to={item.to}
-                          onClick={() => setDrawerOpen(false)}
-                        >
-                          <Icon
-                            className="nav-item__icon"
-                            size={18}
-                            aria-hidden="true"
-                          />
-                          <span>
-                            <strong>{item.label}</strong>
-                            <small>{item.description}</small>
-                          </span>
-                        </NavLink>
-                      ))}
+                      {group.items.map((entry) =>
+                        isNavSubGroup(entry)
+                          ? renderSubGroup(entry)
+                          : renderNavItem(entry),
+                      )}
                     </div>
                   </div>
                 </section>

@@ -30,6 +30,14 @@ export type StockGateway = {
     organizationId?: string,
   ) => Promise<void>
   updateCatalogModel: (input: UpdateCatalogModelInput) => Promise<void>
+  uploadCatalogVersionPhoto: (
+    versionId: string,
+    file: File,
+  ) => Promise<void>
+  updateUnitColor: (
+    unitId: string,
+    input: { color: string | null; acabado: string | null },
+  ) => Promise<void>
   transitionSupply: (
     supplyId: string,
     status: SupplyStatus,

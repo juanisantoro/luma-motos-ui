@@ -1,7 +1,10 @@
-import { LoaderCircle, TriangleAlert, X } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { ImagePlus, LoaderCircle, TriangleAlert, X } from 'lucide-react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { resolveMediaUrl } from '../../shared/api/client'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import type { CatalogModel, UpdateCatalogModelInput } from './types'
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 
 type CatalogModelModalProps = {
   model: CatalogModel
@@ -10,6 +13,7 @@ type CatalogModelModalProps = {
   error: string | null
   onClose: () => void
   onSubmit: (input: UpdateCatalogModelInput) => void
+  onUploadPhoto: (file: File) => void
 }
 
 export function CatalogModelModal({
@@ -19,9 +23,27 @@ export function CatalogModelModal({
   error,
   onClose,
   onSubmit,
+  onUploadPhoto,
 }: CatalogModelModalProps) {
   const dialogRef = useDialogFocus(onClose, submitting)
   const [validationError, setValidationError] = useState<string | null>(null)
+  const photoUrl = resolveMediaUrl(model.photoUrl)
+
+  const selectPhoto = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setValidationError('La foto debe ser JPEG, PNG o WEBP.')
+      return
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setValidationError('La foto no puede superar los 5 MB.')
+      return
+    }
+    setValidationError(null)
+    onUploadPhoto(file)
+  }
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -76,6 +98,29 @@ export function CatalogModelModal({
           cambios no modifican operaciones históricas.
           {!canEditSharedCatalog &&
             ' Tu alcance permite editar la versión; marca y modelo globales quedan protegidos.'}
+        </div>
+
+        <div className="catalog-photo-uploader">
+          {photoUrl ? (
+            <img alt={`Foto de ${model.model} ${model.version ?? ''}`} src={photoUrl} />
+          ) : (
+            <div className="catalog-photo-uploader__placeholder">
+              <ImagePlus size={22} aria-hidden="true" />
+              <span>Sin foto</span>
+            </div>
+          )}
+          <label className="button button--secondary">
+            {submitting && <LoaderCircle className="spin" size={15} />}
+            {photoUrl ? 'Cambiar foto' : 'Subir foto'}
+            <input
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              disabled={submitting}
+              hidden
+              onChange={selectPhoto}
+              type="file"
+            />
+          </label>
         </div>
 
         {(validationError || error) && (

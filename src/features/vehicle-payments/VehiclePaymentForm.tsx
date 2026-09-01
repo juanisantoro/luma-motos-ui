@@ -11,6 +11,7 @@ import {
   listVehiclePaymentConcepts,
   listVehiclePaymentProviders,
 } from './api'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import type { CatalogOption, VehiclePaymentStatus, VehiclePaymentVehicleType } from './types'
 
 function today() {
@@ -62,7 +63,9 @@ function CatalogSelect({
       setAdding(false)
       setDraft('')
     } catch (addError) {
-      setError(errorMessage(addError))
+      const message = errorMessage(addError)
+      setError(message)
+      void alertError(message)
     } finally {
       setBusy(false)
     }
@@ -262,8 +265,11 @@ export function VehiclePaymentForm({
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       })
       onSaved()
+      void alertSuccess('El pago se registró correctamente.')
     } catch (submitError) {
-      setError(errorMessage(submitError))
+      const message = errorMessage(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }

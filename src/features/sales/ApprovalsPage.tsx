@@ -9,6 +9,7 @@ import {
   rejectSalesOperation,
 } from './api'
 import { salesErrorMessage } from './errors'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import {
   formatMoney,
   formatOperationDate,
@@ -67,8 +68,11 @@ export function ApprovalsPage({
         expectedVersion: operation.rowVersion,
       })
       reload()
+      void alertSuccess('La operación se aprobó correctamente.')
     } catch (approveError) {
-      setActionError(salesErrorMessage(approveError))
+      const message = salesErrorMessage(approveError)
+      setActionError(message)
+      void alertError(message)
     } finally {
       setBusyId(null)
     }
@@ -85,8 +89,11 @@ export function ApprovalsPage({
       })
       setRejection(null)
       reload()
+      void alertSuccess('La operación se rechazó correctamente.')
     } catch (rejectError) {
-      setActionError(salesErrorMessage(rejectError))
+      const message = salesErrorMessage(rejectError)
+      setActionError(message)
+      void alertError(message)
     } finally {
       setBusyId(null)
     }

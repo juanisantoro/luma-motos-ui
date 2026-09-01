@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp, Plus, RefreshCw, Save, SlidersHorizontal, Trash2 } 
 import { useEffect, useState, type FormEvent } from 'react'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { VehicleTypeNav } from './components'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import {
   commissionErrorMessage,
   formatCommissionDate,
@@ -108,12 +109,16 @@ export function CommissionScalesPage({
     setError('')
     try {
       await gateway.savePolicy(input)
-      setNotice(`Nueva escala de ${vehicleLabels[vehicleType].toLowerCase()} guardada. Los históricos no se modificaron.`)
+      const successMessage = `Nueva escala de ${vehicleLabels[vehicleType].toLowerCase()} guardada. Los históricos no se modificaron.`
+      setNotice(successMessage)
       setTiers([newTier()])
       setValidTo('')
       setRefreshKey((key) => key + 1)
+      void alertSuccess(successMessage)
     } catch (saveError) {
-      setError(commissionErrorMessage(saveError))
+      const message = commissionErrorMessage(saveError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }

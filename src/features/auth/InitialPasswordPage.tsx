@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom'
 import { ApiError, NetworkError } from '../../shared/api/client'
 import { Brand } from '../../shared/components/Brand'
 import { useAuth } from './AuthContext'
+import { alertError } from '../../shared/alerts'
 
 const rules = [
   { label: '12 caracteres como mínimo', test: (value: string) => value.length >= 12 },
@@ -73,7 +74,9 @@ export function InitialPasswordPage() {
     try {
       await completeTemporaryPassword(password)
     } catch (submitError) {
-      setError(changePasswordError(submitError))
+      const message = changePasswordError(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }

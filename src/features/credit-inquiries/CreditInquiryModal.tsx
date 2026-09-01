@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { CreditDocumentType } from '../credit-checks'
 import { createCreditInquiry } from './api'
 import { creditInquiryErrorMessage } from './errors'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import type {
   BranchReference,
   FinancialInstitution,
@@ -144,8 +145,11 @@ export function CreditInquiryModal({
         idempotencyKeyRef.current,
       )
       onSaved(created.idempotentReplay)
+      void alertSuccess('La consulta se registró correctamente.')
     } catch (submitError) {
-      setError(creditInquiryErrorMessage(submitError))
+      const message = creditInquiryErrorMessage(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       submittingRef.current = false
       setSubmitting(false)

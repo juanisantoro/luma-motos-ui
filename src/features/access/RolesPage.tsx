@@ -20,6 +20,7 @@ import { hasPermission } from '../auth/PermissionRoute'
 import { accessApiGateway } from './api'
 import { AccessNotice, AccessTabs, ConfirmDialog } from './components'
 import { accessErrorMessage } from './errors'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import type {
   AccessGateway,
   ManagedRole,
@@ -156,12 +157,16 @@ export function RolesPage({
         active: !statusRole.active,
         version: statusRole.version,
       })
-      setNotice(`${role.name} quedó ${role.active ? 'activo' : 'inactivo'}.`)
+      const successMessage = `${role.name} quedó ${role.active ? 'activo' : 'inactivo'}.`
+      setNotice(successMessage)
       setStatusRole(null)
       setRefreshKey((value) => value + 1)
+      void alertSuccess(successMessage)
     } catch (actionError) {
-      setError(accessErrorMessage(actionError))
+      const message = accessErrorMessage(actionError)
+      setError(message)
       setStatusRole(null)
+      void alertError(message)
     } finally {
       setBusy(false)
     }
@@ -172,11 +177,15 @@ export function RolesPage({
     setError('')
     try {
       const role = await gateway.cloneRole(cloneRole.id, { name })
-      setNotice(`${role.name} fue creado con los permisos de ${cloneRole.name}.`)
+      const successMessage = `${role.name} fue creado con los permisos de ${cloneRole.name}.`
+      setNotice(successMessage)
       setCloneRole(null)
       setRefreshKey((value) => value + 1)
+      void alertSuccess(successMessage)
     } catch (actionError) {
-      setError(accessErrorMessage(actionError))
+      const message = accessErrorMessage(actionError)
+      setError(message)
+      void alertError(message)
     } finally {
       setBusy(false)
     }

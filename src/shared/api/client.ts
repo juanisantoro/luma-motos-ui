@@ -3,6 +3,16 @@ const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').re
   '',
 )
 
+// The API mounts uploaded catalog photos as plain static files outside its
+// '/api' prefix, so building an <img> URL needs the bare origin instead.
+const API_ORIGIN = API_URL.replace(/\/api$/, '')
+
+export function resolveMediaUrl(path: string | null | undefined): string | null {
+  if (!path) return null
+  if (/^https?:\/\//.test(path)) return path
+  return `${API_ORIGIN}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 export const AUTH_TOKEN_KEY = 'luma.auth.token'
 export const UNAUTHORIZED_EVENT = 'luma:unauthorized'
 
@@ -93,6 +103,53 @@ export async function apiRequest<T>(
 
   if (response.status === 204) {
     return undefined as T
+  }
+
+  return (await response.json()) as T
+}
+
+// For endpoints that receive a file (multipart/form-data) instead of JSON -
+// e.g. uploading a catalog photo. Deliberately does not go through
+// apiRequest: that helper always JSON-encodes its body.
+export async function apiUpload<T>(
+  path: `/${string}`,
+  file: File,
+  fieldName: string,
+  { token, signal }: { token?: string | null; signal?: AbortSignal } = {},
+): Promise<T> {
+  const formData = new FormData()
+  formData.append(fieldName, file)
+  const requestHeaders = new Headers()
+  requestHeaders.set('Accept', 'application/json')
+  if (token) {
+    requestHeaders.set('Authorization', `Bearer ${token}`)
+  }
+
+  let response: Response
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      method: 'POST',
+      headers: requestHeaders,
+      body: formData,
+      cache: 'no-store',
+      ...(signal ? { signal } : {}),
+    })
+  } catch {
+    throw new NetworkError()
+  }
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => undefined)) as
+      | ApiErrorPayload
+      | undefined
+    if (response.status === 401 && token) {
+      window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT))
+    }
+    throw new ApiError(
+      response.status,
+      payloadMessage(payload, `La solicitud falló (${response.status}).`),
+      payload,
+    )
   }
 
   return (await response.json()) as T

@@ -21,6 +21,7 @@ import {
   listSalesBranches,
   listSalesPhysicalUnits,
   listSalesSupplierAvailability,
+  listUnitColors,
 } from '../stock/api'
 import type {
   BranchOption,
@@ -39,6 +40,7 @@ import {
   submitSalesOperation,
 } from './api'
 import { salesErrorMessage } from './errors'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import {
   OperationVehiclePicker,
   type OperationVehicleOption,
@@ -62,7 +64,8 @@ type Completion = {
 
 type FormField =
   | 'documentNumber'
-  | 'fullName'
+  | 'firstName'
+  | 'lastName'
   | 'phone'
   | 'vehicle'
   | 'branch'
@@ -90,6 +93,9 @@ const today = new Date().toISOString().slice(0, 10)
 function normalizeDocument(value: string) {
   return value.replace(/[\s.-]/g, '').toUpperCase()
 }
+
+const DNI_NUMBER_PATTERN = /^\d{6,9}$/
+
 
 function monthFromDate(value: string) {
   if (!value) return '—'
@@ -238,7 +244,8 @@ export function NewOperationPage({
 
   const [documentType, setDocumentType] = useState<'DNI' | 'CI'>('DNI')
   const [documentNumber, setDocumentNumber] = useState('')
-  const [fullName, setFullName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
   const [operationDate, setOperationDate] = useState(today)
   const [vehicleSearch, setVehicleSearch] = useState('')
@@ -263,6 +270,11 @@ export function NewOperationPage({
     'loading' | 'success' | 'error'
   >('loading')
   const [branchError, setBranchError] = useState('')
+  const [color, setColor] = useState('')
+  const [colorOptions, setColorOptions] = useState<
+    { id: string; name: string }[]
+  >([])
+  const [colorsLoading, setColorsLoading] = useState(true)
   const [units, setUnits] = useState<PhysicalUnit[]>([])
   const [availability, setAvailability] = useState<SupplierAvailability[]>([])
   const [vehicleLoading, setVehicleLoading] = useState(true)
@@ -335,6 +347,22 @@ export function NewOperationPage({
       })
     return () => controller.abort()
   }, [organizationId, user?.branch?.id, vehicleLoadKey])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setColorsLoading(true)
+    listUnitColors(controller.signal)
+      .then((options) => {
+        if (controller.signal.aborted) return
+        setColorOptions(options)
+        setColorsLoading(false)
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return
+        setColorsLoading(false)
+      })
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -632,10 +660,14 @@ export function NewOperationPage({
 
   const validate = () => {
     const errors: FieldErrors = {}
-    if (normalizeDocument(documentNumber).length < 5) {
+    const normalizedDocument = normalizeDocument(documentNumber)
+    if (normalizedDocument.length < 5) {
       errors.documentNumber = 'Ingresá un DNI o CI válido.'
+    } else if (documentType === 'DNI' && !DNI_NUMBER_PATTERN.test(normalizedDocument)) {
+      errors.documentNumber = 'El DNI debe tener solo números (6 a 9 dígitos).'
     }
-    if (!fullName.trim()) errors.fullName = 'Ingresá el nombre del cliente.'
+    if (!firstName.trim()) errors.firstName = 'Ingresá el nombre del cliente.'
+    if (!lastName.trim()) errors.lastName = 'Ingresá el apellido del cliente.'
     if (!phone.trim()) errors.phone = 'Ingresá un teléfono de contacto.'
     if (!selectedVehicle) errors.vehicle = 'Seleccioná un vehículo de los resultados.'
     if (!branchId) errors.branch = 'Seleccioná la sucursal de la operación.'
@@ -710,7 +742,7 @@ export function NewOperationPage({
         client: {
           documentType,
           documentNumber: normalizeDocument(documentNumber),
-          fullName: fullName.trim(),
+          fullName: `${firstName.trim()} ${lastName.trim()}`.trim(),
           phone: phone.trim(),
         },
         versionId: catalogModel.id,
@@ -723,6 +755,7 @@ export function NewOperationPage({
           ? { unitId: selectedVehicle.unit.id }
           : {
               supplierAvailabilityId: selectedVehicle.availability.id,
+              ...(color.trim() ? { color: color.trim() } : {}),
             }),
         sellerId,
         ...(contactId ? { contactId } : {}),
@@ -768,15 +801,17 @@ export function NewOperationPage({
         )
       }
 
+      const completionMessage = sendOperation
+        ? belowList
+          ? `La operación y el cliente quedaron registrados. Se envió a aprobación por una diferencia de ${formatMoney(String(listDifference), policy.currency)} debajo de lista.`
+          : 'La operación y el cliente quedaron registrados y se enviaron al circuito comercial.'
+        : 'La operación, el cliente y sus condiciones comerciales quedaron guardados como borrador.'
       setCompletion({
         kind: sendOperation ? 'submitted' : 'draft',
         number: persisted.number,
-        message: sendOperation
-          ? belowList
-            ? `La operación y el cliente quedaron registrados. Se envió a aprobación por una diferencia de ${formatMoney(String(listDifference), policy.currency)} debajo de lista.`
-            : 'La operación y el cliente quedaron registrados y se enviaron al circuito comercial.'
-          : 'La operación, el cliente y sus condiciones comerciales quedaron guardados como borrador.',
+        message: completionMessage,
       })
+      void alertSuccess(completionMessage)
     } catch (error) {
       if (
         !persisted &&
@@ -795,16 +830,21 @@ export function NewOperationPage({
         setAgreedPrice('')
         setReservationConflict(true)
         setVehicleLoadKey((current) => current + 1)
+        void alertError('La unidad elegida ya no está disponible. Elegí otra para continuar.')
         return
       }
       if (persisted) {
+        const partialMessage = `La operación quedó guardada como borrador, pero no se completaron todos sus datos relacionados. No vuelvas a enviarla: informá el número de operación para completar el seguimiento sin duplicarla. ${salesErrorMessage(error)}`
         setCompletion({
           kind: 'partial',
           number: persisted.number,
-          message: `La operación quedó guardada como borrador, pero no se completaron todos sus datos relacionados. No vuelvas a enviarla: informá el número de operación para completar el seguimiento sin duplicarla. ${salesErrorMessage(error)}`,
+          message: partialMessage,
         })
+        void alertError(partialMessage)
       } else {
-        setFormError(salesErrorMessage(error))
+        const message = salesErrorMessage(error)
+        setFormError(message)
+        void alertError(message)
       }
     } finally {
       setSubmitting(false)
@@ -897,8 +937,12 @@ export function NewOperationPage({
                   autoComplete="off"
                   autoFocus
                   data-field="documentNumber"
+                  inputMode={documentType === 'DNI' ? 'numeric' : 'text'}
                   onChange={(event) => {
-                    setDocumentNumber(event.target.value)
+                    const raw = event.target.value
+                    setDocumentNumber(
+                      documentType === 'DNI' ? raw.replace(/[^\d]/g, '') : raw,
+                    )
                     clearError('documentNumber')
                   }}
                   placeholder="Ingresá el documento"
@@ -909,9 +953,14 @@ export function NewOperationPage({
               <label className="field operation-document-type">
                 <span>Tipo *</span>
                 <select
-                  onChange={(event) =>
-                    setDocumentType(event.target.value as 'DNI' | 'CI')
-                  }
+                  onChange={(event) => {
+                    const nextType = event.target.value as 'DNI' | 'CI'
+                    setDocumentType(nextType)
+                    if (nextType === 'DNI') {
+                      setDocumentNumber((current) => current.replace(/[^\d]/g, ''))
+                    }
+                    clearError('documentNumber')
+                  }}
                   value={documentType}
                 >
                   <option value="DNI">DNI</option>
@@ -919,18 +968,32 @@ export function NewOperationPage({
                 </select>
               </label>
               <label className="field">
-                <span>Nombre y apellido *</span>
+                <span>Nombre *</span>
                 <input
-                  aria-invalid={Boolean(fieldErrors.fullName)}
-                  data-field="fullName"
-                  maxLength={180}
+                  aria-invalid={Boolean(fieldErrors.firstName)}
+                  data-field="firstName"
+                  maxLength={90}
                   onChange={(event) => {
-                    setFullName(event.target.value)
-                    clearError('fullName')
+                    setFirstName(event.target.value)
+                    clearError('firstName')
                   }}
-                  value={fullName}
+                  value={firstName}
                 />
-                <FieldError message={fieldErrors.fullName} />
+                <FieldError message={fieldErrors.firstName} />
+              </label>
+              <label className="field">
+                <span>Apellido *</span>
+                <input
+                  aria-invalid={Boolean(fieldErrors.lastName)}
+                  data-field="lastName"
+                  maxLength={90}
+                  onChange={(event) => {
+                    setLastName(event.target.value)
+                    clearError('lastName')
+                  }}
+                  value={lastName}
+                />
+                <FieldError message={fieldErrors.lastName} />
               </label>
               <label className="field">
                 <span>Teléfono *</span>
@@ -1054,6 +1117,31 @@ export function NewOperationPage({
                   </small>
                 )}
                 <FieldError message={fieldErrors.branch} />
+              </label>
+            )}
+
+            {selectedVehicle && selectedVehicle.source !== 'PHYSICAL' && (
+              <label className="field">
+                <span>Color solicitado (opcional)</span>
+                <select
+                  aria-label="Color solicitado al proveedor"
+                  disabled={colorsLoading}
+                  onChange={(event) => setColor(event.target.value)}
+                  value={color}
+                >
+                  <option value="">
+                    {colorsLoading ? 'Cargando…' : 'Sin especificar'}
+                  </option>
+                  {colorOptions.map((option) => (
+                    <option key={option.id} value={option.name}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+                <small>
+                  Se guarda en el pedido y queda precargado al recibir la
+                  unidad.
+                </small>
               </label>
             )}
 

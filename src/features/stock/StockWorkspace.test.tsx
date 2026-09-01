@@ -21,6 +21,7 @@ const model: CatalogModel = {
   model: 'Wave',
   version: '110 S',
   active: true,
+  photoUrl: null,
   pricePolicy: {
     id: 'price-1',
     versionId: 'version-1',
@@ -41,6 +42,8 @@ const unit: PhysicalUnit = {
   year: 2026,
   mileage: 0,
   licensePlate: null,
+  color: null,
+  acabado: null,
   acquisitionOrigin: 'PROVEEDOR',
   supplier,
   status: 'EN_STOCK',
@@ -55,6 +58,7 @@ const supply: SupplyOrder = {
   supplier,
   quantity: 1,
   status: 'PENDIENTE_CONFIRMACION',
+  color: null,
   destinationBranch: branch,
   requestedAt: '2026-08-29T12:00:00.000Z',
   operation: null,
@@ -119,6 +123,8 @@ function renderWorkspace(overrides?: {
     onUpsertAvailability: vi.fn().mockResolvedValue(undefined),
     onConfigurePrice: vi.fn().mockResolvedValue(undefined),
     onUpdateCatalogModel: vi.fn().mockResolvedValue(undefined),
+    onUploadCatalogVersionPhoto: vi.fn().mockResolvedValue(undefined),
+    onUpdateUnitColor: vi.fn().mockResolvedValue(undefined),
     onTransitionSupply: vi.fn().mockResolvedValue(undefined),
     onReceiveSupply: vi.fn().mockResolvedValue(undefined),
   }

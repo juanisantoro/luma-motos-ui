@@ -14,6 +14,7 @@ import { hasPermission } from '../auth/PermissionRoute'
 import { accessApiGateway } from './api'
 import { AccessNotice, ConfirmDialog, managedUserName } from './components'
 import { accessErrorMessage } from './errors'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import type {
   AccessGateway,
   BranchOption,
@@ -47,6 +48,7 @@ export function UserFormPage({
   const [notice, setNotice] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [globalAccess, setGlobalAccess] = useState(false)
+  const [roleCode, setRoleCode] = useState(managedUser?.role?.code ?? '')
   const [createdEmail, setCreatedEmail] = useState('')
   const [confirmation, setConfirmation] = useState<'status' | 'resend' | null>(
     null,
@@ -80,6 +82,7 @@ export function UserFormPage({
         setBranches(branchResult)
         setManagedUser(selectedUser)
         setGlobalAccess(selectedUser?.globalAccess ?? false)
+        setRoleCode(selectedUser?.role?.code ?? '')
         setLoading(false)
       })
       .catch((requestError: unknown) => {
@@ -124,9 +127,9 @@ export function UserFormPage({
           globalAccess,
         })
         setManagedUser(response.user)
-        setNotice(
-          `Acceso actualizado. ${response.revokedSessions ? `Se cerraron ${response.revokedSessions} sesiones activas.` : 'No había sesiones activas.'}`,
-        )
+        const successMessage = `Acceso actualizado. ${response.revokedSessions ? `Se cerraron ${response.revokedSessions} sesiones activas.` : 'No había sesiones activas.'}`
+        setNotice(successMessage)
+        void alertSuccess(successMessage)
       } else {
         const fullName = `${String(data.get('firstName') ?? '').trim()} ${String(data.get('lastName') ?? '').trim()}`.trim()
         const email = String(data.get('email') ?? '').trim().toLowerCase()
@@ -143,9 +146,12 @@ export function UserFormPage({
           ...(phone ? { phone } : {}),
         })
         setCreatedEmail(email)
+        void alertSuccess('Usuario creado. Se envió la contraseña temporal por email.')
       }
     } catch (submitError) {
-      setError(accessErrorMessage(submitError))
+      const message = accessErrorMessage(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }
@@ -156,25 +162,27 @@ export function UserFormPage({
     setActionBusy(true)
     setError('')
     try {
+      let successMessage = ''
       if (confirmation === 'status') {
         const response = await gateway.updateUserStatus(
           managedUser.id,
           !managedUser.active,
         )
         setManagedUser(response.user)
-        setNotice(
-          `Usuario ${response.user.active ? 'activado' : 'desactivado'}. ${response.revokedSessions ? `Se cerraron ${response.revokedSessions} sesiones.` : ''}`,
-        )
+        successMessage = `Usuario ${response.user.active ? 'activado' : 'desactivado'}. ${response.revokedSessions ? `Se cerraron ${response.revokedSessions} sesiones.` : ''}`
+        setNotice(successMessage)
       } else {
         await gateway.resendUserInvitation(managedUser.id)
-        setNotice(
-          `Invitación enviada a ${managedUser.email}. La contraseña temporal anterior quedó invalidada.`,
-        )
+        successMessage = `Invitación enviada a ${managedUser.email}. La contraseña temporal anterior quedó invalidada.`
+        setNotice(successMessage)
       }
       setConfirmation(null)
+      void alertSuccess(successMessage)
     } catch (actionError) {
-      setError(accessErrorMessage(actionError))
+      const message = accessErrorMessage(actionError)
+      setError(message)
       setConfirmation(null)
+      void alertError(message)
     } finally {
       setActionBusy(false)
     }
@@ -217,15 +225,24 @@ export function UserFormPage({
         <div className="access-form-grid">
           <label className="field">
             <span>Rol *</span>
-            <select name="roleCode" defaultValue={managedUser?.role?.code ?? ''} required>
+            <select
+              defaultValue={managedUser?.role?.code ?? ''}
+              name="roleCode"
+              onChange={(event) => setRoleCode(event.target.value)}
+              required
+            >
               <option value="" disabled>Seleccioná un rol</option>
               {visibleRoles.map((role) => <option key={role.id} value={role.code}>{role.name}{role.system ? ' · Rol base' : ''}</option>)}
             </select>
           </label>
           <label className="field">
-            <span>Sucursal</span>
-            <select name="branchId" defaultValue={managedUser?.branch?.id ?? ''}>
-              <option value="">Sin sucursal asignada</option>
+            <span>Sucursal{roleCode === 'VENDEDOR' ? ' *' : ''}</span>
+            <select
+              defaultValue={managedUser?.branch?.id ?? ''}
+              name="branchId"
+              required={roleCode === 'VENDEDOR'}
+            >
+              <option value="">{roleCode === 'VENDEDOR' ? 'Seleccioná una sucursal' : 'Sin sucursal asignada'}</option>
               {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
             </select>
           </label>

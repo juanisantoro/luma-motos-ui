@@ -4,12 +4,14 @@ import {
   createFinancialRecord,
   listAllCatalogVersions,
   listAllInventoryUnits,
-  listAllSalesOperations,
   listAllSuppliers,
   listIncomeTypes,
   listInventoryBranches,
+  listInventoryUnits,
+  listSalesOperations,
 } from '../api'
 import { financialErrorMessage, financialLabels } from '../format'
+import { alertError, alertSuccess } from '../../../shared/alerts'
 import type {
   CreateExpenseInput,
   CreateIncomeInput,
@@ -63,7 +65,6 @@ export function FinancialRecordForm({
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
   const [units, setUnits] = useState<UnitOption[]>([])
   const [versions, setVersions] = useState<VersionOption[]>([])
-  const [operations, setOperations] = useState<SalesOperationOption[]>([])
   const [recordDate, setRecordDate] = useState(() => {
     const now = new Date()
     return [
@@ -84,6 +85,18 @@ export function FinancialRecordForm({
     'ventas.consultar',
   )
 
+  const [incomeUnitSearch, setIncomeUnitSearch] = useState('')
+  const [debouncedIncomeUnitSearch, setDebouncedIncomeUnitSearch] = useState('')
+  const [incomeUnitOptions, setIncomeUnitOptions] = useState<UnitOption[]>([])
+  const [incomeUnitLoading, setIncomeUnitLoading] = useState(false)
+  const [selectedIncomeUnit, setSelectedIncomeUnit] = useState<UnitOption | null>(null)
+
+  const [incomeOperationSearch, setIncomeOperationSearch] = useState('')
+  const [debouncedIncomeOperationSearch, setDebouncedIncomeOperationSearch] = useState('')
+  const [incomeOperationOptions, setIncomeOperationOptions] = useState<SalesOperationOption[]>([])
+  const [incomeOperationLoading, setIncomeOperationLoading] = useState(false)
+  const [selectedIncomeOperation, setSelectedIncomeOperation] = useState<SalesOperationOption | null>(null)
+
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement
       ? document.activeElement
@@ -100,23 +113,16 @@ export function FinancialRecordForm({
     const controller = new AbortController()
     const requests: Promise<void>[] = []
     if (kind !== 'expense') {
-      requests.push(
-        listInventoryBranches(controller.signal).then(setBranches),
-        listAllInventoryUnits(vehicleType, controller.signal).then(setUnits),
-      )
+      requests.push(listInventoryBranches(controller.signal).then(setBranches))
     }
     if (kind === 'purchase') {
       requests.push(
+        listAllInventoryUnits(vehicleType, controller.signal).then(setUnits),
         listAllSuppliers(controller.signal).then(setSuppliers),
         listAllCatalogVersions(vehicleType, controller.signal).then(setVersions),
       )
     } else if (kind === 'income') {
       requests.push(listIncomeTypes(controller.signal).then(setIncomeTypes))
-      if (canViewOperations) {
-        requests.push(
-          listAllSalesOperations(vehicleType, controller.signal).then(setOperations),
-        )
-      }
     }
     void Promise.all(requests)
       .catch((loadError: unknown) => {
@@ -127,6 +133,68 @@ export function FinancialRecordForm({
       })
     return () => controller.abort()
   }, [canViewOperations, kind, vehicleType])
+
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedIncomeUnitSearch(incomeUnitSearch.trim()),
+      350,
+    )
+    return () => clearTimeout(timeout)
+  }, [incomeUnitSearch])
+
+  useEffect(() => {
+    if (kind !== 'income') return
+    if (debouncedIncomeUnitSearch.length < 3) {
+      setIncomeUnitOptions([])
+      setIncomeUnitLoading(false)
+      return
+    }
+    const controller = new AbortController()
+    setIncomeUnitLoading(true)
+    listInventoryUnits(vehicleType, controller.signal, debouncedIncomeUnitSearch)
+      .then((page) => {
+        if (controller.signal.aborted) return
+        setIncomeUnitOptions(page.items)
+        setIncomeUnitLoading(false)
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return
+        setIncomeUnitOptions([])
+        setIncomeUnitLoading(false)
+      })
+    return () => controller.abort()
+  }, [debouncedIncomeUnitSearch, kind, vehicleType])
+
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedIncomeOperationSearch(incomeOperationSearch.trim()),
+      350,
+    )
+    return () => clearTimeout(timeout)
+  }, [incomeOperationSearch])
+
+  useEffect(() => {
+    if (kind !== 'income' || !canViewOperations) return
+    if (debouncedIncomeOperationSearch.length < 3) {
+      setIncomeOperationOptions([])
+      setIncomeOperationLoading(false)
+      return
+    }
+    const controller = new AbortController()
+    setIncomeOperationLoading(true)
+    listSalesOperations(vehicleType, controller.signal, debouncedIncomeOperationSearch)
+      .then((page) => {
+        if (controller.signal.aborted) return
+        setIncomeOperationOptions(page.items)
+        setIncomeOperationLoading(false)
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return
+        setIncomeOperationOptions([])
+        setIncomeOperationLoading(false)
+      })
+    return () => controller.abort()
+  }, [canViewOperations, debouncedIncomeOperationSearch, kind, vehicleType])
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -199,8 +267,11 @@ export function FinancialRecordForm({
     try {
       await createFinancialRecord(kind, input)
       onSaved()
+      void alertSuccess('El registro se guardó correctamente.')
     } catch (submitError) {
-      setError(financialErrorMessage(submitError))
+      const message = financialErrorMessage(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }
@@ -327,14 +398,56 @@ export function FinancialRecordForm({
                     ))}
                   </select>
                 </label>
-                <label className="field">
+                <label className="field field--wide">
                   <span>Unidad / VIN</span>
-                  <select name="unitId" disabled={loadingOptions}>
-                    <option value="">Sin unidad asociada</option>
-                    {units.map((unit) => (
-                      <option key={unit.id} value={unit.id}>{unit.vin} · {unit.version.model.name}</option>
-                    ))}
-                  </select>
+                  <div className="search-combobox">
+                    <input
+                      autoComplete="off"
+                      onChange={(event) => {
+                        setIncomeUnitSearch(event.target.value)
+                        setSelectedIncomeUnit(null)
+                      }}
+                      placeholder="Buscá por chasis, patente, marca, modelo o versión"
+                      value={
+                        selectedIncomeUnit
+                          ? `${selectedIncomeUnit.vin} · ${selectedIncomeUnit.version.model.name}`
+                          : incomeUnitSearch
+                      }
+                    />
+                    <small>Opcional. Ingresá al menos 3 letras para buscar.</small>
+                    {incomeUnitLoading && (
+                      <div className="search-combobox-status">
+                        <LoaderCircle className="spin" size={16} aria-hidden="true" /> Buscando…
+                      </div>
+                    )}
+                    {!incomeUnitLoading && !selectedIncomeUnit && incomeUnitOptions.length > 0 && (
+                      <div className="search-combobox-results" role="listbox">
+                        {incomeUnitOptions.map((unit) => (
+                          <button
+                            className="search-combobox-option"
+                            key={unit.id}
+                            onClick={() => {
+                              setSelectedIncomeUnit(unit)
+                              setIncomeUnitSearch('')
+                              setIncomeUnitOptions([])
+                            }}
+                            role="option"
+                            type="button"
+                          >
+                            <strong>{unit.vin}</strong>
+                            <span>{unit.version.model.name} · {unit.branch.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {selectedIncomeUnit && (
+                      <div className="search-combobox-selected">
+                        <span><strong>{selectedIncomeUnit.vin}</strong> · {selectedIncomeUnit.version.model.name}</span>
+                        <button onClick={() => setSelectedIncomeUnit(null)} type="button">Quitar</button>
+                      </div>
+                    )}
+                  </div>
+                  <input name="unitId" type="hidden" value={selectedIncomeUnit?.id ?? ''} />
                 </label>
               </>
             )}
@@ -412,16 +525,56 @@ export function FinancialRecordForm({
                   <input name="totalAmount" type="number" min="0.01" step="0.01" required />
                 </label>
                 {canViewOperations && (
-                  <label className="field">
+                  <label className="field field--wide">
                     <span>Operación</span>
-                    <select name="operationId" disabled={loadingOptions}>
-                      <option value="">Sin operación asociada</option>
-                      {operations.map((operation) => (
-                        <option key={operation.id} value={operation.id}>
-                          {operation.number} · {operation.client.fullName} · {operation.vehicle.unit?.vin ?? operation.vehicle.versionName}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="search-combobox">
+                      <input
+                        autoComplete="off"
+                        onChange={(event) => {
+                          setIncomeOperationSearch(event.target.value)
+                          setSelectedIncomeOperation(null)
+                        }}
+                        placeholder="Buscá por número de operación, cliente o VIN"
+                        value={
+                          selectedIncomeOperation
+                            ? `${selectedIncomeOperation.number} · ${selectedIncomeOperation.client.fullName}`
+                            : incomeOperationSearch
+                        }
+                      />
+                      <small>Opcional. Ingresá al menos 3 letras para buscar.</small>
+                      {incomeOperationLoading && (
+                        <div className="search-combobox-status">
+                          <LoaderCircle className="spin" size={16} aria-hidden="true" /> Buscando…
+                        </div>
+                      )}
+                      {!incomeOperationLoading && !selectedIncomeOperation && incomeOperationOptions.length > 0 && (
+                        <div className="search-combobox-results" role="listbox">
+                          {incomeOperationOptions.map((operation) => (
+                            <button
+                              className="search-combobox-option"
+                              key={operation.id}
+                              onClick={() => {
+                                setSelectedIncomeOperation(operation)
+                                setIncomeOperationSearch('')
+                                setIncomeOperationOptions([])
+                              }}
+                              role="option"
+                              type="button"
+                            >
+                              <strong>{operation.number} · {operation.client.fullName}</strong>
+                              <span>{operation.vehicle.unit?.vin ?? operation.vehicle.versionName}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {selectedIncomeOperation && (
+                        <div className="search-combobox-selected">
+                          <span><strong>{selectedIncomeOperation.number}</strong> · {selectedIncomeOperation.client.fullName}</span>
+                          <button onClick={() => setSelectedIncomeOperation(null)} type="button">Quitar</button>
+                        </div>
+                      )}
+                    </div>
+                    <input name="operationId" type="hidden" value={selectedIncomeOperation?.id ?? ''} />
                   </label>
                 )}
               </>

@@ -212,10 +212,12 @@ export async function listAllCatalogVersions(
 export function listInventoryUnits(
   vehicleType?: FinancialVehicleType,
   signal?: AbortSignal,
+  search?: string,
 ) {
   const typeQuery = vehicleType ? `&vehicleType=${vehicleType}` : ''
+  const searchQuery = search ? `&search=${encodeURIComponent(search)}` : ''
   return apiRequest<PageResponse<UnitOption>>(
-    `/inventory/units?page=1&limit=100${typeQuery}`,
+    `/inventory/units?page=1&limit=100${typeQuery}${searchQuery}`,
     {
       token: authToken(),
       ...(signal ? { signal } : {}),
@@ -226,12 +228,14 @@ export function listInventoryUnits(
 export async function listAllInventoryUnits(
   vehicleType?: FinancialVehicleType,
   signal?: AbortSignal,
+  search?: string,
 ) {
   const typeQuery = vehicleType ? `&vehicleType=${vehicleType}` : ''
-  const first = await listInventoryUnits(vehicleType, signal)
+  const searchQuery = search ? `&search=${encodeURIComponent(search)}` : ''
+  const first = await listInventoryUnits(vehicleType, signal, search)
   return collectAllPages(first, (page) =>
     apiRequest<PageResponse<UnitOption>>(
-      `/inventory/units?page=${page}&limit=100${typeQuery}`,
+      `/inventory/units?page=${page}&limit=100${typeQuery}${searchQuery}`,
       {
         token: authToken(),
         ...(signal ? { signal } : {}),
@@ -243,10 +247,12 @@ export async function listAllInventoryUnits(
 export function listSalesOperations(
   vehicleType?: FinancialVehicleType,
   signal?: AbortSignal,
+  search?: string,
 ) {
   const typeQuery = vehicleType ? `&vehicleType=${vehicleType}` : ''
+  const searchQuery = search ? `&search=${encodeURIComponent(search)}` : ''
   return apiRequest<PageResponse<SalesOperationOption>>(
-    `/sales/operations?page=1&limit=100${typeQuery}`,
+    `/sales/operations?page=1&limit=100${typeQuery}${searchQuery}`,
     {
       token: authToken(),
       ...(signal ? { signal } : {}),
@@ -257,12 +263,14 @@ export function listSalesOperations(
 export async function listAllSalesOperations(
   vehicleType?: FinancialVehicleType,
   signal?: AbortSignal,
+  search?: string,
 ) {
   const typeQuery = vehicleType ? `&vehicleType=${vehicleType}` : ''
-  const first = await listSalesOperations(vehicleType, signal)
+  const searchQuery = search ? `&search=${encodeURIComponent(search)}` : ''
+  const first = await listSalesOperations(vehicleType, signal, search)
   return collectAllPages(first, (page) =>
     apiRequest<PageResponse<SalesOperationOption>>(
-      `/sales/operations?page=${page}&limit=100${typeQuery}`,
+      `/sales/operations?page=${page}&limit=100${typeQuery}${searchQuery}`,
       {
         token: authToken(),
         ...(signal ? { signal } : {}),

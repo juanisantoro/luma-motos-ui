@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { ApiError, NetworkError } from '../../shared/api/client'
 import { Brand } from '../../shared/components/Brand'
 import { useAuth } from './AuthContext'
+import { alertError, alertSuccess } from '../../shared/alerts'
 
 const GENERIC_SUCCESS_MESSAGE =
   'Si el correo está registrado, te enviamos un mail con una contraseña temporal para que configures una nueva.'
@@ -42,8 +43,11 @@ export function ForgotPasswordPage() {
     try {
       await requestPasswordReset(email)
       setSent(true)
+      void alertSuccess(GENERIC_SUCCESS_MESSAGE)
     } catch (submitError) {
-      setError(requestError(submitError))
+      const message = requestError(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }

@@ -516,6 +516,27 @@ a {
   font-size: 10px;
 }
 
+.nav-group--sub {
+  margin: 2px 0 2px 13px;
+}
+
+.nav-group--sub .nav-group__toggle {
+  min-height: 44px;
+  padding: 7px 11px;
+}
+
+.nav-group--sub .nav-group__toggle > span {
+  font-size: 11.5px;
+}
+
+.nav-group--sub .nav-item--nested {
+  margin-left: 13px;
+}
+
+.sidebar--collapsed .nav-group--sub {
+  margin-left: 0;
+}
+
 .sidebar--collapsed .sidebar__nav {
   padding-inline: 9px;
 }
@@ -1658,6 +1679,74 @@ a {
 .vehicle-payment-unit-option span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.search-combobox-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-combobox-results {
+  display: grid;
+  gap: 6px;
+  max-height: 220px;
+  margin-top: 8px;
+  padding: 2px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.search-combobox-option {
+  display: grid;
+  gap: 2px;
+  padding: 9px 12px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  background: #fff;
+  text-align: left;
+}
+
+.search-combobox-option:last-child {
+  border-bottom: none;
+}
+
+.search-combobox-option:hover {
+  background: #fafbfc;
+}
+
+.search-combobox-option strong {
+  font-size: 13px;
+}
+
+.search-combobox-option span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-combobox-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--background);
+  font-size: 13px;
+}
+
+.search-combobox-selected button {
+  border: none;
+  background: none;
+  color: var(--red);
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .movement-list {
@@ -5380,6 +5469,248 @@ a {
   width: fit-content;
   min-height: 44px;
   margin-top: 8px;
+}
+
+.catalog-photo-uploader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.catalog-photo-uploader img {
+  width: 76px;
+  height: 76px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.catalog-photo-uploader__placeholder {
+  width: 76px;
+  height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 10px;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.catalog-photo-uploader label.button {
+  cursor: pointer;
+}
+
+.catalog-browser-toolbar {
+  margin: 4px 0 18px;
+  max-width: 360px;
+}
+
+.catalog-browser-toolbar .field--search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.catalog-browser-toolbar .field--search input {
+  border: none;
+  padding: 10px 0;
+  flex: 1;
+  font-size: 13px;
+}
+
+.catalog-browser-toolbar .field--search input:focus {
+  outline: none;
+}
+
+.catalog-browser-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.catalog-browser-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.catalog-browser-card__photo {
+  aspect-ratio: 4 / 3;
+  background: var(--background);
+}
+
+.catalog-browser-card__photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.catalog-browser-card__photo-button {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+}
+
+.catalog-browser-card__photo-zoom {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #000000a3;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.catalog-browser-card__photo-button:hover .catalog-browser-card__photo-zoom,
+.catalog-browser-card__photo-button:focus-visible .catalog-browser-card__photo-zoom {
+  opacity: 1;
+}
+
+.catalog-lightbox-backdrop {
+  position: fixed;
+  z-index: 70;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #050608b8;
+  cursor: zoom-out;
+}
+
+.catalog-lightbox {
+  position: relative;
+  display: grid;
+  width: min(96vw, 1400px);
+  height: min(92vh, 1400px);
+  place-items: center;
+  cursor: default;
+}
+
+.catalog-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 10px;
+  object-fit: contain;
+  box-shadow: 0 24px 80px #0008;
+}
+
+.catalog-lightbox__close {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  color: #1a1a1a;
+  background: #fff;
+  box-shadow: 0 6px 20px #0005;
+  cursor: pointer;
+}
+
+.catalog-browser-card__placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.catalog-browser-card__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px 16px;
+}
+
+.catalog-browser-card__body > strong {
+  min-height: 20px;
+  line-height: 1.3;
+}
+
+.catalog-browser-card__version {
+  min-height: 15px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.catalog-browser-card__stock {
+  margin-top: 4px;
+}
+
+.catalog-browser-card__branches {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.catalog-browser-card__branches dt {
+  color: var(--ink);
+}
+
+.catalog-browser-card__branches dd {
+  margin: 0;
+  color: var(--muted);
+  text-align: right;
+  font-weight: 600;
+}
+
+.catalog-browser-card__suppliers {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.catalog-browser-card__suppliers p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.unit-color-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px dashed var(--line);
+  border-radius: 7px;
+  background: none;
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.unit-color-edit:hover {
+  border-color: var(--muted);
 }
 
 .separation-note {

@@ -63,6 +63,7 @@ export type CatalogModel = {
   pricingStatus?: 'ACTIVE' | 'MISSING'
   pricePolicy: CatalogPricePolicy | null
   pricePolicies?: CatalogPricePolicy[]
+  photoUrl: string | null
 }
 
 export type CatalogPricePolicy = {
@@ -88,6 +89,8 @@ export type PhysicalUnit = {
   year: number
   mileage: number
   licensePlate: string | null
+  color: string | null
+  acabado: string | null
   acquisitionOrigin: AcquisitionOrigin
   supplier: SupplierOption | null
   status: UnitStatus
@@ -114,6 +117,7 @@ export type SupplyOrder = {
   supplier: SupplierOption
   quantity: number
   status: SupplyStatus
+  color: string | null
   destinationBranch: BranchOption
   requestedAt: string | null
   operation: {
@@ -155,6 +159,8 @@ export type UnitDraft = {
   year: number
   mileage: number
   licensePlate?: string
+  color?: string
+  acabado?: string
   receivedAt: string
   acquisitionOrigin: AcquisitionOrigin
   supplierId?: string
@@ -205,6 +211,7 @@ export type ReceiveSupplyInput = {
   year: number
   mileage: number
   licensePlate?: string
+  color?: string
   receivedAt: string
   idempotencyKey: string
 }

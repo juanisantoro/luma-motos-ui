@@ -25,6 +25,7 @@ import {
   managedUserName,
 } from './components'
 import { accessErrorMessage } from './errors'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import type {
   AccessGateway,
   BranchOption,
@@ -278,23 +279,28 @@ export function UsersPage({
     setActionBusy(true)
     setError('')
     try {
+      let successMessage = ''
       if (action.type === 'status') {
         const response = await gateway.updateUserStatus(
           action.user.id,
           !action.user.active,
         )
-        setNotice(
-          `${managedUserName(response.user)} quedó ${response.user.active ? 'activo' : 'inactivo'}. ${response.revokedSessions ? `Se cerraron ${response.revokedSessions} sesiones.` : ''}`.trim(),
-        )
+        successMessage =
+          `${managedUserName(response.user)} quedó ${response.user.active ? 'activo' : 'inactivo'}. ${response.revokedSessions ? `Se cerraron ${response.revokedSessions} sesiones.` : ''}`.trim()
+        setNotice(successMessage)
       } else {
         await gateway.resendUserInvitation(action.user.id)
-        setNotice(`La invitación se envió nuevamente a ${action.user.email}.`)
+        successMessage = `La invitación se envió nuevamente a ${action.user.email}.`
+        setNotice(successMessage)
       }
       setAction(null)
       setRefreshKey((current) => current + 1)
+      void alertSuccess(successMessage)
     } catch (actionError) {
-      setError(accessErrorMessage(actionError))
+      const message = accessErrorMessage(actionError)
+      setError(message)
       setAction(null)
+      void alertError(message)
     } finally {
       setActionBusy(false)
     }

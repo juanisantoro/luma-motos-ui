@@ -11,6 +11,7 @@ import {
   listVehiclePayments,
   updateVehiclePayment,
 } from './api'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import { VehiclePaymentForm } from './VehiclePaymentForm'
 import type {
   CatalogOption,
@@ -121,9 +122,13 @@ export function VehiclePaymentsPage({
     const nextStatus: VehiclePaymentStatus = payment.status === 'PAGADO' ? 'PENDIENTE' : 'PAGADO'
     try {
       await updateVehiclePayment(payment.id, { status: nextStatus })
-      reload(nextStatus === 'PAGADO' ? 'Pago marcado como pagado.' : 'Pago marcado como pendiente.')
+      const successMessage = nextStatus === 'PAGADO' ? 'Pago marcado como pagado.' : 'Pago marcado como pendiente.'
+      reload(successMessage)
+      void alertSuccess(successMessage)
     } catch {
-      setNotice('No pudimos actualizar el estado. Intentá nuevamente.')
+      const message = 'No pudimos actualizar el estado. Intentá nuevamente.'
+      setNotice(message)
+      void alertError(message)
     }
   }
 

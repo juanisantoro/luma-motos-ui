@@ -1,4 +1,5 @@
 import {
+  apiUpload,
   AUTH_TOKEN_KEY,
   apiRequest,
 } from '../../shared/api/client'
@@ -62,6 +63,7 @@ type VersionSummaryDto = {
   name: string
   scope?: 'GLOBAL' | 'RESTRINGIDO'
   model: EmbeddedModelDto
+  photoUrl?: string | null
 }
 
 type VersionDto = VersionSummaryDto & {
@@ -109,6 +111,8 @@ type UnitDto = {
   manufactureYear: number | null
   mileageKm: number | null
   licensePlate: string | null
+  color: string | null
+  acabado: string | null
   acquisitionOrigin: AcquisitionOrigin
   inventoryStatus: UnitStatus
   receivedAt: string
@@ -131,6 +135,7 @@ type SupplyRequestDto = {
   id: string
   condition: VehicleCondition
   status: SupplyStatus
+  color: string | null
   requestedAt: string
   version: VersionSummaryDto
   supplier: SupplierDto
@@ -249,6 +254,7 @@ function catalogVersion(
     pricePolicy: activePolicy,
     pricePolicies:
       activePolicy && pricePolicies.length === 0 ? [activePolicy] : pricePolicies,
+    photoUrl: dto.photoUrl ?? null,
   }
 }
 
@@ -288,6 +294,8 @@ function physicalUnit(dto: UnitDto): PhysicalUnit {
     year: dto.manufactureYear ?? new Date(dto.receivedAt).getFullYear(),
     mileage: dto.mileageKm ?? 0,
     licensePlate: dto.licensePlate,
+    color: dto.color,
+    acabado: dto.acabado,
     acquisitionOrigin: dto.acquisitionOrigin,
     supplier: dto.supplier ? supplier(dto.supplier) : null,
     status: dto.inventoryStatus,
@@ -318,6 +326,18 @@ export function listSalesBranches(
     listPath('/inventory/branches', { organizationId }),
     signal ? { signal } : {},
   ).then((items) => uniqueById(items.map(branch)))
+}
+
+type UnitColorDto = {
+  id: string
+  name: string
+}
+
+export function listUnitColors(signal?: AbortSignal) {
+  return request<UnitColorDto[]>(
+    '/inventory/colors',
+    signal ? { signal } : {},
+  )
 }
 
 export function listSalesPhysicalUnits(
@@ -391,6 +411,7 @@ function supplyRequest(dto: SupplyRequestDto): SupplyOrder {
     supplier: supplier(dto.supplier),
     quantity: 1,
     status: dto.status,
+    color: dto.color,
     destinationBranch: branch(dto.branch),
     requestedAt: dto.requestedAt,
     operation:
@@ -432,6 +453,8 @@ function unitInput(
     licensePlate: item.licensePlate,
     manufactureYear: item.year,
     mileageKm: item.mileage,
+    color: item.color,
+    acabado: item.acabado,
     branchId: item.branchId,
     supplierId: item.supplierId,
     acquisitionOrigin: item.acquisitionOrigin,
@@ -743,6 +766,20 @@ export const stockApiGateway: StockGateway = {
       },
     })
   },
+  async uploadCatalogVersionPhoto(versionId, file) {
+    await apiUpload<VersionDto>(
+      `/catalog/versions/${versionId}/photo`,
+      file,
+      'photo',
+      { token: token() },
+    )
+  },
+  async updateUnitColor(unitId, input) {
+    await request<UnitDto>(`/inventory/units/${unitId}`, {
+      method: 'PATCH',
+      body: { color: input.color, acabado: input.acabado },
+    })
+  },
   async transitionSupply(supplyId, status) {
     await request<SupplyRequestDto>(
       `/supply-requests/${supplyId}/transitions`,
@@ -761,6 +798,7 @@ export const stockApiGateway: StockGateway = {
           mileageKm: input.mileage,
           receivedAt: input.receivedAt,
           licensePlate: input.licensePlate,
+          color: input.color,
           idempotencyKey: input.idempotencyKey,
         },
       },

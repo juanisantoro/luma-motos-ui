@@ -1,6 +1,7 @@
 import { LoaderCircle, X } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { addSettlement, listAllCashAccounts } from '../api'
+import { alertError, alertSuccess } from '../../../shared/alerts'
 import {
   financialErrorMessage,
   financialLabels,
@@ -63,8 +64,11 @@ export function SettlementModal({
         recovery,
       )
       onSaved()
+      void alertSuccess('La liquidación se registró correctamente.')
     } catch (submitError) {
-      setError(financialErrorMessage(submitError))
+      const message = financialErrorMessage(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }

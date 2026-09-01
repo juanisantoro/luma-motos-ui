@@ -7,6 +7,7 @@ import { hasPermission } from '../auth/PermissionRoute'
 import { accessApiGateway } from './api'
 import { AccessNotice } from './components'
 import { accessErrorMessage } from './errors'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import type { AccessGateway, ManagedRole, PermissionGroup } from './types'
 
 export function RoleFormPage({
@@ -119,12 +120,18 @@ export function RoleFormPage({
             permissionCodes: [...selected],
           })
       const saved = 'role' in response ? response.role : response
+      const successMessage = editing
+        ? 'Rol actualizado.'
+        : 'Rol creado y disponible para asignar.'
       navigate(`/usuarios/roles/${saved.id}`, {
         replace: true,
-        state: { notice: editing ? 'Rol actualizado.' : 'Rol creado y disponible para asignar.' },
+        state: { notice: successMessage },
       })
+      void alertSuccess(successMessage)
     } catch (submitError) {
-      setError(accessErrorMessage(submitError))
+      const message = accessErrorMessage(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }

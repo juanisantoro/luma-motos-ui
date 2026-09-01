@@ -1,7 +1,8 @@
 import { LoaderCircle, PackageCheck, X } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { localIsoDate } from '../../shared/utils/date'
+import { listUnitColors } from './api'
 import type { BranchOption, ReceiveSupplyInput, SupplyOrder } from './types'
 
 type ReceiveSupplyModalProps = {
@@ -23,11 +24,32 @@ export function ReceiveSupplyModal({
 }: ReceiveSupplyModalProps) {
   const dialogRef = useDialogFocus(onClose, submitting)
   const [idempotencyKey] = useState(() => crypto.randomUUID())
+  const [colorOptions, setColorOptions] = useState<
+    { id: string; name: string }[]
+  >([])
+  const [colorsLoading, setColorsLoading] = useState(true)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setColorsLoading(true)
+    listUnitColors(controller.signal)
+      .then((options) => {
+        if (controller.signal.aborted) return
+        setColorOptions(options)
+        setColorsLoading(false)
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return
+        setColorsLoading(false)
+      })
+    return () => controller.abort()
+  }, [])
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
     const licensePlate = String(data.get('licensePlate') ?? '').trim()
+    const color = String(data.get('color') ?? '').trim()
     onSubmit({
       vin: String(data.get('vin')).trim().toUpperCase(),
       branchId: String(data.get('branchId')),
@@ -38,6 +60,7 @@ export function ReceiveSupplyModal({
       ...(licensePlate
         ? { licensePlate: licensePlate.toUpperCase() }
         : {}),
+      ...(color ? { color } : {}),
       idempotencyKey,
     })
   }
@@ -151,6 +174,27 @@ export function ReceiveSupplyModal({
               <input name="licensePlate" maxLength={12} />
             </label>
             )}
+            <label className="field">
+              <span>Color</span>
+              <select
+                aria-label="Color de la unidad"
+                defaultValue={supply.color ?? ''}
+                disabled={colorsLoading}
+                name="color"
+              >
+                <option value="">
+                  {colorsLoading ? 'Cargando…' : 'Sin especificar'}
+                </option>
+                {colorOptions.map((option) => (
+                  <option key={option.id} value={option.name}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+              {supply.color && (
+                <small>Color solicitado en el pedido: {supply.color}</small>
+              )}
+            </label>
           </div>
           <footer className="stock-modal__actions">
             <button

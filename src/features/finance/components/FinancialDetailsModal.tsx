@@ -1,6 +1,7 @@
 import { LoaderCircle, RotateCcw, X } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { getFinancialRecord, reverseMovement } from '../api'
+import { alertError, alertSuccess } from '../../../shared/alerts'
 import {
   financialErrorMessage,
   formatDate,
@@ -61,8 +62,11 @@ export function FinancialDetailsModal({
       setReverseIdempotencyKey('')
       onChanged()
       load()
+      void alertSuccess('El movimiento se revirtió correctamente.')
     } catch (reverseError) {
-      setError(financialErrorMessage(reverseError))
+      const message = financialErrorMessage(reverseError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }

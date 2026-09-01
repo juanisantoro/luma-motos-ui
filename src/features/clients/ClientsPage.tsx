@@ -14,6 +14,7 @@ import { listClients, updateClientStatus } from './api'
 import { ClientFormModal } from './ClientFormModal'
 import { ClientList } from './ClientList'
 import { clientsErrorMessage } from './errors'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import type { Client, ClientListResponse } from './types'
 
 type LoadStatus = 'loading' | 'success' | 'error'
@@ -87,8 +88,11 @@ export function ClientsPage() {
     try {
       await updateClientStatus(client.id, !client.active)
       reload()
+      void alertSuccess(`El cliente quedó ${client.active ? 'inactivo' : 'activo'}.`)
     } catch (error) {
-      setActionError(clientsErrorMessage(error))
+      const message = clientsErrorMessage(error)
+      setActionError(message)
+      void alertError(message)
     } finally {
       setBusyClientId(null)
     }

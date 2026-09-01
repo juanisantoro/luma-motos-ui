@@ -1,5 +1,5 @@
 import { LockKeyhole, RefreshCw } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
@@ -26,6 +26,7 @@ export function StockPage({
   const [data, setData] = useState<StockWorkspaceData | null>(null)
   const [loadError, setLoadError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const hasLoadedOnce = useRef(false)
   const capabilities = useMemo<StockCapabilities>(
     () => {
       const can = (permission: string) =>
@@ -63,7 +64,14 @@ export function StockPage({
 
   useEffect(() => {
     const controller = new AbortController()
-    setStatus('loading')
+    // Solo mostramos la pantalla de carga completa la primera vez. En los
+    // refetch posteriores (después de una mutación) mantenemos el
+    // workspace montado con los datos anteriores mientras llega la
+    // respuesta nueva, para no perder la pestaña, filtros ni selección
+    // que el usuario tenía activos.
+    if (!hasLoadedOnce.current) {
+      setStatus('loading')
+    }
     setLoadError('')
     void gateway
       .loadWorkspace(
@@ -75,6 +83,7 @@ export function StockPage({
       .then((workspace) => {
         setData(workspace)
         setStatus('success')
+        hasLoadedOnce.current = true
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
@@ -88,7 +97,9 @@ export function StockPage({
           return
         }
         setLoadError(stockErrorMessage(error))
-        setStatus('error')
+        if (!hasLoadedOnce.current) {
+          setStatus('error')
+        }
       })
     return () => controller.abort()
   }, [
@@ -179,6 +190,14 @@ export function StockPage({
       }
       onUpdateCatalogModel={(input) =>
         mutateAndReload(() => gateway.updateCatalogModel(input))
+      }
+      onUploadCatalogVersionPhoto={(versionId, file) =>
+        mutateAndReload(() =>
+          gateway.uploadCatalogVersionPhoto(versionId, file),
+        )
+      }
+      onUpdateUnitColor={(unitId, input) =>
+        mutateAndReload(() => gateway.updateUnitColor(unitId, input))
       }
       vehicleType={vehicleType}
     />

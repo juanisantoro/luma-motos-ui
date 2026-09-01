@@ -271,6 +271,7 @@ type CreateSalesOperationBase = {
   agreedPrice: number
   unitId?: string
   supplierAvailabilityId?: string
+  color?: string
   sellerId?: string
   contactId?: string
   paymentPlatform: SalesPaymentPlatform

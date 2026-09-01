@@ -10,6 +10,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import {
   commissionErrorMessage,
   decimalAmount,
@@ -249,8 +250,11 @@ export function AgreementModal({
     setError('')
     try {
       onSaved(await gateway.registerAgreement(detail.id, input))
+      void alertSuccess('El acuerdo se registró correctamente.')
     } catch (submitError) {
-      setError(commissionErrorMessage(submitError))
+      const message = commissionErrorMessage(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }

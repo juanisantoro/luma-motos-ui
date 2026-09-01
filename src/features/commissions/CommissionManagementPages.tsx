@@ -20,6 +20,7 @@ import {
   CommissionStatusBadge,
   VehicleTypeNav,
 } from './components'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import {
   commissionErrorMessage,
   formatCommissionDate,
@@ -280,8 +281,11 @@ function PaymentModal({
     try {
       await gateway.pay(commission.id, input)
       onPaid()
+      void alertSuccess('El pago se registró correctamente.')
     } catch (submitError) {
-      setError(commissionErrorMessage(submitError))
+      const message = commissionErrorMessage(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }

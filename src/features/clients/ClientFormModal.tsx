@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { LoaderCircle, X } from 'lucide-react'
 import { createClient, updateClient } from './api'
 import { clientsErrorMessage } from './errors'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import type {
   Client,
   CreateClientInput,
@@ -127,8 +128,11 @@ export function ClientFormModal({
         await createClient(input)
       }
       onSaved()
+      void alertSuccess(client ? 'El cliente se actualizó correctamente.' : 'El cliente se creó correctamente.')
     } catch (submitError) {
-      setError(clientsErrorMessage(submitError))
+      const message = clientsErrorMessage(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       submittingRef.current = false
       setSubmitting(false)

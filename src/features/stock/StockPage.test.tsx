@@ -40,6 +40,8 @@ function gateway(
     upsertAvailability: vi.fn().mockResolvedValue(undefined),
     configurePrice: vi.fn().mockResolvedValue(undefined),
     updateCatalogModel: vi.fn().mockResolvedValue(undefined),
+    uploadCatalogVersionPhoto: vi.fn().mockResolvedValue(undefined),
+    updateUnitColor: vi.fn().mockResolvedValue(undefined),
     transitionSupply: vi.fn().mockResolvedValue(undefined),
     receiveSupply: vi.fn().mockResolvedValue(undefined),
   }

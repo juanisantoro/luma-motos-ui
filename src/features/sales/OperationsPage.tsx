@@ -15,6 +15,7 @@ import type { VehicleKind } from '../stock/types'
 import { listSalesOperations } from './api'
 import { releaseSalesReservation } from './api'
 import { salesErrorMessage } from './errors'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import { SalesDecisionModal } from './SalesDecisionModal'
 import { SalesOperationList } from './SalesOperationList'
 import type {
@@ -127,8 +128,11 @@ export function OperationsPage({
       })
       setRelease(null)
       setRefreshKey((value) => value + 1)
+      void alertSuccess('La reserva se liberó correctamente.')
     } catch (releaseError) {
-      setActionError(salesErrorMessage(releaseError))
+      const message = salesErrorMessage(releaseError)
+      setActionError(message)
+      void alertError(message)
     } finally {
       setBusyId(null)
     }
@@ -148,7 +152,8 @@ export function OperationsPage({
               : 'Historial comercial, reservas y estados de aprobación.'}
           </p>
         </div>
-        {hasPermission(user?.role.permissions, 'ventas.gestionar') && (
+        {effectiveMine &&
+          hasPermission(user?.role.permissions, 'ventas.gestionar') && (
           <Link
             className="button button--primary"
             to={`/${vehicleNoun}/operaciones/nueva`}

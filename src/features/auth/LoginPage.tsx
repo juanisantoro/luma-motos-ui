@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom'
 import { ApiError, NetworkError } from '../../shared/api/client'
 import { Brand } from '../../shared/components/Brand'
 import { useAuth } from './AuthContext'
+import { alertError } from '../../shared/alerts'
 
 function loginError(error: unknown) {
   if (error instanceof NetworkError) {
@@ -55,7 +56,9 @@ export function LoginPage() {
         password: String(data.get('password') ?? ''),
       })
     } catch (submitError) {
-      setError(loginError(submitError))
+      const message = loginError(submitError)
+      setError(message)
+      void alertError(message)
     } finally {
       setSubmitting(false)
     }

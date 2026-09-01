@@ -3,6 +3,7 @@ import {
   Check,
   CircleDollarSign,
   Clock3,
+  Pencil,
   Printer,
   PackageCheck,
   Plus,
@@ -14,11 +15,13 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CatalogModelModal } from './CatalogModelModal'
+import { UnitColorModal } from './UnitColorModal'
 import { ProviderAvailabilityModal } from './ProviderAvailabilityModal'
 import { PricePolicyModal } from './PricePolicyModal'
 import { ReceiveSupplyModal } from './ReceiveSupplyModal'
 import { UnitFormModal } from './UnitFormModal'
 import { stockErrorMessage } from './errors'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import type {
   AcquisitionOrigin,
   CatalogPricePolicy,
@@ -49,6 +52,11 @@ type StockWorkspaceProps = {
   onUpsertAvailability: (input: UpsertAvailabilityInput) => Promise<void>
   onConfigurePrice: (input: ConfigurePriceInput) => Promise<void>
   onUpdateCatalogModel: (input: UpdateCatalogModelInput) => Promise<void>
+  onUploadCatalogVersionPhoto: (versionId: string, file: File) => Promise<void>
+  onUpdateUnitColor: (
+    unitId: string,
+    input: { color: string | null; acabado: string | null },
+  ) => Promise<void>
   onTransitionSupply: (
     supplyId: string,
     status: SupplyStatus,
@@ -85,6 +93,11 @@ const originLabels: Record<AcquisitionOrigin, string> = {
   PROVEEDOR: 'Proveedor',
   TOMA_PARTE_PAGO: 'Parte de pago',
   OTRO: 'Otro',
+}
+
+function unitColorLabel(unit: PhysicalUnit) {
+  if (unit.color && unit.acabado) return `${unit.color} · ${unit.acabado}`
+  return unit.color ?? unit.acabado ?? 'Sin color'
 }
 
 function formatDate(value: string | null) {
@@ -161,10 +174,12 @@ function UnitCards({
   units,
   selected,
   onToggle,
+  onEditColor,
 }: {
   units: PhysicalUnit[]
   selected: Set<string>
   onToggle: (unitId: string) => void
+  onEditColor: (unit: PhysicalUnit) => void
 }) {
   return (
     <div className="stock-card-list">
@@ -206,6 +221,20 @@ function UnitCards({
                 {unit.year} · {unit.mileage.toLocaleString('es-AR')} km
               </dd>
             </div>
+            <div>
+              <dt>Color / acabado</dt>
+              <dd>
+                <button
+                  aria-label={`Editar color y acabado de ${unit.vin}`}
+                  className="unit-color-edit"
+                  onClick={() => onEditColor(unit)}
+                  type="button"
+                >
+                  <span>{unitColorLabel(unit)}</span>
+                  <Pencil size={14} />
+                </button>
+              </dd>
+            </div>
           </dl>
         </article>
       ))}
@@ -218,11 +247,13 @@ function PhysicalUnits({
   selected,
   onToggle,
   onToggleAll,
+  onEditColor,
 }: {
   units: PhysicalUnit[]
   selected: Set<string>
   onToggle: (unitId: string) => void
   onToggleAll: () => void
+  onEditColor: (unit: PhysicalUnit) => void
 }) {
   if (units.length === 0) {
     return (
@@ -234,7 +265,12 @@ function PhysicalUnits({
   }
   return (
     <>
-      <UnitCards units={units} selected={selected} onToggle={onToggle} />
+      <UnitCards
+        onEditColor={onEditColor}
+        onToggle={onToggle}
+        selected={selected}
+        units={units}
+      />
       <div className="stock-table-wrap">
         <table className="stock-table">
           <thead>
@@ -257,6 +293,7 @@ function PhysicalUnits({
               <th>Sucursal</th>
               <th>Origen</th>
               <th>Año / km</th>
+              <th>Color / acabado</th>
               <th>Estado</th>
               <th>Reserva</th>
             </tr>
@@ -288,6 +325,17 @@ function PhysicalUnits({
                 <td>{originLabels[unit.acquisitionOrigin]}</td>
                 <td>
                   {unit.year} · {unit.mileage.toLocaleString('es-AR')} km
+                </td>
+                <td>
+                  <button
+                    aria-label={`Editar color y acabado de ${unit.vin}`}
+                    className="unit-color-edit"
+                    onClick={() => onEditColor(unit)}
+                    type="button"
+                  >
+                    <span>{unitColorLabel(unit)}</span>
+                    <Pencil size={14} />
+                  </button>
                 </td>
                 <td>
                   <Badge
@@ -729,6 +777,12 @@ function SuppliesList({
                   <dt>Proveedor / destino</dt>
                   <dd>{supply.supplier.name} · {supply.destinationBranch.name}</dd>
                 </div>
+                {supply.color && (
+                  <div>
+                    <dt>Color solicitado</dt>
+                    <dd>{supply.color}</dd>
+                  </div>
+                )}
               </dl>
               {(nextAction && capabilities.manageSupply && ActionIcon) && (
                 <button
@@ -791,6 +845,8 @@ export function StockWorkspace({
   onUpsertAvailability,
   onConfigurePrice,
   onUpdateCatalogModel,
+  onUploadCatalogVersionPhoto,
+  onUpdateUnitColor,
   onTransitionSupply,
   onReceiveSupply,
 }: StockWorkspaceProps) {
@@ -825,6 +881,9 @@ export function StockWorkspace({
   const [editingCatalog, setEditingCatalog] = useState<
     StockWorkspaceData['catalog'][number] | null
   >(null)
+  const [editingUnitColor, setEditingUnitColor] = useState<PhysicalUnit | null>(
+    null,
+  )
   const [pricing, setPricing] = useState<{
     model: StockWorkspaceData['catalog'][number]
     branchId: string
@@ -982,14 +1041,18 @@ export function StockWorkspace({
   const runMutation = async (
     mutation: () => Promise<void>,
     afterSuccess: () => void,
+    successMessage = 'La operación se realizó correctamente.',
   ) => {
     setBusy(true)
     setActionError(null)
     try {
       await mutation()
       afterSuccess()
+      void alertSuccess(successMessage)
     } catch (error) {
-      setActionError(stockErrorMessage(error))
+      const message = stockErrorMessage(error)
+      setActionError(message)
+      void alertError(message)
     } finally {
       setBusy(false)
     }
@@ -1003,8 +1066,11 @@ export function StockWorkspace({
     setActionError(null)
     try {
       await onTransitionSupply(supply.id, status)
+      void alertSuccess('El estado del abastecimiento se actualizó correctamente.')
     } catch (error) {
-      setActionError(stockErrorMessage(error))
+      const message = stockErrorMessage(error)
+      setActionError(message)
+      void alertError(message)
     } finally {
       setBusySupplyId(null)
     }
@@ -1309,6 +1375,10 @@ export function StockWorkspace({
               selected={selectedUnits}
               onToggle={toggleUnit}
               onToggleAll={toggleVisibleUnits}
+              onEditColor={(item) => {
+                setActionError(null)
+                setEditingUnitColor(item)
+              }}
             />
           )}
           {tab === 'catalog' && (
@@ -1373,6 +1443,7 @@ export function StockWorkspace({
             void runMutation(
               () => onCreateUnits(input),
               () => setUnitModal(false),
+              'Las unidades se cargaron correctamente.',
             )
           }
           submitting={busy}
@@ -1392,6 +1463,7 @@ export function StockWorkspace({
             void runMutation(
               () => onUpsertAvailability(input),
               () => setProviderModal(null),
+              'La disponibilidad se actualizó correctamente.',
             )
           }
           submitting={busy}
@@ -1408,6 +1480,7 @@ export function StockWorkspace({
             void runMutation(
               () => onReceiveSupply(receiving.id, input),
               () => setReceiving(null),
+              'La recepción se registró correctamente.',
             )
           }
           submitting={busy}
@@ -1428,6 +1501,7 @@ export function StockWorkspace({
             void runMutation(
               () => onConfigurePrice(input),
               () => setPricing(null),
+              'El precio se actualizó correctamente.',
             )
           }
           submitting={busy}
@@ -1443,9 +1517,32 @@ export function StockWorkspace({
             void runMutation(
               () => onUpdateCatalogModel(input),
               () => setEditingCatalog(null),
+              'El modelo de catálogo se actualizó correctamente.',
+            )
+          }
+          onUploadPhoto={(file) =>
+            void runMutation(
+              () => onUploadCatalogVersionPhoto(editingCatalog.id, file),
+              () => setEditingCatalog(null),
+              'La foto se actualizó correctamente.',
             )
           }
           submitting={busy}
+        />
+      )}
+      {editingUnitColor && (
+        <UnitColorModal
+          error={actionError}
+          onClose={() => setEditingUnitColor(null)}
+          onSubmit={(input) =>
+            void runMutation(
+              () => onUpdateUnitColor(editingUnitColor.id, input),
+              () => setEditingUnitColor(null),
+              'El color y acabado se actualizaron correctamente.',
+            )
+          }
+          submitting={busy}
+          unit={editingUnitColor}
         />
       )}
     </>

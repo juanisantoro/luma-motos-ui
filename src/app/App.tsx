@@ -10,6 +10,7 @@ import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage'
 import { InitialPasswordPage } from '../features/auth/InitialPasswordPage'
 import { PermissionRoute } from '../features/auth/PermissionRoute'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
+import { CatalogBrowserPage } from '../features/catalog/CatalogBrowserPage'
 import { ClientsPage } from '../features/clients/ClientsPage'
 import { CreditInquiriesPage } from '../features/credit-inquiries'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
@@ -80,6 +81,18 @@ export function App() {
                       vehicleType="AUTO"
                     />
                   }
+                />
+              </Route>
+              <Route
+                element={<PermissionRoute permission="catalogo.consultar" />}
+              >
+                <Route
+                  path="catalogo/motos"
+                  element={<CatalogBrowserPage vehicleType="MOTO" />}
+                />
+                <Route
+                  path="catalogo/autos"
+                  element={<CatalogBrowserPage vehicleType="AUTO" />}
                 />
               </Route>
               <Route

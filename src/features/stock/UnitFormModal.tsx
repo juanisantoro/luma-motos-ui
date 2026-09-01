@@ -1,6 +1,8 @@
 import { LoaderCircle, Minus, Plus, ShieldCheck, X } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
+import { listUnitColors } from './api'
+import { UNIT_FINISHES } from './colors'
 import type {
   CatalogModel,
   CatalogModelDraft,
@@ -28,6 +30,8 @@ type UnitRow = {
   year: string
   mileage: string
   licensePlate: string
+  color: string
+  acabado: string
   receivedAt: string
 }
 
@@ -41,6 +45,8 @@ function emptyUnit(key: number, branchId = ''): UnitRow {
     year: String(new Date().getFullYear()),
     mileage: '0',
     licensePlate: '',
+    color: '',
+    acabado: '',
     receivedAt: today(),
   }
 }
@@ -77,6 +83,26 @@ export function UnitFormModal({
     emptyUnit(1, branches[0]?.id),
   ])
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [colorOptions, setColorOptions] = useState<
+    { id: string; name: string }[]
+  >([])
+  const [colorsLoading, setColorsLoading] = useState(true)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setColorsLoading(true)
+    listUnitColors(controller.signal)
+      .then((options) => {
+        if (controller.signal.aborted) return
+        setColorOptions(options)
+        setColorsLoading(false)
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return
+        setColorsLoading(false)
+      })
+    return () => controller.abort()
+  }, [])
   const noun = vehicleType === 'AUTO' ? 'autos' : 'motos'
   const singular = vehicleType === 'AUTO' ? 'auto' : 'moto'
   const activeCatalog = useMemo(
@@ -141,6 +167,8 @@ export function UnitFormModal({
       ...(vehicleType === 'AUTO' && unit.licensePlate.trim()
         ? { licensePlate: unit.licensePlate.trim().toUpperCase() }
         : {}),
+      ...(unit.color.trim() ? { color: unit.color.trim() } : {}),
+      ...(unit.acabado.trim() ? { acabado: unit.acabado.trim() } : {}),
     }))
     onSubmit({
       vehicleType,
@@ -476,6 +504,43 @@ export function UnitFormModal({
                         />
                       </label>
                     )}
+                    <label className="field">
+                      <span>Color</span>
+                      <select
+                        aria-label={`Color unidad ${index + 1}`}
+                        disabled={colorsLoading}
+                        value={unit.color}
+                        onChange={(event) =>
+                          updateUnit(unit.key, { color: event.target.value })
+                        }
+                      >
+                        <option value="">
+                          {colorsLoading ? 'Cargando…' : 'Sin especificar'}
+                        </option>
+                        {colorOptions.map((option) => (
+                          <option key={option.id} value={option.name}>
+                            {option.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Acabado</span>
+                      <select
+                        aria-label={`Acabado unidad ${index + 1}`}
+                        value={unit.acabado}
+                        onChange={(event) =>
+                          updateUnit(unit.key, { acabado: event.target.value })
+                        }
+                      >
+                        <option value="">Sin especificar</option>
+                        {UNIT_FINISHES.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
                   <button
                     className="button button--danger-quiet"
