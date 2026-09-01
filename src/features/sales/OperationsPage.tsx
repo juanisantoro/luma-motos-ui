@@ -44,7 +44,7 @@ export function OperationsPage({
   vehicleType: VehicleKind
 }) {
   const { user } = useAuth()
-  const effectiveMine = mine || user?.role.code === 'VENDEDOR'
+  const effectiveMine = mine || user?.role.code === 'VENDEDOR' || user?.role.code === 'CALLCENTER'
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
     'loading',
   )

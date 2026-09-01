@@ -6,6 +6,9 @@ import type {
   CommissionStatus,
   CommissionTier,
   CommissionVehicleType,
+  ManagerCommissionMode,
+  ManagerCommissionScope,
+  ManagerCommissionSettlementStatus,
   SaveScalePolicyInput,
 } from './types'
 
@@ -19,6 +22,22 @@ export const statusLabels: Record<CommissionStatus, string> = {
   AGREED: 'Acordada',
   PENDING_PAYMENT: 'Pendiente de pago',
   PAID: 'Pagada',
+}
+
+export const managerSettlementStatusLabels: Record<ManagerCommissionSettlementStatus, string> = {
+  SUGGESTED: 'Sugerida',
+  AGREED: 'Acordada',
+  PAID: 'Pagada',
+}
+
+export const managerModeLabels: Record<ManagerCommissionMode, string> = {
+  PORCENTAJE: 'Porcentaje sobre precio de cierre',
+  ESCALA: 'Escala por unidades',
+}
+
+export const managerScopeLabels: Record<ManagerCommissionScope, string> = {
+  SUCURSAL_PROPIA: 'Su sucursal',
+  TODAS_LAS_SUCURSALES: 'Todas las sucursales',
 }
 
 export function formatCommissionMoney(value: string | number | null) {
@@ -70,6 +89,11 @@ export function commissionErrorMessage(error: unknown) {
       IDEMPOTENCY_CONFLICT: 'El identificador de este pago ya fue utilizado con otros datos.',
       SELLER_PROFILE_NOT_FOUND: 'El usuario no tiene un perfil de vendedor asociado.',
       CURRENCY_MISMATCH: 'La cuenta seleccionada no opera en la moneda de la comisión.',
+      INVALID_MANAGER: 'El usuario seleccionado no es un gerente activo de la organización.',
+      INVALID_MANAGER_COMMISSION_CONFIG: 'Revisá los datos de la comisión de gerencia: falta el porcentaje o la escala según el modo elegido.',
+      MANAGER_COMMISSION_NOT_CONFIGURED: 'Este gerente no tiene una comisión configurada y activa.',
+      MANAGER_COMMISSION_SETTLEMENT_NOT_FOUND: 'La liquidación de comisión de gerencia ya no está disponible.',
+      INVALID_MANAGER_COMMISSION_SUGGESTION_ID: 'El sugerido de comisión de gerencia no es válido.',
     }
     const typedMessage = messages[error.details?.code ?? '']
     if (typedMessage) return typedMessage

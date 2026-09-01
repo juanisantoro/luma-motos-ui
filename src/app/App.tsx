@@ -23,6 +23,8 @@ import {
   SellerMeetingPage,
   SuggestedCommissionsPage,
 } from '../features/commissions'
+import { CreditInstallmentsPage } from '../features/credit-plans/CreditInstallmentsPage'
+import { CreditPlansPage } from '../features/credit-plans/CreditPlansPage'
 import { ExpensesPage } from '../features/finance/ExpensesPage'
 import { IncomesPage } from '../features/finance/IncomesPage'
 import { VehiclePaymentsPage } from '../features/vehicle-payments/VehiclePaymentsPage'
@@ -252,6 +254,19 @@ export function App() {
                 element={<PermissionRoute permission="gastos.consultar" />}
               >
                 <Route path="gastos" element={<ExpensesPage />} />
+              </Route>
+              <Route
+                element={<PermissionRoute permission="creditos.gestionar" />}
+              >
+                <Route path="creditos/planes" element={<CreditPlansPage />} />
+              </Route>
+              <Route
+                element={<PermissionRoute permission="creditos.consultar" />}
+              >
+                <Route
+                  path="creditos/cobranza"
+                  element={<CreditInstallmentsPage />}
+                />
               </Route>
               <Route
                 element={<PermissionRoute permission="auditoria.consultar" />}

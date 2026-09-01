@@ -386,11 +386,21 @@ function policyLabel(policy: CatalogPricePolicy | null) {
   return 'Precio vigente'
 }
 
+function policyDiscount(policy: CatalogPricePolicy | null) {
+  if (!policy || policy.listPrice <= 0) return null
+  const maxDrop = policy.listPrice - policy.minimumPrice
+  return {
+    maxDrop,
+    percent: Math.round((maxDrop / policy.listPrice) * 100),
+  }
+}
+
 function CatalogList({
   catalog,
   units,
   branches,
   canConfigurePrice,
+  canViewCosts,
   onConfigurePrice,
   onEdit,
 }: {
@@ -398,6 +408,7 @@ function CatalogList({
   units: PhysicalUnit[]
   branches: StockWorkspaceData['branches']
   canConfigurePrice: boolean
+  canViewCosts: boolean
   onConfigurePrice: (
     item: StockWorkspaceData['catalog'][number],
     branchId: string,
@@ -449,6 +460,9 @@ function CatalogList({
             <th>Modelo</th>
             <th>Precio sugerido</th>
             <th>Precio mínimo</th>
+            <th>Baja máxima</th>
+            <th>Descuento</th>
+            {canViewCosts && <th>Costo</th>}
             <th>Unidades físicas</th>
             <th>Alcance / estado</th>
             {canConfigurePrice && <th>Acciones</th>}
@@ -480,6 +494,25 @@ function CatalogList({
                     )
                   : '—'}
               </td>
+              <td>
+                {policy
+                  ? formatMoney(policyDiscount(policy)?.maxDrop ?? 0, policy.currency)
+                  : '—'}
+              </td>
+              <td>
+                {policyDiscount(policy) ? (
+                  <span className="status-badge">{policyDiscount(policy)?.percent}%</span>
+                ) : (
+                  '—'
+                )}
+              </td>
+              {canViewCosts && (
+                <td>
+                  {item.costPrice !== undefined
+                    ? formatMoney(item.costPrice, policy?.currency ?? 'ARS')
+                    : '—'}
+                </td>
+              )}
               <td>
                 {units.filter((unit) => unit.catalogModel.id === item.id).length}
               </td>
@@ -544,6 +577,28 @@ function CatalogList({
                 <dt>Mínimo</dt>
                 <dd>{policy ? formatMoney(policy.minimumPrice, policy.currency) : '—'}</dd>
               </div>
+              <div>
+                <dt>Baja máxima</dt>
+                <dd>
+                  {policy
+                    ? formatMoney(policyDiscount(policy)?.maxDrop ?? 0, policy.currency)
+                    : '—'}
+                </dd>
+              </div>
+              <div>
+                <dt>Descuento</dt>
+                <dd>{policyDiscount(policy) ? `${policyDiscount(policy)?.percent}%` : '—'}</dd>
+              </div>
+              {canViewCosts && (
+                <div>
+                  <dt>Costo</dt>
+                  <dd>
+                    {item.costPrice !== undefined
+                      ? formatMoney(item.costPrice, policy?.currency ?? 'ARS')
+                      : '—'}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt>Unidades</dt>
                 <dd>{units.filter((unit) => unit.catalogModel.id === item.id).length}</dd>
@@ -1387,6 +1442,7 @@ export function StockWorkspace({
               catalog={catalog}
               units={data.units}
               canConfigurePrice={capabilities.createCatalog}
+              canViewCosts={capabilities.viewCosts ?? false}
               onConfigurePrice={(model, policyBranchId, policy) => {
                 setActionError(null)
                 setPricing({ model, branchId: policyBranchId, policy })
@@ -1510,6 +1566,7 @@ export function StockWorkspace({
       {editingCatalog && (
         <CatalogModelModal
           canEditSharedCatalog={capabilities.createSharedCatalog}
+          canManageCost={capabilities.manageCosts ?? false}
           error={actionError}
           model={editingCatalog}
           onClose={() => setEditingCatalog(null)}

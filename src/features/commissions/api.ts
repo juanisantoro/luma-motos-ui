@@ -1,5 +1,6 @@
 import { AUTH_TOKEN_KEY, apiRequest } from '../../shared/api/client'
 import type {
+  AgreeManagerCommissionInput,
   AgreementInput,
   CommissionDetail,
   CommissionGateway,
@@ -11,10 +12,18 @@ import type {
   CommissionSummary,
   CommissionSettlement,
   CommissionVehicleType,
+  ManagerCommissionConfig,
+  ManagerCommissionHistoryQuery,
+  ManagerCommissionSettlement,
+  ManagerCommissionSettlementQuery,
+  ManagerCommissionSuggestion,
+  ManagerCommissionSuggestionQuery,
   MyCommissions,
   PaidCommission,
   PaidCommissionQuery,
+  PayManagerCommissionInput,
   PaymentInput,
+  SaveManagerCommissionConfigInput,
   SaveScalePolicyInput,
 } from './types'
 
@@ -207,6 +216,79 @@ function getMine(
   )
 }
 
+function getManagerConfig(managerId: string, signal?: AbortSignal) {
+  return request<ManagerCommissionConfig | null>(
+    `/commissions/manager-config/${managerId}`,
+    signal ? { signal } : {},
+  )
+}
+
+function saveManagerConfig(
+  managerId: string,
+  input: SaveManagerCommissionConfigInput,
+) {
+  return request<ManagerCommissionConfig | null>(
+    `/commissions/manager-config/${managerId}`,
+    { method: 'PUT', body: input },
+  )
+}
+
+function listManagerSuggestions(
+  query: ManagerCommissionSuggestionQuery,
+  signal?: AbortSignal,
+) {
+  return request<CommissionPage<ManagerCommissionSuggestion>>(
+    queryPath('/commissions/manager-suggestions', {
+      ...query,
+      managerId: validUuid(query.managerId),
+    }),
+    signal ? { signal } : {},
+  )
+}
+
+function agreeManagerCommission(
+  id: string,
+  input: AgreeManagerCommissionInput,
+) {
+  return request<ManagerCommissionSettlement>(
+    `/commissions/manager-suggestions/${id}/agreement`,
+    { method: 'POST', body: input },
+  )
+}
+
+function listManagerSettlements(
+  query: ManagerCommissionSettlementQuery,
+  signal?: AbortSignal,
+) {
+  return request<CommissionPage<ManagerCommissionSettlement>>(
+    queryPath('/commissions/manager-settlements', {
+      ...query,
+      managerId: validUuid(query.managerId),
+    }),
+    signal ? { signal } : {},
+  )
+}
+
+function payManagerCommission(id: string, input: PayManagerCommissionInput) {
+  return request<ManagerCommissionSettlement>(
+    `/commissions/manager-settlements/${id}/payments`,
+    { method: 'POST', body: input },
+  )
+}
+
+function listManagerHistory(
+  query: ManagerCommissionHistoryQuery,
+  signal?: AbortSignal,
+) {
+  return request<CommissionPage<ManagerCommissionSettlement>>(
+    queryPath('/commissions/manager-history', {
+      ...query,
+      managerId: validUuid(query.managerId),
+    }),
+    signal ? { signal } : {},
+  )
+}
+
 export const commissionApiGateway: CommissionGateway = {
   listOptions,
   listPaymentOptions,
@@ -219,4 +301,11 @@ export const commissionApiGateway: CommissionGateway = {
   listPolicies,
   savePolicy,
   getMine,
+  getManagerConfig,
+  saveManagerConfig,
+  listManagerSuggestions,
+  agreeManagerCommission,
+  listManagerSettlements,
+  payManagerCommission,
+  listManagerHistory,
 }

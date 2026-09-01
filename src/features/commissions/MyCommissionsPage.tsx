@@ -11,6 +11,7 @@ import {
   formatCommissionDate,
   formatCommissionMoney,
   formatPeriod,
+  managerSettlementStatusLabels,
   tierLabel,
   vehicleLabels,
 } from './format'
@@ -82,6 +83,54 @@ export function MyCommissionsPage({ gateway }: { gateway: CommissionGateway }) {
                   <div><p className="eyebrow">{formatPeriod(period)}</p><h2 id={`my-${vehicleType.toLowerCase()}`}>{vehicleLabels[vehicleType]}</h2></div>
                   <CommissionStatusBadge status={detail.status} />
                 </header>
+                {result.managerCommission && (
+                  <div className="commission-own-message commission-own-message--manager">
+                    Como gerente, {result.managerCommission.settlement ? 'te corresponde' : 'hoy cobrarías'} <strong>{formatCommissionMoney(result.managerCommission.suggestedAmount)}</strong>{' '}
+                    {result.managerCommission.mode === 'PORCENTAJE'
+                      ? 'por porcentaje sobre el precio de cierre'
+                      : <>por la escala {tierLabel(result.managerCommission.scale)}</>}{' '}
+                    sobre {result.managerCommission.scope === 'TODAS_LAS_SUCURSALES' ? 'todas las sucursales de la organización' : 'tu sucursal'}
+                    {' '}({result.managerCommission.branchCount} sucursal{result.managerCommission.branchCount === 1 ? '' : 'es'}, {result.managerCommission.computableSales} operaciones computables por {formatCommissionMoney(result.managerCommission.totalClosingPrice)} en total).
+                    {result.managerCommission.settlement && (
+                      <>
+                        {' '}Estado de este período: <strong>{managerSettlementStatusLabels[result.managerCommission.settlement.status]}</strong>
+                        {result.managerCommission.settlement.status === 'PAID' && result.managerCommission.settlement.paidAt
+                          ? <> el {formatCommissionDate(result.managerCommission.settlement.paidAt)}.</>
+                          : '.'}
+                      </>
+                    )}
+                  </div>
+                )}
+                {result.managerSettlementHistory && result.managerSettlementHistory.items.length > 0 && (
+                  <>
+                    <div className="commission-meeting__section-title"><div><h3>Tus liquidaciones de gerente</h3><p>Comisiones de gerente acordadas y pagadas, histórico de {vehicleLabels[vehicleType].toLowerCase()}.</p></div></div>
+                    <div className="commission-desktop-table">
+                      <table className="financial-table commission-table">
+                        <thead><tr><th>Período</th><th>Alcance</th><th>Ventas computables</th><th>Monto</th><th>Estado</th><th>Pagada</th></tr></thead>
+                        <tbody>{result.managerSettlementHistory.items.map((item) => (
+                          <tr key={item.id}>
+                            <td>{formatPeriod(item.period)}</td>
+                            <td>{item.scope === 'TODAS_LAS_SUCURSALES' ? 'Todas las sucursales' : 'Su sucursal'}</td>
+                            <td>{item.computableSales}</td>
+                            <td><strong>{formatCommissionMoney(item.amount)}</strong></td>
+                            <td>{managerSettlementStatusLabels[item.status]}</td>
+                            <td>{item.paidAt ? formatCommissionDate(item.paidAt) : '—'}</td>
+                          </tr>
+                        ))}</tbody>
+                      </table>
+                    </div>
+                    <div className="commission-card-list">{result.managerSettlementHistory.items.map((item) => (
+                      <article className="commission-card" key={item.id}>
+                        <header><div><strong>{formatPeriod(item.period)}</strong><small>{item.scope === 'TODAS_LAS_SUCURSALES' ? 'Todas las sucursales' : 'Su sucursal'}</small></div></header>
+                        <dl>
+                          <div><dt>Ventas</dt><dd>{item.computableSales}</dd></div>
+                          <div><dt>Monto</dt><dd><strong>{formatCommissionMoney(item.amount)}</strong></dd></div>
+                          <div><dt>Estado</dt><dd>{managerSettlementStatusLabels[item.status]}</dd></div>
+                        </dl>
+                      </article>
+                    ))}</div>
+                  </>
+                )}
                 {detail.configurationStatus === 'NOT_CONFIGURED' ? (
                   <StatePanel icon={WalletCards} title="Escalas no configuradas" description={`Todavía no existe una política de ${vehicleLabels[vehicleType].toLowerCase()} para este período.`} />
                 ) : (

@@ -5,6 +5,7 @@ import {
   Mail,
   RefreshCw,
   ShieldAlert,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
@@ -15,6 +16,13 @@ import { accessApiGateway } from './api'
 import { AccessNotice, ConfirmDialog, managedUserName } from './components'
 import { accessErrorMessage } from './errors'
 import { alertError, alertSuccess } from '../../shared/alerts'
+import { commissionApiGateway } from '../commissions/api'
+import type {
+  CommissionGateway,
+  ManagerCommissionMode,
+  ManagerCommissionScope,
+  SaveManagerCommissionConfigInput,
+} from '../commissions/types'
 import type {
   AccessGateway,
   BranchOption,
@@ -29,8 +37,10 @@ function optional(data: FormData, name: string) {
 
 export function UserFormPage({
   gateway = accessApiGateway,
+  commissionGateway = commissionApiGateway,
 }: {
   gateway?: AccessGateway
+  commissionGateway?: CommissionGateway
 }) {
   const { id } = useParams()
   const editing = Boolean(id)
@@ -38,6 +48,10 @@ export function UserFormPage({
   const canManage = hasPermission(
     currentUser?.role.permissions,
     'usuarios.gestionar',
+  )
+  const canConfigureCommissions = hasPermission(
+    currentUser?.role.permissions,
+    'comisiones.configurar',
   )
   const [roles, setRoles] = useState<ManagedRole[]>([])
   const [branches, setBranches] = useState<BranchOption[]>([])
@@ -49,11 +63,20 @@ export function UserFormPage({
   const [submitting, setSubmitting] = useState(false)
   const [globalAccess, setGlobalAccess] = useState(false)
   const [roleCode, setRoleCode] = useState(managedUser?.role?.code ?? '')
+  const branchRequired = roleCode === 'VENDEDOR' || roleCode === 'CALLCENTER'
   const [createdEmail, setCreatedEmail] = useState('')
   const [confirmation, setConfirmation] = useState<'status' | 'resend' | null>(
     null,
   )
   const [actionBusy, setActionBusy] = useState(false)
+  const [managerConfigLoading, setManagerConfigLoading] = useState(false)
+  const [managerMode, setManagerMode] = useState<ManagerCommissionMode>('ESCALA')
+  const [managerPercentage, setManagerPercentage] = useState('')
+  const [managerPolicyId, setManagerPolicyId] = useState('')
+  const [managerScope, setManagerScope] = useState<ManagerCommissionScope>('SUCURSAL_PROPIA')
+  const [managerActive, setManagerActive] = useState(true)
+  const [managerSaving, setManagerSaving] = useState(false)
+  const [managerPolicies, setManagerPolicies] = useState<Array<{ id: string; label: string }>>([])
   const visibleRoles = useMemo(
     () =>
       roles.filter(
@@ -61,6 +84,8 @@ export function UserFormPage({
       ),
     [managedUser, roles],
   )
+  const isManager = roleCode === 'GERENTE'
+  const showManagerSection = editing && Boolean(managedUser?.personnel) && isManager && canConfigureCommissions
 
   useEffect(() => {
     if (!currentUser) return
@@ -92,6 +117,45 @@ export function UserFormPage({
       })
     return () => controller.abort()
   }, [currentUser, gateway, id])
+
+  useEffect(() => {
+    if (!showManagerSection || !managedUser?.personnel) return
+    const managerPersonnelId = managedUser.personnel.id
+    const controller = new AbortController()
+    setManagerConfigLoading(true)
+    const policyLabel = (policy: { version: number; status: string }, vehicle: string) =>
+      `${vehicle} · v${policy.version} (${
+        policy.status === 'ACTIVE' ? 'activa' : policy.status === 'DRAFT' ? 'borrador' : 'inactiva'
+      })`
+    void Promise.all([
+      commissionGateway.getManagerConfig
+        ? commissionGateway.getManagerConfig(managerPersonnelId, controller.signal)
+        : Promise.resolve(null),
+      commissionGateway.listPolicies('MOTO', controller.signal),
+      commissionGateway.listPolicies('AUTO', controller.signal),
+    ])
+      .then(([config, motoPolicies, autoPolicies]) => {
+        setManagerPolicies([
+          ...motoPolicies.items.map((policy) => ({ id: policy.id, label: policyLabel(policy, 'Motos') })),
+          ...autoPolicies.items.map((policy) => ({ id: policy.id, label: policyLabel(policy, 'Autos') })),
+        ])
+        if (config) {
+          setManagerMode(config.mode)
+          setManagerPercentage(config.percentage ?? '')
+          setManagerPolicyId(config.policyId ?? '')
+          setManagerScope(config.scope)
+          setManagerActive(config.active)
+        }
+        setManagerConfigLoading(false)
+      })
+      .catch((requestError: unknown) => {
+        if (controller.signal.aborted) return
+        setError(accessErrorMessage(requestError))
+        setManagerConfigLoading(false)
+      })
+    return () => controller.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showManagerSection, managedUser, commissionGateway])
 
   if (!canManage) return <Navigate to="/sin-permiso" replace />
   if (loading) {
@@ -188,6 +252,55 @@ export function UserFormPage({
     }
   }
 
+  const saveManagerCommission = async () => {
+    if (!managedUser?.personnel) return
+    // The "Guardar comisión de gerencia" button lives outside the main
+    // <form> (it is a plain type="button"), so the <select>/<input>
+    // `required` attributes never get enforced by the browser - this is
+    // the real validation gate. The backend rejects an empty policyId /
+    // percentage too (INVALID_MANAGER_COMMISSION_CONFIG), but failing
+    // fast here avoids a round-trip for a mistake we can already see.
+    if (managerMode === 'ESCALA' && !managerPolicyId) {
+      setError('Seleccioná una política de escala antes de guardar.')
+      return
+    }
+    if (managerMode === 'PORCENTAJE' && !managerPercentage.trim()) {
+      setError('Indicá un porcentaje antes de guardar.')
+      return
+    }
+    setManagerSaving(true)
+    setError('')
+    setNotice('')
+    try {
+      const input: SaveManagerCommissionConfigInput =
+        managerMode === 'PORCENTAJE'
+          ? {
+              mode: 'PORCENTAJE',
+              percentage: managerPercentage,
+              scope: managerScope,
+              active: managerActive,
+            }
+          : {
+              mode: 'ESCALA',
+              policyId: managerPolicyId,
+              scope: managerScope,
+              active: managerActive,
+            }
+      if (commissionGateway.saveManagerConfig) {
+        await commissionGateway.saveManagerConfig(managedUser.personnel.id, input)
+      }
+      const successMessage = 'Comisión de gerencia guardada.'
+      setNotice(successMessage)
+      void alertSuccess(successMessage)
+    } catch (saveError) {
+      const message = accessErrorMessage(saveError)
+      setError(message)
+      void alertError(message)
+    } finally {
+      setManagerSaving(false)
+    }
+  }
+
   return (
     <>
       <header className="page-heading">
@@ -236,13 +349,13 @@ export function UserFormPage({
             </select>
           </label>
           <label className="field">
-            <span>Sucursal{roleCode === 'VENDEDOR' ? ' *' : ''}</span>
+            <span>Sucursal{branchRequired ? ' *' : ''}</span>
             <select
               defaultValue={managedUser?.branch?.id ?? ''}
               name="branchId"
-              required={roleCode === 'VENDEDOR'}
+              required={branchRequired}
             >
-              <option value="">{roleCode === 'VENDEDOR' ? 'Seleccioná una sucursal' : 'Sin sucursal asignada'}</option>
+              <option value="">{branchRequired ? 'Seleccioná una sucursal' : 'Sin sucursal asignada'}</option>
               {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
             </select>
           </label>
@@ -273,6 +386,128 @@ export function UserFormPage({
           </div>
         </div>
       </form>
+      {showManagerSection && (
+        <div className="access-form-card">
+          <header className="page-heading">
+            <div>
+              <h2>Comisión de gerencia</h2>
+              <p>Configurá cómo cobra este gerente sobre las operaciones de su alcance. Es independiente de la comisión de vendedores.</p>
+            </div>
+          </header>
+          {managerConfigLoading ? (
+            <div className="access-loading"><div className="loading-mark" /><span>Cargando configuración…</span></div>
+          ) : (
+            <>
+              <div className="access-form-grid">
+                <fieldset className="field">
+                  <legend>Modalidad de cálculo</legend>
+                  <label className="checkbox-field">
+                    <input
+                      checked={managerMode === 'PORCENTAJE'}
+                      name="managerMode"
+                      onChange={() => setManagerMode('PORCENTAJE')}
+                      type="radio"
+                    />
+                    <span>Porcentaje sobre el precio de cierre</span>
+                  </label>
+                  <label className="checkbox-field">
+                    <input
+                      checked={managerMode === 'ESCALA'}
+                      name="managerMode"
+                      onChange={() => setManagerMode('ESCALA')}
+                      type="radio"
+                    />
+                    <span>Escala por cantidad de unidades (igual que vendedores)</span>
+                  </label>
+                </fieldset>
+                {managerMode === 'PORCENTAJE' ? (
+                  <label className="field">
+                    <span>Porcentaje *</span>
+                    <input
+                      max={100}
+                      min={0.01}
+                      onChange={(event) => setManagerPercentage(event.target.value)}
+                      required
+                      step="0.01"
+                      type="number"
+                      value={managerPercentage}
+                    />
+                  </label>
+                ) : managerPolicies.length === 0 ? (
+                  <div className="commission-policy-missing" role="status">
+                    <SlidersHorizontal size={22} />
+                    <div>
+                      <strong>Todavía no hay ninguna escala de comisión creada</strong>
+                      <span>
+                        Creá una escala de motos o de autos para poder asignarle esta comisión al gerente:{' '}
+                        <Link to="/comisiones/escalas/motos">crear escala de motos</Link>
+                        {' · '}
+                        <Link to="/comisiones/escalas/autos">crear escala de autos</Link>.
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="field">
+                    <span>Política de escala *</span>
+                    <select
+                      onChange={(event) => setManagerPolicyId(event.target.value)}
+                      required
+                      value={managerPolicyId}
+                    >
+                      <option value="" disabled>Seleccioná una política</option>
+                      {managerPolicies.map((policy) => (
+                        <option key={policy.id} value={policy.id}>{policy.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <fieldset className="field">
+                  <legend>Alcance</legend>
+                  <label className="checkbox-field">
+                    <input
+                      checked={managerScope === 'SUCURSAL_PROPIA'}
+                      name="managerScope"
+                      onChange={() => setManagerScope('SUCURSAL_PROPIA')}
+                      type="radio"
+                    />
+                    <span>Solo su sucursal</span>
+                  </label>
+                  <label className="checkbox-field">
+                    <input
+                      checked={managerScope === 'TODAS_LAS_SUCURSALES'}
+                      name="managerScope"
+                      onChange={() => setManagerScope('TODAS_LAS_SUCURSALES')}
+                      type="radio"
+                    />
+                    <span>Todas las sucursales de la organización</span>
+                  </label>
+                </fieldset>
+                <label className="checkbox-field">
+                  <input
+                    checked={managerActive}
+                    onChange={(event) => setManagerActive(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span><strong>Configuración activa</strong><small>Si se desactiva, deja de calcularse esta comisión sin perder los datos guardados.</small></span>
+                </label>
+              </div>
+              <div className="access-form-actions">
+                <div>
+                  <button
+                    className="button button--primary"
+                    disabled={managerSaving}
+                    onClick={() => void saveManagerCommission()}
+                    type="button"
+                  >
+                    {managerSaving && <LoaderCircle className="spin" size={17} />}
+                    {managerSaving ? 'Guardando…' : 'Guardar comisión de gerencia'}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
       {confirmation && managedUser && (
         <ConfirmDialog
           title={confirmation === 'resend' ? 'Reenviar invitación' : `${managedUser.active ? 'Desactivar' : 'Activar'} usuario`}

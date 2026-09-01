@@ -11,6 +11,7 @@ import {
   HandCoins,
   History,
   Images,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -96,7 +97,7 @@ const navigationGroups: NavGroup[] = [
             to: '/motos/operaciones',
             icon: Bike,
             permissions: ['ventas.consultar'],
-            excludeRoles: ['VENDEDOR'],
+            excludeRoles: ['VENDEDOR', 'CALLCENTER'],
           },
           {
             label: 'Aprobaciones',
@@ -125,7 +126,7 @@ const navigationGroups: NavGroup[] = [
             to: '/autos/operaciones',
             icon: CarFront,
             permissions: ['ventas.consultar'],
-            excludeRoles: ['VENDEDOR'],
+            excludeRoles: ['VENDEDOR', 'CALLCENTER'],
           },
           {
             label: 'Aprobaciones',
@@ -254,6 +255,27 @@ const navigationGroups: NavGroup[] = [
         to: '/autos/pagos-vehiculo',
         icon: FileCheck2,
         permissions: ['pagos_vehiculo.consultar'],
+      },
+    ],
+  },
+  {
+    id: 'credit',
+    label: 'Créditos personales',
+    icon: Landmark,
+    items: [
+      {
+        label: 'Planes de crédito',
+        description: 'Cuotas, tasa y método de interés',
+        to: '/creditos/planes',
+        icon: Landmark,
+        permissions: ['creditos.gestionar'],
+      },
+      {
+        label: 'Cobranza de cuotas',
+        description: 'Seguimiento y cobro',
+        to: '/creditos/cobranza',
+        icon: HandCoins,
+        permissions: ['creditos.consultar'],
       },
     ],
   },

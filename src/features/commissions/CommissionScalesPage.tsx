@@ -180,7 +180,15 @@ export function CommissionScalesPage({
               <fieldset key={tier.key}>
                 <legend>Tramo {index + 1}</legend>
                 <label className="field"><span>Mínimo *</span><input aria-label={`Mínimo tramo ${index + 1}`} type="number" min="1" value={tier.minUnits} onChange={(event) => updateTier(tier.key, 'minUnits', event.target.value)} required /></label>
-                <label className="field"><span>Máximo {index === tiers.length - 1 && '(abierto)'}</span><input aria-label={`Máximo tramo ${index + 1}`} type="number" min="1" value={tier.maxUnits} disabled={index === tiers.length - 1} onChange={(event) => updateTier(tier.key, 'maxUnits', event.target.value)} placeholder={index === tiers.length - 1 ? 'Sin límite' : ''} /></label>
+                <label className="field">
+                  <span>Máximo {index === tiers.length - 1 && '(abierto)'}</span>
+                  <input aria-label={`Máximo tramo ${index + 1}`} type="number" min="1" value={tier.maxUnits} disabled={index === tiers.length - 1} onChange={(event) => updateTier(tier.key, 'maxUnits', event.target.value)} placeholder={index === tiers.length - 1 ? 'Sin límite' : ''} />
+                  {index === tiers.length - 1 && (
+                    <small className="field-hint">
+                      El último tramo queda siempre sin techo, así cualquier venta por encima también cobra este monto. Agregá otro tramo si querés ponerle un límite a este.
+                    </small>
+                  )}
+                </label>
                 <label className="field"><span>Monto fijo total *</span><input aria-label={`Monto tramo ${index + 1}`} type="number" min="0" step="0.01" value={tier.fixedAmount} onChange={(event) => updateTier(tier.key, 'fixedAmount', event.target.value)} required /></label>
                 <div className="commission-tier-actions">
                   <button className="icon-button" aria-label={`Subir tramo ${index + 1}`} type="button" disabled={index === 0} onClick={() => moveTier(index, -1)}><ArrowUp size={17} /></button>

@@ -1,6 +1,7 @@
-import { Eye, Presentation, RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { CheckCircle2, Eye, Presentation, RefreshCw, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { alertError, alertSuccess } from '../../shared/alerts'
 import { StatePanel } from '../../shared/components/StatePanel'
 import {
   CommissionLoadState,
@@ -13,6 +14,9 @@ import {
   commissionErrorMessage,
   formatCommissionMoney,
   formatPeriod,
+  managerModeLabels,
+  managerScopeLabels,
+  managerSettlementStatusLabels,
   tierLabel,
   withOptional,
 } from './format'
@@ -24,6 +28,7 @@ import type {
   CommissionScalePolicy,
   CommissionSummary,
   CommissionVehicleType,
+  ManagerCommissionSuggestion,
 } from './types'
 
 function currentPeriod() {
@@ -67,6 +72,15 @@ export function SuggestedCommissionsPage({
   const [detailStatus, setDetailStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [detailError, setDetailError] = useState('')
   const [detailRefreshKey, setDetailRefreshKey] = useState(0)
+
+  // Manager (GERENTE) commission suggestions - separate section below the
+  // vendor table, own state/effect, only rendered when the gateway exposes
+  // the manager methods (kept optional for backward test compatibility).
+  const [managerItems, setManagerItems] = useState<ManagerCommissionSuggestion[]>([])
+  const [managerStatus, setManagerStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [managerError, setManagerError] = useState('')
+  const [managerRefreshKey, setManagerRefreshKey] = useState(0)
+  const [managerAgreeingId, setManagerAgreeingId] = useState<string | null>(null)
 
   useEffect(() => {
     setQuery((current) =>
@@ -160,6 +174,29 @@ export function SuggestedCommissionsPage({
     return () => controller.abort()
   }, [detailRefreshKey, gateway, selectedId])
 
+  useEffect(() => {
+    if (!gateway.listManagerSuggestions) {
+      setManagerItems([])
+      setManagerStatus('success')
+      return
+    }
+    const controller = new AbortController()
+    setManagerStatus('loading')
+    setManagerError('')
+    void gateway
+      .listManagerSuggestions({ period: query.period ?? currentPeriod(), vehicleType, page: 1, limit: 100 }, controller.signal)
+      .then((result) => {
+        setManagerItems(result.items)
+        setManagerStatus('success')
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return
+        setManagerError(commissionErrorMessage(loadError))
+        setManagerStatus('error')
+      })
+    return () => controller.abort()
+  }, [gateway, managerRefreshKey, query.period, vehicleType])
+
   const policy = useMemo(() => {
     const periodDate = `${query.period ?? currentPeriod()}-01`
     return policies.find(
@@ -182,6 +219,22 @@ export function SuggestedCommissionsPage({
     setQuery({ ...draft, vehicleType, page: 1, limit: 50 })
     setSelectedId(null)
     setDetail(null)
+  }
+
+  const handleAgreeManager = async (item: ManagerCommissionSuggestion) => {
+    if (!gateway.agreeManagerCommission) return
+    setManagerAgreeingId(item.id)
+    try {
+      await gateway.agreeManagerCommission(item.id, {
+        ...(item.settlement ? { expectedVersion: item.settlement.version } : {}),
+      })
+      void alertSuccess(`Se acordó la comisión de ${item.manager.name} por ${formatCommissionMoney(item.suggestedAmount)}.`)
+      setManagerRefreshKey((key) => key + 1)
+    } catch (agreeError: unknown) {
+      void alertError(commissionErrorMessage(agreeError))
+    } finally {
+      setManagerAgreeingId(null)
+    }
   }
 
   return (
@@ -381,6 +434,94 @@ export function SuggestedCommissionsPage({
               <CommissionOperations operations={detail.operations} />
             </>
           )}
+        </section>
+      )}
+
+      {gateway.listManagerSuggestions && (
+        <section className="commission-panel commission-manager-panel" aria-label="Sugeridos de gerentes">
+          <header className="commission-manager-panel__header">
+            <div>
+              <p className="eyebrow">COMISIONES · GERENTES</p>
+              <h2>Gerentes</h2>
+              <p>Comisión calculada en vivo según la configuración vigente de cada gerente.</p>
+            </div>
+          </header>
+          <CommissionLoadState
+            status={managerStatus}
+            error={managerError}
+            empty={managerItems.length === 0}
+            onRetry={() => setManagerRefreshKey((key) => key + 1)}
+          >
+            <div className="commission-desktop-table">
+              <table className="financial-table commission-table">
+                <thead>
+                  <tr>
+                    <th>Gerente</th>
+                    <th>Alcance</th>
+                    <th>Modalidad</th>
+                    <th>Ventas computables</th>
+                    <th>Comisión calculada</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {managerItems.map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.manager.name}</strong><small>{formatPeriod(item.period)}</small></td>
+                      <td>{managerScopeLabels[item.scope]}</td>
+                      <td>{managerModeLabels[item.mode]}</td>
+                      <td>{item.computableSales}</td>
+                      <td><strong>{formatCommissionMoney(item.suggestedAmount)}</strong></td>
+                      <td>{item.settlement ? <CommissionStatusBadge status={item.settlement.status === 'PAID' ? 'PAID' : 'AGREED'} /> : <span className="status-badge">Sugerida</span>}</td>
+                      <td>
+                        <div className="financial-actions">
+                          {(!item.settlement || item.settlement.status === 'SUGGESTED') && gateway.agreeManagerCommission && (
+                            <button
+                              className="button button--primary button--compact"
+                              type="button"
+                              disabled={managerAgreeingId === item.id}
+                              onClick={() => handleAgreeManager(item)}
+                            >
+                              <CheckCircle2 size={16} /> {managerAgreeingId === item.id ? 'Acordando…' : 'Acordar'}
+                            </button>
+                          )}
+                          {item.settlement && item.settlement.status !== 'SUGGESTED' && (
+                            <span className="commission-empty-note">{managerSettlementStatusLabels[item.settlement.status]}</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="commission-card-list">
+              {managerItems.map((item) => (
+                <article className="commission-card" key={item.id}>
+                  <header>
+                    <div><strong>{item.manager.name}</strong><small>{managerScopeLabels[item.scope]} · {formatPeriod(item.period)}</small></div>
+                    {item.settlement ? <CommissionStatusBadge status={item.settlement.status === 'PAID' ? 'PAID' : 'AGREED'} /> : <span className="status-badge">Sugerida</span>}
+                  </header>
+                  <dl>
+                    <div><dt>Modalidad</dt><dd>{managerModeLabels[item.mode]}</dd></div>
+                    <div><dt>Ventas</dt><dd>{item.computableSales}</dd></div>
+                    <div><dt>Comisión</dt><dd><strong>{formatCommissionMoney(item.suggestedAmount)}</strong></dd></div>
+                  </dl>
+                  {(!item.settlement || item.settlement.status === 'SUGGESTED') && gateway.agreeManagerCommission && (
+                    <button
+                      className="button button--primary"
+                      type="button"
+                      disabled={managerAgreeingId === item.id}
+                      onClick={() => handleAgreeManager(item)}
+                    >
+                      {managerAgreeingId === item.id ? 'Acordando…' : 'Acordar'}
+                    </button>
+                  )}
+                </article>
+              ))}
+            </div>
+          </CommissionLoadState>
         </section>
       )}
     </>

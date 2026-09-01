@@ -64,6 +64,10 @@ type VersionSummaryDto = {
   scope?: 'GLOBAL' | 'RESTRINGIDO'
   model: EmbeddedModelDto
   photoUrl?: string | null
+  // Absent from the payload entirely for an actor without
+  // catalogo.costos.consultar - the backend omits the key, it does not
+  // send null.
+  costPrice?: string | null
 }
 
 type VersionDto = VersionSummaryDto & {
@@ -255,6 +259,9 @@ function catalogVersion(
     pricePolicies:
       activePolicy && pricePolicies.length === 0 ? [activePolicy] : pricePolicies,
     photoUrl: dto.photoUrl ?? null,
+    ...(versionDto.costPrice !== undefined && versionDto.costPrice !== null
+      ? { costPrice: Number(versionDto.costPrice) }
+      : {}),
   }
 }
 
@@ -763,6 +770,7 @@ export const stockApiGateway: StockGateway = {
       body: {
         name: input.versionName,
         active: input.active,
+        ...(input.costPrice !== undefined ? { costPrice: input.costPrice } : {}),
       },
     })
   },

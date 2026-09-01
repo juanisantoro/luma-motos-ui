@@ -64,6 +64,10 @@ export type CatalogModel = {
   pricePolicy: CatalogPricePolicy | null
   pricePolicies?: CatalogPricePolicy[]
   photoUrl: string | null
+  // Absent (not just undefined) unless the logged-in user has
+  // catalogo.costos.consultar - the backend omits the key entirely from
+  // the JSON payload for anyone without it.
+  costPrice?: number
 }
 
 export type CatalogPricePolicy = {
@@ -203,6 +207,8 @@ export type UpdateCatalogModelInput = {
   modelName?: string
   versionName: string
   active: boolean
+  // Only sent when the logged-in user has catalogo.costos.gestionar.
+  costPrice?: number
 }
 
 export type ReceiveSupplyInput = {
@@ -226,4 +232,10 @@ export type StockCapabilities = {
   manageAvailability: boolean
   manageSupply: boolean
   receiveSupply: boolean
+  // Optional: catalogo.costos.consultar / catalogo.costos.gestionar are new
+  // permissions most roles don't hold. Kept optional (default falsy) so
+  // existing fixtures/tests that build a StockCapabilities literal without
+  // them keep compiling.
+  viewCosts?: boolean
+  manageCosts?: boolean
 }

@@ -17,6 +17,10 @@ import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { CreditAlert, useCreditCheck } from '../credit-checks'
+import { confirmOperationCredit, listCreditPlans } from '../credit-plans/api'
+import { buildInstallmentSchedule, simulateCredit } from '../credit-plans/creditCalculator'
+import { formatMoney as formatCreditAmount } from '../credit-plans/format'
+import type { CreditPlan } from '../credit-plans/types'
 import {
   listSalesBranches,
   listSalesPhysicalUnits,
@@ -74,6 +78,8 @@ type FormField =
   | 'seller'
   | 'financialInstitution'
   | 'creditAmount'
+  | 'personalCreditAmount'
+  | 'personalCreditFirstDueDate'
   | 'tradeInDescription'
   | 'tradeInAmount'
 
@@ -235,11 +241,12 @@ export function NewOperationPage({
     hasPermission(permissions, 'catalogo.gestionar') &&
     hasPermission(permissions, 'catalogo.consultar') &&
     hasPermission(permissions, 'inventario.consultar')
+  const canOfferPersonalCredit = hasPermission(permissions, 'creditos.consultar')
   const organizationId = user?.globalAccess
     ? user.organization.id
     : undefined
   const peopleOrganizationId = user?.organization.id
-  const isSeller = user?.role.code === 'VENDEDOR'
+  const isSeller = user?.role.code === 'VENDEDOR' || user?.role.code === 'CALLCENTER'
   const hasFixedBranch = Boolean(user?.branch?.id) && !user?.globalAccess
 
   const [documentType, setDocumentType] = useState<'DNI' | 'CI'>('DNI')
@@ -256,6 +263,13 @@ export function NewOperationPage({
     useState<SalesPaymentPlatform>('EFECTIVO')
   const [creditAmount, setCreditAmount] = useState('')
   const [financialInstitutionId, setFinancialInstitutionId] = useState('')
+  const [personalCreditPlans, setPersonalCreditPlans] = useState<CreditPlan[]>([])
+  const [personalCreditStatus, setPersonalCreditStatus] = useState<
+    'idle' | 'loading' | 'success' | 'error'
+  >('idle')
+  const [personalCreditPlanId, setPersonalCreditPlanId] = useState('')
+  const [personalCreditAmount, setPersonalCreditAmount] = useState('')
+  const [personalCreditFirstDueDate, setPersonalCreditFirstDueDate] = useState('')
   const [guarantor, setGuarantor] = useState('')
   const [tradeInDescription, setTradeInDescription] = useState('')
   const [tradeInAmount, setTradeInAmount] = useState('')
@@ -583,6 +597,23 @@ export function NewOperationPage({
   }, [creditRequired, financialLoadKey])
 
   useEffect(() => {
+    if (!canOfferPersonalCredit) return
+    const controller = new AbortController()
+    setPersonalCreditStatus('loading')
+    listCreditPlans({ page: 1, limit: 100, active: true }, controller.signal)
+      .then((response) => {
+        setPersonalCreditPlans(response.items)
+        setPersonalCreditStatus('success')
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return
+        setPersonalCreditPlans([])
+        setPersonalCreditStatus('error')
+      })
+    return () => controller.abort()
+  }, [canOfferPersonalCredit])
+
+  useEffect(() => {
     if (!branchId || !catalogModel) {
       setPolicy(null)
       setPolicyStatus('idle')
@@ -626,6 +657,30 @@ export function NewOperationPage({
   const price = Number(agreedPrice)
   const credit = creditRequired ? Number(creditAmount) : 0
   const tradeIn = tradeInRequired ? Number(tradeInAmount) : 0
+  const eligiblePersonalCreditPlans = personalCreditPlans.filter((plan) => {
+    if (!Number.isFinite(price) || price <= 0) return true
+    if (plan.minimumAmount !== null && price < plan.minimumAmount) return false
+    if (plan.maximumAmount !== null && price > plan.maximumAmount) return false
+    return true
+  })
+  const selectedPersonalCreditPlan =
+    personalCreditPlans.find((plan) => plan.id === personalCreditPlanId) ?? null
+  const personalCreditSimulation =
+    selectedPersonalCreditPlan && Number(personalCreditAmount) > 0
+      ? simulateCredit(
+          Number(personalCreditAmount),
+          selectedPersonalCreditPlan.installmentCount,
+          selectedPersonalCreditPlan.interestRate,
+          selectedPersonalCreditPlan.calculationMethod,
+        )
+      : null
+  const personalCreditSchedule =
+    personalCreditSimulation && personalCreditFirstDueDate
+      ? buildInstallmentSchedule(
+          personalCreditSimulation,
+          new Date(`${personalCreditFirstDueDate}T00:00:00.000Z`),
+        )
+      : []
   const listDifference =
     policy && Number.isFinite(price)
       ? Math.max(0, Number(policy.listPrice) - price)
@@ -716,6 +771,27 @@ export function NewOperationPage({
       errors.documentNumber =
         'El antecedente crediticio bloquea esta operación según el backend.'
     }
+    if (personalCreditPlanId) {
+      const financedAmount = Number(personalCreditAmount)
+      if (!Number.isFinite(financedAmount) || financedAmount <= 0) {
+        errors.personalCreditAmount = 'Ingresá el monto a financiar.'
+      } else if (selectedPersonalCreditPlan) {
+        if (
+          selectedPersonalCreditPlan.minimumAmount !== null &&
+          financedAmount < selectedPersonalCreditPlan.minimumAmount
+        ) {
+          errors.personalCreditAmount = `El monto no puede ser menor a ${selectedPersonalCreditPlan.minimumAmount}.`
+        } else if (
+          selectedPersonalCreditPlan.maximumAmount !== null &&
+          financedAmount > selectedPersonalCreditPlan.maximumAmount
+        ) {
+          errors.personalCreditAmount = `El monto no puede superar ${selectedPersonalCreditPlan.maximumAmount}.`
+        }
+      }
+      if (!personalCreditFirstDueDate) {
+        errors.personalCreditFirstDueDate = 'Elegí la fecha del primer vencimiento.'
+      }
+    }
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) {
       setFormError('Revisá los campos marcados antes de guardar la operación.')
@@ -793,6 +869,14 @@ export function NewOperationPage({
           tradeInVehicleId,
         ),
       })
+
+      if (personalCreditPlanId) {
+        await confirmOperationCredit(persisted.id, {
+          planId: personalCreditPlanId,
+          financedAmount: Number(personalCreditAmount),
+          firstDueDate: personalCreditFirstDueDate,
+        })
+      }
 
       if (sendOperation) {
         persisted = await submitSalesOperation(
@@ -1463,6 +1547,111 @@ export function NewOperationPage({
                     />
                     <FieldError message={fieldErrors.tradeInAmount} />
                   </label>
+                </>
+              )}
+
+              {canOfferPersonalCredit && (
+                <>
+                  <label className="field operation-span-2">
+                    <span>Crédito personal (opcional)</span>
+                    <select
+                      onChange={(event) => {
+                        const planId = event.target.value
+                        setPersonalCreditPlanId(planId)
+                        clearError('personalCreditAmount')
+                        clearError('personalCreditFirstDueDate')
+                        const plan = personalCreditPlans.find(
+                          (item) => item.id === planId,
+                        )
+                        setPersonalCreditAmount(
+                          plan && Number.isFinite(price) ? String(price) : '',
+                        )
+                      }}
+                      value={personalCreditPlanId}
+                    >
+                      <option value="">Sin crédito personal</option>
+                      {eligiblePersonalCreditPlans.map((plan) => (
+                        <option key={plan.id} value={plan.id}>
+                          {plan.name} · {plan.installmentCount} cuotas ·{' '}
+                          {plan.interestRate}%{' '}
+                          {plan.calculationMethod === 'FRANCES' ? 'mensual' : 'total'}
+                        </option>
+                      ))}
+                    </select>
+                    {personalCreditStatus === 'success' &&
+                      eligiblePersonalCreditPlans.length === 0 && (
+                        <small>No hay planes activos que apliquen a este monto.</small>
+                      )}
+                  </label>
+                  {selectedPersonalCreditPlan && (
+                    <label className="field">
+                      <span>Primer vencimiento *</span>
+                      <input
+                        aria-invalid={Boolean(fieldErrors.personalCreditFirstDueDate)}
+                        data-field="personalCreditFirstDueDate"
+                        min={operationDate}
+                        onChange={(event) => {
+                          setPersonalCreditFirstDueDate(event.target.value)
+                          clearError('personalCreditFirstDueDate')
+                        }}
+                        type="date"
+                        value={personalCreditFirstDueDate}
+                      />
+                      <FieldError message={fieldErrors.personalCreditFirstDueDate} />
+                    </label>
+                  )}
+                  {selectedPersonalCreditPlan && (
+                    <label className="field">
+                      <span>Monto a financiar *</span>
+                      <input
+                        aria-invalid={Boolean(fieldErrors.personalCreditAmount)}
+                        data-field="personalCreditAmount"
+                        min="0.01"
+                        onChange={(event) => {
+                          setPersonalCreditAmount(event.target.value)
+                          clearError('personalCreditAmount')
+                        }}
+                        step="0.01"
+                        type="number"
+                        value={personalCreditAmount}
+                      />
+                      <FieldError message={fieldErrors.personalCreditAmount} />
+                    </label>
+                  )}
+                  {personalCreditSimulation && (
+                    <p className="operation-span-3" style={{ margin: 0, fontSize: 13 }}>
+                      Cuota:{' '}
+                      <strong>
+                        {formatCreditAmount(personalCreditSimulation.installmentAmount)}
+                      </strong>{' '}
+                      · Interés total:{' '}
+                      {formatCreditAmount(personalCreditSimulation.totalInterest)} · Total a
+                      pagar: {formatCreditAmount(personalCreditSimulation.totalAmount)}
+                    </p>
+                  )}
+                  {personalCreditSchedule.length > 0 && (
+                    <ul
+                      className="operation-span-3"
+                      style={{
+                        margin: 0,
+                        maxHeight: 140,
+                        overflowY: 'auto',
+                        padding: '6px 10px',
+                        border: '1px solid var(--line)',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        listStyle: 'none',
+                      }}
+                    >
+                      {personalCreditSchedule.map((installment) => (
+                        <li key={installment.number}>
+                          Cuota {installment.number} —{' '}
+                          {installment.dueDate.toISOString().slice(0, 10)} —{' '}
+                          {formatCreditAmount(installment.amount)}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </>
               )}
             </div>

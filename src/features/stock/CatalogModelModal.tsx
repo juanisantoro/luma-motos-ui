@@ -9,6 +9,7 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 type CatalogModelModalProps = {
   model: CatalogModel
   canEditSharedCatalog: boolean
+  canManageCost: boolean
   submitting: boolean
   error: string | null
   onClose: () => void
@@ -19,6 +20,7 @@ type CatalogModelModalProps = {
 export function CatalogModelModal({
   model,
   canEditSharedCatalog,
+  canManageCost,
   submitting,
   error,
   onClose,
@@ -56,6 +58,14 @@ export function CatalogModelModal({
       setValidationError('Completá marca, modelo y versión.')
       return
     }
+    const costPriceRaw = String(data.get('costPrice') ?? '').trim()
+    if (canManageCost && costPriceRaw) {
+      const parsed = Number(costPriceRaw)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setValidationError('El precio de costo debe ser un número mayor o igual a 0.')
+        return
+      }
+    }
     onSubmit({
       versionId: model.id,
       modelId: model.modelId,
@@ -63,6 +73,9 @@ export function CatalogModelModal({
       ...(canEditSharedCatalog ? { brandName, modelName } : {}),
       versionName,
       active: data.get('active') === 'on',
+      ...(canManageCost && costPriceRaw
+        ? { costPrice: Number(costPriceRaw) }
+        : {}),
     })
   }
 
@@ -157,6 +170,19 @@ export function CatalogModelModal({
                 required
               />
             </label>
+            {canManageCost && (
+              <label className="field">
+                <span>Precio de costo</span>
+                <input
+                  defaultValue={model.costPrice ?? ''}
+                  min={0}
+                  name="costPrice"
+                  placeholder="Sin cargar"
+                  step="0.01"
+                  type="number"
+                />
+              </label>
+            )}
             <label className="check stock-new-product-check field--wide">
               <input defaultChecked={model.active} name="active" type="checkbox" />
               Versión activa

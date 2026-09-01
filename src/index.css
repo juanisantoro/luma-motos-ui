@@ -252,6 +252,13 @@ a {
   box-shadow: 0 0 0 3px #e326361b;
 }
 
+.field-hint {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .login-card__submit {
   width: 100%;
   margin-top: 8px;

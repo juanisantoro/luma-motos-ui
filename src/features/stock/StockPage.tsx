@@ -34,7 +34,7 @@ export function StockPage({
       const catalogRead = can('catalogo.consultar')
       const suppliersRead = can('proveedores.consultar')
       const supplyRead = can('abastecimiento.consultar')
-      const canOperateSupply = user?.role.code !== 'VENDEDOR'
+      const canOperateSupply = user?.role.code !== 'VENDEDOR' && user?.role.code !== 'CALLCENTER'
       return {
         viewCatalog: catalogRead,
         viewAvailability: suppliersRead,
@@ -54,6 +54,8 @@ export function StockPage({
           canOperateSupply && can('abastecimiento.gestionar') && supplyRead,
         receiveSupply:
           canOperateSupply && can('abastecimiento.recibir') && supplyRead,
+        viewCosts: can('catalogo.costos.consultar') && catalogRead,
+        manageCosts: can('catalogo.costos.gestionar') && catalogRead,
       }
     },
     [user],

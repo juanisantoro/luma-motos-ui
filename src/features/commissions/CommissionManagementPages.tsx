@@ -4,6 +4,7 @@ import {
   FileSearch,
   LoaderCircle,
   ReceiptText,
+  Wallet,
   X,
 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
@@ -26,6 +27,8 @@ import {
   formatCommissionDate,
   formatCommissionMoney,
   formatPeriod,
+  managerModeLabels,
+  managerScopeLabels,
   newCommissionIdempotencyKey,
   localIsoDate,
   tierLabel,
@@ -40,6 +43,7 @@ import type {
   CommissionSettlement,
   CommissionSummary,
   CommissionVehicleType,
+  ManagerCommissionSettlement,
   PaidCommission,
   PaidCommissionQuery,
   PaymentInput,
@@ -333,6 +337,75 @@ function PaymentModal({
   )
 }
 
+function ManagerPaymentModal({
+  settlement,
+  gateway,
+  onClose,
+  onPaid,
+}: {
+  settlement: ManagerCommissionSettlement
+  gateway: CommissionGateway
+  onClose: () => void
+  onPaid: () => void
+}) {
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const dialogRef = useDialogFocus(onClose, submitting)
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (submitting || !gateway.payManagerCommission) return
+    const data = new FormData(event.currentTarget)
+    const notes = String(data.get('notes') ?? '').trim()
+    setSubmitting(true)
+    setError('')
+    try {
+      await gateway.payManagerCommission(settlement.id, {
+        paidAt: String(data.get('paidAt')),
+        expectedVersion: settlement.version,
+        ...(notes ? { notes } : {}),
+      })
+      onPaid()
+      void alertSuccess('El pago de la comisión del gerente se registró correctamente.')
+    } catch (submitError) {
+      const message = commissionErrorMessage(submitError)
+      setError(message)
+      void alertError(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <div ref={dialogRef} className="settlement-modal" role="dialog" aria-modal="true" aria-labelledby="manager-payment-title">
+        <header className="client-modal__header">
+          <div><p className="eyebrow">PAGO A GERENTE</p><h2 id="manager-payment-title">Hacer efectivo el pago</h2></div>
+          <button className="icon-button" type="button" onClick={onClose} disabled={submitting} aria-label="Cerrar"><X size={20} /></button>
+        </header>
+        <div className="commission-payment-summary">
+          <div><span>Gerente</span><strong>{settlement.manager.name}</strong></div>
+          <div><span>Período / tipo</span><strong>{formatPeriod(settlement.period)} · {vehicleLabels[settlement.vehicleType]}</strong></div>
+          <div><span>Alcance</span><strong>{managerScopeLabels[settlement.scope]}</strong></div>
+          <div><span>Acordado a pagar</span><strong>{formatCommissionMoney(settlement.amount)}</strong></div>
+        </div>
+        {error && <div className="form-alert form-alert--error" role="alert">{error}</div>}
+        <form onSubmit={submit}>
+          <label className="field"><span>Fecha de pago *</span><input name="paidAt" type="date" defaultValue={localIsoDate()} required /></label>
+          <label className="field"><span>Observaciones</span><textarea name="notes" rows={3} maxLength={2000} /></label>
+          <footer className="financial-modal__actions">
+            <button className="button button--secondary" type="button" disabled={submitting} onClick={onClose}>Cancelar</button>
+            <button className="button button--primary" type="submit" disabled={submitting}>
+              {submitting && <LoaderCircle className="spin" size={17} />}
+              {submitting ? 'Procesando pago…' : 'Confirmar pago completo'}
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export function CommissionPaymentsPage({
   vehicleType,
   gateway,
@@ -350,6 +423,11 @@ export function CommissionPaymentsPage({
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [payment, setPayment] = useState<CommissionSettlement | null>(null)
+  const [managerItems, setManagerItems] = useState<ManagerCommissionSettlement[]>([])
+  const [managerStatus, setManagerStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [managerError, setManagerError] = useState('')
+  const [managerRefreshKey, setManagerRefreshKey] = useState(0)
+  const [managerPayment, setManagerPayment] = useState<ManagerCommissionSettlement | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -390,6 +468,29 @@ export function CommissionPaymentsPage({
     return () => controller.abort()
   }, [gateway, optionsRefreshKey])
 
+  useEffect(() => {
+    if (!gateway.listManagerSettlements) {
+      setManagerItems([])
+      setManagerStatus('success')
+      return
+    }
+    const controller = new AbortController()
+    setManagerStatus('loading')
+    setManagerError('')
+    void gateway
+      .listManagerSettlements({ vehicleType, period, status: 'AGREED', page: 1, limit: 50 }, controller.signal)
+      .then((result) => {
+        setManagerItems(result.items)
+        setManagerStatus('success')
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return
+        setManagerError(commissionErrorMessage(loadError))
+        setManagerStatus('error')
+      })
+    return () => controller.abort()
+  }, [gateway, managerRefreshKey, period, vehicleType])
+
   return (
     <>
       <header className="page-heading"><div><p className="eyebrow">COMISIONES · TESORERÍA</p><h1>Pagar comisiones</h1><p>Liquidaciones acordadas y pendientes de pago completo.</p></div></header>
@@ -423,6 +524,63 @@ export function CommissionPaymentsPage({
         </CommissionLoadState>
       </section>
       {payment && <PaymentModal commission={payment} options={options} gateway={gateway} onClose={() => setPayment(null)} onPaid={() => { setPayment(null); setRefreshKey((key) => key + 1) }} />}
+
+      {gateway.listManagerSettlements && (
+        <section className="commission-panel commission-manager-panel" aria-label="Pagar comisiones de gerentes">
+          <header className="commission-manager-panel__header">
+            <div>
+              <p className="eyebrow">COMISIONES · GERENTES</p>
+              <h2>Gerentes</h2>
+              <p>Liquidaciones de gerentes acordadas y pendientes de pago completo.</p>
+            </div>
+          </header>
+          <CommissionLoadState status={managerStatus} error={managerError} empty={managerItems.length === 0} onRetry={() => setManagerRefreshKey((key) => key + 1)}>
+            <div className="commission-desktop-table">
+              <table className="financial-table commission-table">
+                <thead><tr><th>Gerente</th><th>Alcance</th><th>Modalidad</th><th>Ventas computables</th><th>Acordado</th><th>Acción</th></tr></thead>
+                <tbody>{managerItems.map((item) => (
+                  <tr key={item.id}>
+                    <td><strong>{item.manager.name}</strong><small>{formatPeriod(item.period)}</small></td>
+                    <td>{managerScopeLabels[item.scope]}</td>
+                    <td>{managerModeLabels[item.mode]}</td>
+                    <td>{item.computableSales}</td>
+                    <td><strong>{formatCommissionMoney(item.amount)}</strong></td>
+                    <td>
+                      {gateway.payManagerCommission && (
+                        <button className="button button--primary button--compact" type="button" onClick={() => setManagerPayment(item)}>
+                          <Wallet size={16} /> Hacer efectivo
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <div className="commission-card-list">{managerItems.map((item) => (
+              <article className="commission-card" key={item.id}>
+                <header><div><strong>{item.manager.name}</strong><small>{managerScopeLabels[item.scope]} · {formatPeriod(item.period)}</small></div></header>
+                <dl>
+                  <div><dt>Modalidad</dt><dd>{managerModeLabels[item.mode]}</dd></div>
+                  <div><dt>Ventas</dt><dd>{item.computableSales}</dd></div>
+                  <div><dt>A pagar</dt><dd><strong>{formatCommissionMoney(item.amount)}</strong></dd></div>
+                </dl>
+                {gateway.payManagerCommission && (
+                  <button className="button button--primary" type="button" onClick={() => setManagerPayment(item)}>Hacer efectivo el pago</button>
+                )}
+              </article>
+            ))}</div>
+          </CommissionLoadState>
+        </section>
+      )}
+
+      {managerPayment && (
+        <ManagerPaymentModal
+          settlement={managerPayment}
+          gateway={gateway}
+          onClose={() => setManagerPayment(null)}
+          onPaid={() => { setManagerPayment(null); setManagerRefreshKey((key) => key + 1) }}
+        />
+      )}
     </>
   )
 }
