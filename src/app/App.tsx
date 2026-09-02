@@ -45,6 +45,7 @@ export function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/primer-acceso" element={<LoginPage />} />
           <Route
             path="/olvide-mi-contrasena"
             element={<ForgotPasswordPage />}
