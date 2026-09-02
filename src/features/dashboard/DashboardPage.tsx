@@ -1,171 +1,102 @@
-import {
-  ArrowRight,
-  Bike,
-  Car,
-  CheckCircle2,
-  ShoppingCart,
-  UsersRound,
-  Warehouse,
-} from 'lucide-react'
-import { Link } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
-import { hasPermission } from '../auth/PermissionRoute'
+import { LayoutDashboard } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { alertError } from '../../shared/alerts'
+import { ApiError, NetworkError } from '../../shared/api/client'
+import { StatePanel } from '../../shared/components/StatePanel'
+import { getDashboardHome } from './api'
+import { AdminDashboard } from './AdminDashboard'
+import { AdministrativeDashboard } from './AdministrativeDashboard'
+import { ManagerDashboard } from './ManagerDashboard'
+import { SellerDashboard } from './SellerDashboard'
+import type { DashboardHome } from './types'
+
+function dashboardErrorMessage(error: unknown) {
+  if (error instanceof ApiError) return error.message
+  if (error instanceof NetworkError) return error.message
+  return 'No pudimos cargar tu inicio. Intentá nuevamente.'
+}
 
 export function DashboardPage() {
-  const { user } = useAuth()
-  if (!user) return null
-  const canViewClients = hasPermission(
-    user.role.permissions,
-    'clientes.consultar',
-  )
-  const canViewStock = hasPermission(
-    user.role.permissions,
-    'inventario.consultar',
-  )
-  const canViewSales = hasPermission(
-    user.role.permissions,
-    'ventas.consultar',
-  )
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [home, setHome] = useState<DashboardHome | null>(null)
 
-  return (
-    <>
-      <header className="page-heading">
-        <div>
-          <p className="eyebrow">LUMA MOTOS</p>
-          <h1>Buen día, {user.name?.split(' ')[0] ?? 'equipo'}</h1>
-          <p>Este es el punto de entrada a la gestión comercial.</p>
-        </div>
-        <span className="status-badge status-badge--success">
-          <CheckCircle2 size={15} aria-hidden="true" />
-          Sesión activa
-        </span>
-      </header>
+  useEffect(() => {
+    const controller = new AbortController()
+    setStatus('loading')
+    getDashboardHome(controller.signal)
+      .then((result) => {
+        setHome(result)
+        setStatus('success')
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return
+        setStatus('error')
+        void alertError(dashboardErrorMessage(error), 'No se pudo cargar el inicio')
+      })
+    return () => controller.abort()
+  }, [])
 
-      <section className="hero-card">
-        <div>
-          <span className="hero-card__icon" aria-hidden="true">
-            <Bike />
-          </span>
-          <p className="eyebrow">TERCER CORTE PRODUCTIVO</p>
-          <h2>Gestión comercial integrada</h2>
-          <p>
-            Clientes, stock, reservas, operaciones y aprobaciones con permisos
-            reales.
-          </p>
-        </div>
-        <div className="hero-card__meta">
-          <small>Organización</small>
-          <strong>{user.organization.name}</strong>
-          <small>Sucursal</small>
-          <strong>{user.branch?.name ?? 'Acceso global'}</strong>
-        </div>
-      </section>
+  if (status === 'loading') {
+    return (
+      <StatePanel
+        icon={LayoutDashboard}
+        title="Cargando tu inicio…"
+        description="Estamos preparando la información de tu rol."
+      />
+    )
+  }
 
-      <section aria-labelledby="modules-title">
-        <div className="section-heading">
-          <div>
-            <h2 id="modules-title">Módulos</h2>
-            <p>Las opciones se habilitan según tus permisos.</p>
-          </div>
-        </div>
-        <div className="module-grid">
-          <article className="module-card">
-            <span className="module-card__icon">
-              <UsersRound />
-            </span>
-            <div>
-              <span
-                className={`status-badge ${canViewClients ? 'status-badge--success' : ''}`}
-              >
-                {canViewClients ? 'Disponible' : 'Sin permiso'}
-              </span>
-              <h3>Clientes</h3>
-              <p>Consulta y gestión centralizada de clientes.</p>
-            </div>
-            {canViewClients && (
-              <Link to="/clientes" className="text-link">
-                Abrir módulo <ArrowRight size={16} />
-              </Link>
-            )}
-          </article>
-          <article className="module-card">
-            <span className="module-card__icon">
-              <Warehouse />
-            </span>
-            <div>
-              <span
-                className={`status-badge ${canViewStock ? 'status-badge--success' : ''}`}
-              >
-                {canViewStock ? 'Disponible' : 'Sin permiso'}
-              </span>
-              <h3>Stock y abastecimiento de motos</h3>
-              <p>Unidades, disponibilidad y recepciones del circuito MOTO.</p>
-            </div>
-            {canViewStock && (
-              <Link to="/stock/motos" className="text-link">
-                Abrir módulo <ArrowRight size={16} />
-              </Link>
-            )}
-          </article>
-          <article className="module-card">
-            <span className="module-card__icon">
-              <Car />
-            </span>
-            <div>
-              <span
-                className={`status-badge ${canViewStock ? 'status-badge--success' : ''}`}
-              >
-                {canViewStock ? 'Disponible' : 'Sin permiso'}
-              </span>
-              <h3>Stock y abastecimiento de autos</h3>
-              <p>Unidades, disponibilidad y recepciones del circuito AUTO.</p>
-            </div>
-            {canViewStock && (
-              <Link to="/stock/autos" className="text-link">
-                Abrir módulo <ArrowRight size={16} />
-              </Link>
-            )}
-          </article>
-          <article className="module-card">
-            <span className="module-card__icon">
-              <ShoppingCart />
-            </span>
-            <div>
-              <span
-                className={`status-badge ${canViewSales ? 'status-badge--success' : ''}`}
-              >
-                {canViewSales ? 'Disponible' : 'Sin permiso'}
-              </span>
-              <h3>Operaciones de motos</h3>
-              <p>Ventas, reservas y aprobaciones exclusivas del circuito MOTO.</p>
-            </div>
-            {canViewSales && (
-              <Link to="/motos/operaciones" className="text-link">
-                Abrir módulo <ArrowRight size={16} />
-              </Link>
-            )}
-          </article>
-          <article className="module-card">
-            <span className="module-card__icon">
-              <Car />
-            </span>
-            <div>
-              <span
-                className={`status-badge ${canViewSales ? 'status-badge--success' : ''}`}
-              >
-                {canViewSales ? 'Disponible' : 'Sin permiso'}
-              </span>
-              <h3>Operaciones de autos</h3>
-              <p>Ventas, reservas y aprobaciones exclusivas del circuito AUTO.</p>
-            </div>
-            {canViewSales && (
-              <Link to="/autos/operaciones" className="text-link">
-                Abrir módulo <ArrowRight size={16} />
-              </Link>
-            )}
-          </article>
-        </div>
-      </section>
-    </>
-  )
+  if (status === 'error' || !home) {
+    return (
+      <StatePanel
+        icon={LayoutDashboard}
+        title="No pudimos cargar tu inicio"
+        description="Revisá tu conexión e intentá nuevamente."
+        tone="danger"
+      />
+    )
+  }
+
+  switch (home.role) {
+    case 'ADMINISTRADOR':
+      return <AdminDashboard home={home} />
+    case 'GERENTE':
+      return 'monthlySales' in home ? (
+        <ManagerDashboard home={home} />
+      ) : (
+        <StatePanel
+          icon={LayoutDashboard}
+          title={`Hola, ${home.greeting.name}`}
+          description="Todavía no tenés una sucursal asignada. Pedile a un administrador que te asigne una para ver tu inicio."
+        />
+      )
+    case 'ADMINISTRATIVA':
+      return 'dueTodayAlert' in home ? (
+        <AdministrativeDashboard home={home} />
+      ) : (
+        <StatePanel
+          icon={LayoutDashboard}
+          title={`Hola, ${home.greeting.name}`}
+          description="Todavía no tenés una sucursal asignada. Pedile a un administrador que te asigne una para ver tu inicio."
+        />
+      )
+    case 'VENDEDOR':
+      return 'attentionCount' in home ? (
+        <SellerDashboard home={home} />
+      ) : (
+        <StatePanel
+          icon={LayoutDashboard}
+          title={`Hola, ${home.greeting.name}`}
+          description="Todavía no tenés una sucursal asignada. Pedile a un administrador que te asigne una para ver tu inicio."
+        />
+      )
+    default:
+      return (
+        <StatePanel
+          icon={LayoutDashboard}
+          title={`Hola, ${home.greeting.name}`}
+          description="Usá el menú lateral para acceder a los módulos disponibles según tu rol."
+        />
+      )
+  }
 }

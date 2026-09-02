@@ -23,6 +23,7 @@ import {
   SellerMeetingPage,
   SuggestedCommissionsPage,
 } from '../features/commissions'
+import { BcraCheckPage } from '../features/bcra'
 import { CreditInstallmentsPage } from '../features/credit-plans/CreditInstallmentsPage'
 import { CreditPlansPage } from '../features/credit-plans/CreditPlansPage'
 import { ExpensesPage } from '../features/finance/ExpensesPage'
@@ -266,6 +267,10 @@ export function App() {
                 <Route
                   path="creditos/cobranza"
                   element={<CreditInstallmentsPage />}
+                />
+                <Route
+                  path="creditos/consulta-bcra"
+                  element={<BcraCheckPage />}
                 />
               </Route>
               <Route
