@@ -5934,8 +5934,23 @@ a {
   line-height: 1.3;
 }
 
+.catalog-browser-card__price {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .catalog-browser-card__stock {
   margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.catalog-browser-card__mileage {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .catalog-browser-card__branches {

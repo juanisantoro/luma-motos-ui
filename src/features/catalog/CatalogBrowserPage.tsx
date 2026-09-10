@@ -25,6 +25,55 @@ type CatalogRow = {
   totalStock: number
   stockByBranch: Array<{ branchName: string; count: number }>
   supplierNames: string[]
+  priceLabel: string
+  mileageLabel: string | null
+}
+
+function formatMoney(value: number, currency = 'ARS') {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+// Same resolution rule as the catalog management screen (StockWorkspace):
+// prefer the organization-wide active policy; a branch-specific one only
+// counts when there is no org-wide price to fall back on.
+function activePolicies(model: CatalogModel) {
+  const current = new Date().toISOString()
+  const policies = model.pricePolicies ?? (model.pricePolicy ? [model.pricePolicy] : [])
+  return policies
+    .filter(
+      (policy) =>
+        policy.active !== false &&
+        (!policy.status || policy.status === 'ACTIVE') &&
+        policy.validFrom <= current &&
+        (!policy.validUntil || policy.validUntil >= current),
+    )
+    .sort((left, right) => right.validFrom.localeCompare(left.validFrom))
+}
+
+function priceLabel(model: CatalogModel): string {
+  const active = activePolicies(model)
+  const orgWide = active.find((policy) => !policy.branchId)
+  if (orgWide) return formatMoney(orgWide.listPrice, orgWide.currency)
+  if (active.length > 0) {
+    const cheapest = active.reduce((min, policy) =>
+      policy.listPrice < min.listPrice ? policy : min,
+    )
+    return `Desde ${formatMoney(cheapest.listPrice, cheapest.currency)}`
+  }
+  return 'Sin precio configurado'
+}
+
+function mileageLabel(units: PhysicalUnit[]): string | null {
+  if (units.length === 0) return null
+  const values = units.map((unit) => unit.mileage)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  if (min === max) return `${min.toLocaleString('es-AR')} km`
+  return `${min.toLocaleString('es-AR')} – ${max.toLocaleString('es-AR')} km`
 }
 
 function buildRows(
@@ -52,6 +101,8 @@ function buildRows(
         .map(([branchName, count]) => ({ branchName, count }))
         .sort((a, b) => b.count - a.count),
       supplierNames: [...supplierNames].sort((a, b) => a.localeCompare(b, 'es')),
+      priceLabel: priceLabel(model),
+      mileageLabel: mileageLabel(modelUnits),
     }
   })
 }
@@ -195,10 +246,14 @@ export function CatalogBrowserPage({ vehicleType }: { vehicleType: VehicleKind }
                 <div className="catalog-browser-card__body">
                   <strong>{row.model.brand} {row.model.model}</strong>
                   <span className="catalog-browser-card__version">{row.model.version}</span>
+                  <span className="catalog-browser-card__price">{row.priceLabel}</span>
                   <div className="catalog-browser-card__stock">
                     <span className="status-badge status-badge--success">
                       {row.totalStock} en stock
                     </span>
+                    {row.mileageLabel && (
+                      <span className="catalog-browser-card__mileage">{row.mileageLabel}</span>
+                    )}
                   </div>
                   {row.stockByBranch.length > 0 && (
                     <dl className="catalog-browser-card__branches">
