@@ -227,10 +227,48 @@ export function UnitFormModal({
             <div className="stock-form-section__heading">
               <span>1</span>
               <div>
+                <h3>Condición de las unidades</h3>
+                <p>
+                  La condición corresponde a cada unidad física, no al modelo
+                  del catálogo.
+                </p>
+              </div>
+            </div>
+            <div className="condition-switch" aria-label="Condición">
+              <button
+                className={condition === 'NUEVO' ? 'is-active' : ''}
+                onClick={() => {
+                  setCondition('NUEVO')
+                  if (canCreateCatalog) setCreateCatalog(false)
+                }}
+                type="button"
+              >
+                0 km / Nuevo
+              </button>
+              <button
+                className={condition === 'USADO' ? 'is-active' : ''}
+                onClick={() => {
+                  setCondition('USADO')
+                  if (canCreateCatalog) setCreateCatalog(true)
+                  setCatalogModelId('')
+                  setUnits((current) => (current.length > 1 ? [current[0]!] : current))
+                }}
+                type="button"
+              >
+                Usado
+              </button>
+            </div>
+          </section>
+
+          <section className="stock-form-section">
+            <div className="stock-form-section__heading">
+              <span>2</span>
+              <div>
                 <h3>Marca y modelo de {singular}</h3>
                 <p>
-                  Elegí un modelo del catálogo. El estado de precio se informa
-                  sin ocultar modelos existentes.
+                  {condition === 'USADO'
+                    ? 'Los usados casi siempre son un modelo nuevo en el catálogo: completá marca, modelo y precio. Si ya lo cargaste antes, desmarcá la opción de abajo y elegilo de la lista.'
+                    : 'Elegí un modelo del catálogo. El estado de precio se informa sin ocultar modelos existentes.'}
                 </p>
               </div>
             </div>
@@ -357,57 +395,34 @@ export function UnitFormModal({
 
           <section className="stock-form-section">
             <div className="stock-form-section__heading">
-              <span>2</span>
-              <div>
-                <h3>Condición de las unidades</h3>
-                <p>
-                  La condición corresponde a cada unidad física, no al modelo
-                  del catálogo.
-                </p>
-              </div>
-            </div>
-            <div className="condition-switch" aria-label="Condición">
-              <button
-                className={condition === 'NUEVO' ? 'is-active' : ''}
-                onClick={() => setCondition('NUEVO')}
-                type="button"
-              >
-                0 km / Nuevo
-              </button>
-              <button
-                className={condition === 'USADO' ? 'is-active' : ''}
-                onClick={() => setCondition('USADO')}
-                type="button"
-              >
-                Usado
-              </button>
-            </div>
-          </section>
-
-          <section className="stock-form-section">
-            <div className="stock-form-section__heading">
               <span>3</span>
               <div>
                 <h3>Unidades a ingresar</h3>
-                <p>Podés cargar varias del mismo modelo de una sola vez.</p>
+                <p>
+                  {condition === 'NUEVO'
+                    ? 'Podés cargar varias del mismo modelo de una sola vez.'
+                    : 'Cada usado se carga como una unidad única.'}
+                </p>
               </div>
-              <button
-                className="button button--secondary"
-                disabled={units.length >= 100}
-                onClick={() =>
-                  setUnits((current) => [
-                    ...current,
-                    emptyUnit(
-                      Math.max(...current.map((unit) => unit.key)) + 1,
-                      branches[0]?.id,
-                    ),
-                  ])
-                }
-                type="button"
-              >
-                <Plus size={17} />
-                Agregar unidad
-              </button>
+              {condition === 'NUEVO' && (
+                <button
+                  className="button button--secondary"
+                  disabled={units.length >= 100}
+                  onClick={() =>
+                    setUnits((current) => [
+                      ...current,
+                      emptyUnit(
+                        Math.max(...current.map((unit) => unit.key)) + 1,
+                        branches[0]?.id,
+                      ),
+                    ])
+                  }
+                  type="button"
+                >
+                  <Plus size={17} />
+                  Agregar unidad
+                </button>
+              )}
             </div>
 
             <div className="unit-drafts">
@@ -542,20 +557,22 @@ export function UnitFormModal({
                       </select>
                     </label>
                   </div>
-                  <button
-                    className="button button--danger-quiet"
-                    aria-label={`Quitar unidad ${index + 1}`}
-                    disabled={units.length === 1}
-                    onClick={() =>
-                      setUnits((current) =>
-                        current.filter((item) => item.key !== unit.key),
-                      )
-                    }
-                    type="button"
-                  >
-                    <Minus size={17} />
-                    Quitar
-                  </button>
+                  {condition === 'NUEVO' && (
+                    <button
+                      className="button button--danger-quiet"
+                      aria-label={`Quitar unidad ${index + 1}`}
+                      disabled={units.length === 1}
+                      onClick={() =>
+                        setUnits((current) =>
+                          current.filter((item) => item.key !== unit.key),
+                        )
+                      }
+                      type="button"
+                    >
+                      <Minus size={17} />
+                      Quitar
+                    </button>
+                  )}
                 </fieldset>
               ))}
             </div>
