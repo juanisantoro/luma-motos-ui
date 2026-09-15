@@ -34,6 +34,7 @@ const operation = {
   paymentPlatform: 'EFECTIVO',
   creditAmount: null,
   guarantor: null,
+  ticketNumber: null,
   notes: null,
   rowVersion: 7,
   organizationId: 'org-1',
