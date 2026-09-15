@@ -63,6 +63,7 @@ export type SalesOperation = {
   paymentPlatform: SalesPaymentPlatform | null
   creditAmount: string | null
   guarantor: string | null
+  ticketNumber: string | null
   notes: string | null
   rowVersion: number
   organizationId: string
@@ -284,6 +285,7 @@ type CreateSalesOperationBase = {
   debt?: SalesDebt
   submit?: boolean
   notes?: string
+  ticketNumber?: string
   organizationId?: string
 }
 
@@ -319,4 +321,5 @@ export type UpdateSalesOperationInput = {
   papersDelivered?: boolean
   debt?: SalesDebt
   notes?: string | null
+  ticketNumber?: string | null
 }

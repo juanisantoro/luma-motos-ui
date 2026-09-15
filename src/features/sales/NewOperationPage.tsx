@@ -271,6 +271,7 @@ export function NewOperationPage({
   const [personalCreditAmount, setPersonalCreditAmount] = useState('')
   const [personalCreditFirstDueDate, setPersonalCreditFirstDueDate] = useState('')
   const [guarantor, setGuarantor] = useState('')
+  const [ticketNumber, setTicketNumber] = useState('')
   const [tradeInDescription, setTradeInDescription] = useState('')
   const [tradeInAmount, setTradeInAmount] = useState('')
   const [sellerId, setSellerId] = useState('')
@@ -841,6 +842,7 @@ export function NewOperationPage({
         debt: debtStatus,
         submit: false,
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(ticketNumber.trim() ? { ticketNumber: ticketNumber.trim() } : {}),
         ...(organizationId ? { organizationId } : {}),
       })
 
@@ -1705,6 +1707,14 @@ export function NewOperationPage({
                       : 'Seleccioná un vehículo'}
                 </div>
               </div>
+              <label className="field">
+                <span>Número de boleto</span>
+                <input
+                  maxLength={40}
+                  onChange={(event) => setTicketNumber(event.target.value)}
+                  value={ticketNumber}
+                />
+              </label>
               <label className="operation-check">
                 <input
                   checked={papersDelivered}
