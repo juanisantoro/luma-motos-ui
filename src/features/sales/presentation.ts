@@ -35,10 +35,15 @@ export function formatMoney(value: string | null, currency: string) {
 export function formatOperationDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.valueOf())) return '—'
+  // operationDate es una fecha pura (@db.Date) serializada como
+  // "...T00:00:00.000Z". Sin forzar UTC acá, Intl la formatea en el huso
+  // horario del navegador y en zonas negativas (Argentina) muestra el día
+  // anterior.
   return new Intl.DateTimeFormat('es-AR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: 'UTC',
   }).format(date)
 }
 

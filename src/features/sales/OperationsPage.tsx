@@ -172,7 +172,7 @@ export function OperationsPage({
             <input
               maxLength={80}
               onChange={(event) => setSearchDraft(event.target.value)}
-              placeholder="Operación, cliente, VIN o patente"
+              placeholder="Operación, cliente, VIN, patente o boleto"
               type="search"
               value={searchDraft}
             />

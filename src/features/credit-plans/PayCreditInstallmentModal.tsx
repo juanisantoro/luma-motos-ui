@@ -1,10 +1,14 @@
 import { LoaderCircle, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
+import { localIsoDate } from '../../shared/utils/date'
 import { formatDate, formatMoney } from './format'
 import type { CreditInstallment, PayCreditInstallmentInput } from './types'
 
-const today = new Date().toISOString().slice(0, 10)
+// UTC (toISOString) adelanta "hoy" varias horas antes de medianoche en
+// Argentina (UTC-3), lo que permitía cargar/limitar el pago a una fecha
+// futura equivocada.
+const today = localIsoDate()
 
 type PayCreditInstallmentModalProps = {
   installment: CreditInstallment

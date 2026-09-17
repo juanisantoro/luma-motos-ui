@@ -3,6 +3,7 @@ import {
   AUTH_TOKEN_KEY,
   apiRequest,
 } from '../../shared/api/client'
+import { localIsoDate } from '../../shared/utils/date'
 import type { StockGateway } from './gateway'
 import type {
   AcquisitionOrigin,
@@ -605,7 +606,9 @@ async function ensureDraftPrice(
       currency: 'ARS',
       listPrice: draft.listPrice,
       minimumPrice: draft.minimumPrice,
-      validFrom: new Date().toISOString().slice(0, 10),
+      // UTC (toISOString) adelanta "hoy" varias horas antes de medianoche
+      // en Argentina (UTC-3).
+      validFrom: localIsoDate(),
     },
     organizationId,
   )

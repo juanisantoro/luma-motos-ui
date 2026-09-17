@@ -50,6 +50,7 @@ import {
   type OperationVehicleOption,
 } from './OperationVehiclePicker'
 import { formatMoney } from './presentation'
+import { localIsoDate } from '../../shared/utils/date'
 import type {
   SalesDebt,
   SalesFinancialInstitution,
@@ -94,7 +95,9 @@ const paymentOptions: Array<{ value: SalesPaymentPlatform; label: string }> = [
   { value: 'MOTO_EFECTIVO_CREDITO', label: 'Moto + efectivo + crédito' },
 ]
 
-const today = new Date().toISOString().slice(0, 10)
+// Fecha de hoy en huso local: usar UTC (toISOString) acá adelanta el día
+// varias horas antes de medianoche en Argentina (UTC-3).
+const today = localIsoDate()
 
 function normalizeDocument(value: string) {
   return value.replace(/[\s.-]/g, '').toUpperCase()

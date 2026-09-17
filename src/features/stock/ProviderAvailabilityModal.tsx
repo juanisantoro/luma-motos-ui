@@ -1,6 +1,7 @@
 import { LoaderCircle, ShieldCheck, X } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
+import { localIsoDate } from '../../shared/utils/date'
 import type {
   CatalogModel,
   CatalogModelDraft,
@@ -23,7 +24,9 @@ type ProviderAvailabilityModalProps = {
   onSubmit: (input: UpsertAvailabilityInput) => void
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+// UTC (toISOString) adelanta "hoy" varias horas antes de medianoche en
+// Argentina (UTC-3); localIsoDate usa el huso del navegador.
+const today = () => localIsoDate()
 
 export function ProviderAvailabilityModal({
   vehicleType,

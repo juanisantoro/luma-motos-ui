@@ -21,6 +21,9 @@ export function formatMonthDelta(current: number, previous: number) {
   return `${rounded > 0 ? '+' : ''}${rounded}%`
 }
 
+// Para fechas puras (@db.Date, sin hora). Si en algún momento se usa para
+// mostrar un valor tipo "operationDate", timeZone: 'UTC' evita el
+// corrimiento de un día en huso horarios negativos (Argentina).
 export function formatDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.valueOf())) return value
@@ -28,6 +31,7 @@ export function formatDate(value: string) {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: 'UTC',
   }).format(date)
 }
 

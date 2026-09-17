@@ -1,6 +1,7 @@
 import { LoaderCircle, Minus, Plus, ShieldCheck, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
+import { localIsoDate } from '../../shared/utils/date'
 import { listUnitColors } from './api'
 import { UNIT_FINISHES } from './colors'
 import type {
@@ -35,7 +36,9 @@ type UnitRow = {
   receivedAt: string
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+// UTC (toISOString) adelanta "hoy" varias horas antes de medianoche en
+// Argentina (UTC-3); localIsoDate usa el huso del navegador.
+const today = () => localIsoDate()
 
 function emptyUnit(key: number, branchId = ''): UnitRow {
   return {

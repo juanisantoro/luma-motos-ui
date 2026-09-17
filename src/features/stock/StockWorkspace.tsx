@@ -100,6 +100,8 @@ function unitColorLabel(unit: PhysicalUnit) {
   return unit.color ?? unit.acabado ?? 'Sin color'
 }
 
+// Para timestamps reales (ej. updatedAt): mostrar en huso local es lo
+// correcto acá.
 function formatDate(value: string | null) {
   if (!value) return '—'
   const date = new Date(value)
@@ -108,6 +110,21 @@ function formatDate(value: string | null) {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+  }).format(date)
+}
+
+// Para fechas puras (@db.Date, ej. vigente_hasta de una política de
+// precio): forzar UTC evita que se muestre un día antes en husos
+// horarios negativos (Argentina).
+function formatValidityDate(value: string | null) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.valueOf())) return '—'
+  return new Intl.DateTimeFormat('es-AR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
   }).format(date)
 }
 
@@ -382,7 +399,7 @@ function effectivePolicy(
 
 function policyLabel(policy: CatalogPricePolicy | null) {
   if (!policy) return 'Sin precio'
-  if (policy.validUntil) return `Vence ${formatDate(policy.validUntil)}`
+  if (policy.validUntil) return `Vence ${formatValidityDate(policy.validUntil)}`
   return 'Precio vigente'
 }
 
