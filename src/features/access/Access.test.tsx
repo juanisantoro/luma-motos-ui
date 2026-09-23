@@ -6,7 +6,7 @@ import { ApiError } from '../../shared/api/client'
 import { RoleFormPage } from './RoleFormPage'
 import { RoleDetailPage } from './RoleDetailPage'
 import { RolesPage } from './RolesPage'
-import { UserFormPage } from './UserFormPage'
+import { UserFormPage, accessChanges } from './UserFormPage'
 import { UsersPage } from './UsersPage'
 import { accessErrorMessage } from './errors'
 import type {
@@ -17,6 +17,8 @@ import type {
 } from './types'
 
 const authMock = vi.hoisted(() => ({
+  userId: 'admin-1',
+  globalAccess: false,
   permissions: [
     'usuarios.consultar',
     'usuarios.gestionar',
@@ -25,14 +27,37 @@ const authMock = vi.hoisted(() => ({
   ],
 }))
 
-vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({
-    user: {
-      id: 'admin-1',
-      organization: { id: 'org-1', code: 'LUMA', name: 'Luma Motos' },
-      role: { permissions: authMock.permissions },
+vi.mock('../../shared/alerts', () => ({
+  alertSuccess: vi.fn(() => Promise.resolve()),
+  alertError: vi.fn(() => Promise.resolve()),
+}))
+
+// Objeto estable: el formulario recarga sus datos cuando cambia la
+// identidad de currentUser, igual que con el AuthContext real (memoizado).
+const stableAuth = vi.hoisted(() => ({
+  user: {
+    get id() {
+      return authMock.userId
     },
-  }),
+    get globalAccess() {
+      return authMock.globalAccess
+    },
+    organization: {
+      id: 'org-1',
+      code: 'LUMA',
+      name: 'Luma Motos',
+      type: 'CASA_CENTRAL',
+    },
+    role: {
+      get permissions() {
+        return authMock.permissions
+      },
+    },
+  },
+}))
+
+vi.mock('../auth/AuthContext', () => ({
+  useAuth: () => stableAuth,
 }))
 
 const permissions: PermissionGroup[] = [
@@ -182,6 +207,12 @@ function gateway(): AccessGateway {
           name: 'San Miguel',
           organizationId: 'org-1',
         },
+        {
+          id: 'branch-2',
+          code: 'DV',
+          name: 'Del Viso',
+          organizationId: 'org-1',
+        },
       ]),
   }
 }
@@ -202,6 +233,8 @@ function renderRoute(
 }
 
 beforeEach(() => {
+  authMock.userId = 'admin-1'
+  authMock.globalAccess = false
   authMock.permissions = [
     'usuarios.consultar',
     'usuarios.gestionar',
@@ -231,7 +264,7 @@ describe('gestión de usuarios', () => {
     await user.type(screen.getByLabelText('Apellido *'), 'Gómez')
     await user.type(screen.getByLabelText('Correo electrónico *'), 'ANA@LUMA.TEST')
     await user.selectOptions(screen.getByLabelText('Rol *'), 'VENDEDOR')
-    await user.selectOptions(screen.getByLabelText('Sucursal'), 'branch-1')
+    await user.selectOptions(screen.getByLabelText('Sucursal *'), 'branch-1')
     await user.click(screen.getByRole('button', { name: 'Crear y enviar invitación' }))
 
     expect(
@@ -262,6 +295,7 @@ describe('gestión de usuarios', () => {
     await user.type(screen.getByLabelText('Apellido *'), 'Gómez')
     await user.type(screen.getByLabelText('Correo electrónico *'), 'ana@luma.test')
     await user.selectOptions(screen.getByLabelText('Rol *'), 'VENDEDOR')
+    await user.selectOptions(screen.getByLabelText('Sucursal *'), 'branch-1')
     await user.click(screen.getByRole('button', { name: 'Crear y enviar invitación' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -295,11 +329,7 @@ describe('gestión de usuarios', () => {
       '/usuarios/:id/editar',
     )
     await screen.findByText('ana@luma.test')
-    await user.click(
-      screen.getByRole('checkbox', {
-        name: /Acceso a toda la organización/,
-      }),
-    )
+    await user.selectOptions(screen.getByLabelText('Sucursal *'), 'branch-2')
     await user.click(screen.getByRole('button', { name: 'Guardar acceso' }))
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Se cerraron 2 sesiones activas',
@@ -355,6 +385,167 @@ describe('gestión de usuarios', () => {
     ).toBe(
       'La acción dejaría a la organización sin un administrador activo.',
     )
+  })
+})
+
+describe('edición de acceso de usuario (sucursal / vendedor)', () => {
+  function renderEdit(api: AccessGateway, userId = 'user-1') {
+    return renderRoute(
+      `/usuarios/${userId}/editar`,
+      <UserFormPage gateway={api} />,
+      '/usuarios/:id/editar',
+    )
+  }
+
+  it('asigna sucursal enviando sólo el campo modificado', async () => {
+    const api = gateway()
+    const user = userEvent.setup()
+    renderEdit(api)
+    await screen.findByText('ana@luma.test')
+    await user.selectOptions(screen.getByLabelText('Sucursal *'), 'branch-2')
+    await user.click(screen.getByRole('button', { name: 'Guardar acceso' }))
+
+    expect(api.updateUserAccess).toHaveBeenCalledWith('user-1', {
+      branchId: 'branch-2',
+    })
+  })
+
+  it('no llama al backend si no hay cambios', async () => {
+    const api = gateway()
+    const user = userEvent.setup()
+    renderEdit(api)
+    await screen.findByText('ana@luma.test')
+    await user.click(screen.getByRole('button', { name: 'Guardar acceso' }))
+
+    expect(api.updateUserAccess).not.toHaveBeenCalled()
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'No hay cambios de acceso para guardar.',
+    )
+  })
+
+  it('permite a un administrador cambiar su propia sucursal sin reenviar rol ni alcance', async () => {
+    authMock.userId = 'user-1'
+    authMock.globalAccess = true
+    const api = gateway()
+    vi.mocked(api.getUser).mockResolvedValue({
+      ...managedUser,
+      globalAccess: true,
+      role: { ...managedUser.role!, code: 'ADMINISTRADOR', name: 'Administrador' },
+    })
+    vi.mocked(api.listRoles).mockResolvedValue({
+      items: [{ ...role, id: 'role-admin', code: 'ADMINISTRADOR', name: 'Administrador' }],
+      total: 1,
+      page: 1,
+      limit: 100,
+    })
+    const user = userEvent.setup()
+    renderEdit(api)
+    await screen.findByText('ana@luma.test')
+    expect(screen.getByLabelText('Rol *')).toBeDisabled()
+    await user.selectOptions(screen.getByLabelText('Sucursal'), 'branch-2')
+    await user.click(screen.getByRole('button', { name: 'Guardar acceso' }))
+
+    expect(api.updateUserAccess).toHaveBeenCalledWith('user-1', {
+      branchId: 'branch-2',
+    })
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'vas a tener que volver a ingresar',
+    )
+  })
+
+  it('al pasar un administrador global a Vendedor retira el acceso global', async () => {
+    authMock.globalAccess = true
+    const api = gateway()
+    const administrator = {
+      ...role,
+      id: 'role-admin',
+      code: 'ADMINISTRADOR',
+      name: 'Administrador',
+    }
+    vi.mocked(api.getUser).mockResolvedValue({
+      ...managedUser,
+      globalAccess: true,
+      branch: null,
+      role: { ...managedUser.role!, code: 'ADMINISTRADOR', name: 'Administrador' },
+    })
+    vi.mocked(api.listRoles).mockResolvedValue({
+      items: [role, administrator],
+      total: 2,
+      page: 1,
+      limit: 100,
+    })
+    const user = userEvent.setup()
+    renderEdit(api)
+    await screen.findByText('ana@luma.test')
+    expect(
+      screen.getByRole('checkbox', { name: /Acceso global/ }),
+    ).toBeChecked()
+    await user.selectOptions(screen.getByLabelText('Rol *'), 'VENDEDOR')
+    expect(
+      screen.getByRole('checkbox', { name: /Acceso global/ }),
+    ).not.toBeChecked()
+    expect(
+      screen.getByRole('checkbox', { name: /Acceso global/ }),
+    ).toBeDisabled()
+    await user.selectOptions(screen.getByLabelText('Sucursal *'), 'branch-1')
+    await user.click(screen.getByRole('button', { name: 'Guardar acceso' }))
+
+    expect(api.updateUserAccess).toHaveBeenCalledWith('user-1', {
+      roleCode: 'VENDEDOR',
+      branchId: 'branch-1',
+      globalAccess: false,
+    })
+  })
+
+  it('no ofrece acceso global a quien no es administrador global', async () => {
+    const api = gateway()
+    renderEdit(api)
+    await screen.findByText('ana@luma.test')
+    expect(
+      screen.queryByRole('checkbox', { name: /Acceso global/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('carga las sucursales de la organización del usuario editado', async () => {
+    authMock.globalAccess = true
+    const api = gateway()
+    vi.mocked(api.getUser).mockResolvedValue({
+      ...managedUser,
+      organization: { ...managedUser.organization, id: 'org-franquicia', type: 'FRANQUICIA' },
+      branch: null,
+    })
+    renderEdit(api)
+    await screen.findByText('ana@luma.test')
+
+    expect(api.listBranches).toHaveBeenCalledWith(
+      'org-franquicia',
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('traduce los errores tipados del backend', () => {
+    expect(
+      accessErrorMessage(
+        new ApiError(400, 'x', { code: 'GLOBAL_ACCESS_REQUIRES_CENTRAL_ADMIN' }),
+      ),
+    ).toContain('Administrador de Casa Central')
+    expect(
+      accessErrorMessage(new ApiError(409, 'x', { code: 'USER_PERSONNEL_MISSING' })),
+    ).toContain('legajo de personal')
+  })
+
+  it('calcula el diff de acceso', () => {
+    const current = {
+      role: managedUser.role,
+      branch: managedUser.branch,
+      globalAccess: false,
+    }
+    expect(
+      accessChanges(current, { roleCode: 'VENDEDOR', branchId: 'branch-1', globalAccess: false }),
+    ).toEqual({})
+    expect(
+      accessChanges(current, { roleCode: 'VENDEDOR', branchId: '', globalAccess: false }),
+    ).toEqual({ branchId: null })
   })
 })
 

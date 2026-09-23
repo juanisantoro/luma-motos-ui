@@ -17,6 +17,13 @@ const messages: Record<string, string> = {
     'El usuario, rol o sucursal no pertenece a tu organización.',
   INVITATION_DELIVERY_FAILED:
     'El usuario fue procesado, pero no se pudo entregar la invitación. Revisá el correo y reintentá el envío.',
+  GLOBAL_ACCESS_REQUIRES_CENTRAL_ADMIN:
+    'El acceso global sólo se puede asignar al rol Administrador de Casa Central.',
+  BRANCH_INVALID:
+    'La sucursal elegida no está activa o no pertenece a la organización del usuario.',
+  USER_PERSONNEL_MISSING:
+    'El usuario no tiene un legajo de personal asociado; no se le puede asignar rol ni sucursal.',
+  USER_ACCESS_UNCHANGED: 'No hay cambios de acceso para guardar.',
   VERSION_CONFLICT:
     'El rol fue modificado por otra persona. Recargá la información antes de guardar.',
 }

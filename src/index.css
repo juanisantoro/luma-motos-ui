@@ -4125,6 +4125,26 @@ a {
     gap: 10px;
   }
 
+  .operation-complete {
+    display: grid;
+    gap: 12px;
+    justify-items: center;
+  }
+
+  .operation-complete__status {
+    margin: 0;
+  }
+
+  .operation-complete .operation-complete__actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .operation-complete .field {
+    width: min(420px, 100%);
+    text-align: left;
+  }
+
   .operation-form__actions {
     position: sticky;
     z-index: 2;

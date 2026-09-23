@@ -1,7 +1,5 @@
 import {
   AlertTriangle,
-  CheckCircle2,
-  Clock3,
   CreditCard,
   FileCheck2,
   LoaderCircle,
@@ -12,7 +10,6 @@ import {
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, NetworkError } from '../../shared/api/client'
-import { StatePanel } from '../../shared/components/StatePanel'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
@@ -51,6 +48,10 @@ import {
 } from './OperationVehiclePicker'
 import { formatMoney } from './presentation'
 import { localIsoDate } from '../../shared/utils/date'
+import {
+  CreatedOperationPanel,
+  type CreatedOperationKind,
+} from './CreatedOperationPanel'
 import type {
   SalesDebt,
   SalesFinancialInstitution,
@@ -62,8 +63,8 @@ import type {
 } from './types'
 
 type Completion = {
-  kind: 'draft' | 'partial' | 'submitted'
-  number: string
+  kind: CreatedOperationKind
+  operation: SalesOperation
   message: string
 }
 
@@ -897,7 +898,7 @@ export function NewOperationPage({
         : 'La operación, el cliente y sus condiciones comerciales quedaron guardados como borrador.'
       setCompletion({
         kind: sendOperation ? 'submitted' : 'draft',
-        number: persisted.number,
+        operation: persisted,
         message: completionMessage,
       })
       void alertSuccess(completionMessage)
@@ -926,7 +927,7 @@ export function NewOperationPage({
         const partialMessage = `La operación quedó guardada como borrador, pero no se completaron todos sus datos relacionados. No vuelvas a enviarla: informá el número de operación para completar el seguimiento sin duplicarla. ${salesErrorMessage(error)}`
         setCompletion({
           kind: 'partial',
-          number: persisted.number,
+          operation: persisted,
           message: partialMessage,
         })
         void alertError(partialMessage)
@@ -947,35 +948,12 @@ export function NewOperationPage({
 
   if (completion) {
     return (
-      <StatePanel
-        icon={
-          completion.kind === 'submitted'
-            ? CheckCircle2
-            : completion.kind === 'partial'
-              ? AlertTriangle
-              : Clock3
-        }
-        title={`Operación #${completion.number}`}
-        description={completion.message}
-        action={
-          <div className="operation-complete__actions">
-            <Link
-              className="button button--primary"
-              to={`/${vehicleType === 'MOTO' ? 'motos' : 'autos'}/mis-operaciones`}
-            >
-              Ver mis operaciones
-            </Link>
-            {completion.kind !== 'partial' && (
-              <button
-                className="button button--secondary"
-                onClick={() => window.location.reload()}
-                type="button"
-              >
-                Cargar otra
-              </button>
-            )}
-          </div>
-        }
+      <CreatedOperationPanel
+        initialOperation={completion.operation}
+        kind={completion.kind}
+        message={completion.message}
+        permissions={permissions}
+        vehicleType={vehicleType}
       />
     )
   }

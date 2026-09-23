@@ -28,7 +28,33 @@ import type {
   BranchOption,
   ManagedRole,
   ManagedUser,
+  UpdateUserAccessInput,
 } from './types'
+
+const ADMIN_ROLE_CODE = 'ADMINISTRADOR'
+
+/**
+ * Sólo los campos que realmente cambian. Reenviar rol o alcance sin cambios
+ * hacía fallar el guardado (p. ej. un admin editando su propia sucursal) y
+ * mezclaba en un mismo PATCH validaciones que no correspondían al cambio.
+ */
+export function accessChanges(
+  current: Pick<ManagedUser, 'role' | 'branch' | 'globalAccess'>,
+  next: { roleCode: string; branchId: string; globalAccess: boolean },
+): UpdateUserAccessInput {
+  const changes: UpdateUserAccessInput = {}
+  if (next.roleCode && next.roleCode !== (current.role?.code ?? '')) {
+    changes.roleCode = next.roleCode
+  }
+  const nextBranchId = next.branchId || null
+  if (nextBranchId !== (current.branch?.id ?? null)) {
+    changes.branchId = nextBranchId
+  }
+  if (next.globalAccess !== current.globalAccess) {
+    changes.globalAccess = next.globalAccess
+  }
+  return changes
+}
 
 function optional(data: FormData, name: string) {
   const value = String(data.get(name) ?? '').trim()
@@ -62,7 +88,8 @@ export function UserFormPage({
   const [notice, setNotice] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [globalAccess, setGlobalAccess] = useState(false)
-  const [roleCode, setRoleCode] = useState(managedUser?.role?.code ?? '')
+  const [roleCode, setRoleCode] = useState('')
+  const [branchId, setBranchId] = useState('')
   const branchRequired = roleCode === 'VENDEDOR' || roleCode === 'CALLCENTER'
   const [createdEmail, setCreatedEmail] = useState('')
   const [confirmation, setConfirmation] = useState<'status' | 'resend' | null>(
@@ -84,6 +111,17 @@ export function UserFormPage({
       ),
     [managedUser, roles],
   )
+  const editingSelf = editing && Boolean(managedUser) && managedUser?.id === currentUser?.id
+  const targetOrganizationType =
+    managedUser?.organization.type ?? currentUser?.organization.type
+  // Espeja la regla del backend: acceso global sólo para ADMINISTRADOR de
+  // Casa Central, otorgado por un administrador global y nunca sobre sí mismo.
+  const canGrantGlobalAccess =
+    Boolean(currentUser?.globalAccess) &&
+    targetOrganizationType === 'CASA_CENTRAL' &&
+    roleCode === ADMIN_ROLE_CODE &&
+    !editingSelf
+  const showGlobalAccess = Boolean(currentUser?.globalAccess) || globalAccess
   const isManager = roleCode === 'GERENTE'
   const showManagerSection = editing && Boolean(managedUser?.personnel) && isManager && canConfigureCommissions
 
@@ -92,22 +130,35 @@ export function UserFormPage({
     const controller = new AbortController()
     setLoading(true)
     setLoadError('')
-    const requests: [
-      Promise<{ items: ManagedRole[] }>,
-      Promise<BranchOption[]>,
-      Promise<ManagedUser | null>,
-    ] = [
-      gateway.listRoles({ page: 1, limit: 100 }, controller.signal),
-      gateway.listBranches(currentUser.organization.id, controller.signal),
-      id ? gateway.getUser(id, controller.signal) : Promise.resolve(null),
-    ]
-    void Promise.all(requests)
+    const userRequest: Promise<ManagedUser | null> = id
+      ? gateway.getUser(id, controller.signal)
+      : Promise.resolve(null)
+    void userRequest
+      .then((selectedUser) => {
+        // Las sucursales válidas son las de la organización del usuario
+        // editado, no las del administrador: un admin global que edita un
+        // usuario de otra organización recibía un 400 del backend.
+        const organizationId =
+          selectedUser?.organization.id ?? currentUser.organization.id
+        const requests: [
+          Promise<{ items: ManagedRole[] }>,
+          Promise<BranchOption[]>,
+        ] = [
+          gateway.listRoles({ page: 1, limit: 100 }, controller.signal),
+          gateway.listBranches(organizationId, controller.signal),
+        ]
+        return Promise.all(requests).then(
+          ([roleResult, branchResult]) =>
+            [roleResult, branchResult, selectedUser] as const,
+        )
+      })
       .then(([roleResult, branchResult, selectedUser]) => {
         setRoles(roleResult.items)
         setBranches(branchResult)
         setManagedUser(selectedUser)
         setGlobalAccess(selectedUser?.globalAccess ?? false)
         setRoleCode(selectedUser?.role?.code ?? '')
+        setBranchId(selectedUser?.branch?.id ?? '')
         setLoading(false)
       })
       .catch((requestError: unknown) => {
@@ -182,39 +233,60 @@ export function UserFormPage({
     event.preventDefault()
     if (!currentUser) return
     const data = new FormData(event.currentTarget)
-    const branchId = optional(data, 'branchId')
-    setSubmitting(true)
     setError('')
     setNotice('')
-    try {
-      if (editing && id) {
-        const response = await gateway.updateUserAccess(id, {
-          roleCode: String(data.get('roleCode') ?? ''),
-          branchId: branchId ?? null,
-          globalAccess,
-        })
+    if (editing && id && managedUser) {
+      const changes = accessChanges(managedUser, {
+        roleCode,
+        branchId,
+        globalAccess,
+      })
+      if (Object.keys(changes).length === 0) {
+        setNotice('No hay cambios de acceso para guardar.')
+        return
+      }
+      setSubmitting(true)
+      try {
+        const response = await gateway.updateUserAccess(id, changes)
         setManagedUser(response.user)
-        const successMessage = `Acceso actualizado. ${response.revokedSessions ? `Se cerraron ${response.revokedSessions} sesiones activas.` : 'No había sesiones activas.'}`
+        setRoleCode(response.user.role?.code ?? '')
+        setBranchId(response.user.branch?.id ?? '')
+        setGlobalAccess(response.user.globalAccess)
+        const sessionsMessage = editingSelf
+          ? 'Cambiaste tu propio acceso: tus sesiones se cerraron y vas a tener que volver a ingresar.'
+          : response.revokedSessions
+            ? `Se cerraron ${response.revokedSessions} sesiones activas.`
+            : 'No había sesiones activas.'
+        const successMessage = `Acceso actualizado. ${sessionsMessage}`
         setNotice(successMessage)
         void alertSuccess(successMessage)
-      } else {
-        const fullName = `${String(data.get('firstName') ?? '').trim()} ${String(data.get('lastName') ?? '').trim()}`.trim()
-        const email = String(data.get('email') ?? '').trim().toLowerCase()
-        const employeeCode = optional(data, 'employeeCode')
-        const phone = optional(data, 'phone')
-        await gateway.createUser({
-          fullName,
-          email,
-          organizationId: currentUser.organization.id,
-          roleCode: String(data.get('roleCode') ?? ''),
-          ...(branchId ? { branchId } : {}),
-          ...(globalAccess ? { globalAccess: true } : {}),
-          ...(employeeCode ? { employeeCode } : {}),
-          ...(phone ? { phone } : {}),
-        })
-        setCreatedEmail(email)
-        void alertSuccess('Usuario creado. Se envió la contraseña temporal por email.')
+      } catch (submitError) {
+        const message = accessErrorMessage(submitError)
+        setError(message)
+        void alertError(message)
+      } finally {
+        setSubmitting(false)
       }
+      return
+    }
+    setSubmitting(true)
+    try {
+      const fullName = `${String(data.get('firstName') ?? '').trim()} ${String(data.get('lastName') ?? '').trim()}`.trim()
+      const email = String(data.get('email') ?? '').trim().toLowerCase()
+      const employeeCode = optional(data, 'employeeCode')
+      const phone = optional(data, 'phone')
+      await gateway.createUser({
+        fullName,
+        email,
+        organizationId: currentUser.organization.id,
+        roleCode,
+        ...(branchId ? { branchId } : {}),
+        ...(globalAccess ? { globalAccess: true } : {}),
+        ...(employeeCode ? { employeeCode } : {}),
+        ...(phone ? { phone } : {}),
+      })
+      setCreatedEmail(email)
+      void alertSuccess('Usuario creado. Se envió la contraseña temporal por email.')
     } catch (submitError) {
       const message = accessErrorMessage(submitError)
       setError(message)
@@ -342,10 +414,15 @@ export function UserFormPage({
           <label className="field">
             <span>Rol *</span>
             <select
-              defaultValue={managedUser?.role?.code ?? ''}
+              disabled={editingSelf}
               name="roleCode"
-              onChange={(event) => setRoleCode(event.target.value)}
+              onChange={(event) => {
+                const nextRole = event.target.value
+                setRoleCode(nextRole)
+                if (nextRole !== ADMIN_ROLE_CODE) setGlobalAccess(false)
+              }}
               required
+              value={roleCode}
             >
               <option value="" disabled>Seleccioná un rol</option>
               {visibleRoles.map((role) => <option key={role.id} value={role.code}>{role.name}{role.system ? ' · Rol base' : ''}</option>)}
@@ -354,18 +431,36 @@ export function UserFormPage({
           <label className="field">
             <span>Sucursal{branchRequired ? ' *' : ''}</span>
             <select
-              defaultValue={managedUser?.branch?.id ?? ''}
               name="branchId"
+              onChange={(event) => setBranchId(event.target.value)}
               required={branchRequired}
+              value={branchId}
             >
               <option value="">{branchRequired ? 'Seleccioná una sucursal' : 'Sin sucursal asignada'}</option>
               {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
             </select>
           </label>
-          <label className="checkbox-field access-scope">
-            <input checked={globalAccess} onChange={(event) => setGlobalAccess(event.target.checked)} type="checkbox" />
-            <span><strong>Acceso a toda la organización</strong><small>Si no se activa, el alcance queda limitado a la sucursal asignada.</small></span>
-          </label>
+          {showGlobalAccess && (
+            <label className="checkbox-field access-scope">
+              <input
+                checked={globalAccess}
+                disabled={!canGrantGlobalAccess && !globalAccess}
+                onChange={(event) => setGlobalAccess(event.target.checked)}
+                type="checkbox"
+              />
+              <span>
+                <strong>Acceso global (todas las organizaciones)</strong>
+                <small>
+                  {editingSelf
+                    ? 'No podés modificar tu propio acceso global.'
+                    : 'Sólo para el rol Administrador de Casa Central. Permite consultar y operar otras organizaciones.'}
+                </small>
+              </span>
+            </label>
+          )}
+          {editingSelf && (
+            <p className="field-hint">Estás editando tu propio usuario: podés cambiar tu sucursal, pero no tu rol ni tu acceso global.</p>
+          )}
         </div>
         {editing && (
           <div className="access-warning">

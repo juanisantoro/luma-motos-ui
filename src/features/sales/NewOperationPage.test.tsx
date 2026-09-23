@@ -22,7 +22,12 @@ const mocks = vi.hoisted(() => ({
   createTradeIn: vi.fn(),
   replacePaymentPlan: vi.fn(),
   submitOperation: vi.fn(),
+  closeOperation: vi.fn(),
+  cancelOperation: vi.fn(),
+  getOperation: vi.fn(),
+  extraPermissions: [] as string[],
   useCreditCheck: vi.fn(),
+  listUnitColors: vi.fn(),
 }))
 
 vi.mock('../auth/AuthContext', () => ({
@@ -46,16 +51,23 @@ vi.mock('../auth/AuthContext', () => ({
           'ventas.gestionar',
           'inventario.consultar',
           'proveedores.consultar',
+          ...mocks.extraPermissions,
         ],
       },
     },
   }),
 }))
 
+vi.mock('../../shared/alerts', () => ({
+  alertSuccess: vi.fn(() => Promise.resolve()),
+  alertError: vi.fn(() => Promise.resolve()),
+}))
+
 vi.mock('../stock/api', () => ({
   listSalesBranches: mocks.listBranches,
   listSalesPhysicalUnits: mocks.listUnits,
   listSalesSupplierAvailability: mocks.listAvailability,
+  listUnitColors: mocks.listUnitColors,
 }))
 
 vi.mock('../credit-checks', () => ({
@@ -94,6 +106,9 @@ vi.mock('./api', () => ({
   createSalesTradeIn: mocks.createTradeIn,
   replaceSalesPaymentPlan: mocks.replacePaymentPlan,
   submitSalesOperation: mocks.submitOperation,
+  closeSalesOperation: mocks.closeOperation,
+  cancelSalesOperation: mocks.cancelOperation,
+  getSalesOperation: mocks.getOperation,
 }))
 
 const catalogModel = {
@@ -148,6 +163,8 @@ function operation(overrides: Record<string, unknown> = {}) {
     id: 'operation-1',
     number: '105',
     rowVersion: 1,
+    status: 'BORRADOR',
+    reservation: null,
     tradeIns: [],
     ...overrides,
   }
@@ -160,11 +177,13 @@ beforeEach(() => {
   mocks.authGlobalAccess = false
   mocks.authName = 'Vendedor Uno'
   mocks.authOrganizationId = 'org-1'
+  mocks.extraPermissions = []
   mocks.useCreditCheck.mockReturnValue({
     state: { status: 'idle' },
     retry: vi.fn(),
     reset: vi.fn(),
   })
+  mocks.listUnitColors.mockResolvedValue([])
   mocks.listBranches.mockResolvedValue([{ id: 'branch-1', name: 'Centro' }])
   mocks.listUnits.mockResolvedValue([unit])
   mocks.listAvailability.mockResolvedValue([availability])
@@ -257,8 +276,11 @@ async function completeBaseData() {
   fireEvent.change(screen.getByLabelText('DNI / CI *'), {
     target: { value: '12.345.678' },
   })
-  fireEvent.change(screen.getByLabelText('Nombre y apellido *'), {
-    target: { value: 'Ana Cliente' },
+  fireEvent.change(screen.getByLabelText('Nombre *'), {
+    target: { value: 'Ana' },
+  })
+  fireEvent.change(screen.getByLabelText('Apellido *'), {
+    target: { value: 'Cliente' },
   })
   fireEvent.change(screen.getByLabelText('Teléfono *'), {
     target: { value: '11 5555-5555' },
@@ -470,8 +492,11 @@ describe('Nueva operación productiva', () => {
       target: { value: '33444555' },
     })
 
-    fireEvent.change(screen.getByLabelText('Nombre y apellido *'), {
-      target: { value: 'Cliente Existente' },
+    fireEvent.change(screen.getByLabelText('Nombre *'), {
+      target: { value: 'Cliente' },
+    })
+    fireEvent.change(screen.getByLabelText('Apellido *'), {
+      target: { value: 'Existente' },
     })
     fireEvent.change(screen.getByLabelText('Teléfono *'), {
       target: { value: '1144445555' },
@@ -559,9 +584,8 @@ describe('Nueva operación productiva', () => {
         name: 'Esta unidad acaba de ser reservada por otra operación',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText('Nombre y apellido *')).toHaveValue(
-      'Ana Cliente',
-    )
+    expect(screen.getByLabelText('Nombre *')).toHaveValue('Ana')
+    expect(screen.getByLabelText('Apellido *')).toHaveValue('Cliente')
     await user.click(
       screen.getByRole('button', { name: 'Elegir otra unidad' }),
     )
@@ -657,6 +681,82 @@ describe('Nueva operación productiva', () => {
     await user.click(within(alert as HTMLElement).getByRole('button', { name: 'Reintentar' }))
     expect(await screen.findByRole('option', { name: /VIN-001/ })).toBeInTheDocument()
     expect(mocks.listUnits).toHaveBeenCalledTimes(2)
+  })
+
+  it('ofrece enviar la operación recién guardada sin recargar y usa el rowVersion vigente', async () => {
+    renderPage()
+    const user = await completeBaseData()
+    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Operación #105' }),
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('created-operation-status')).toHaveTextContent('Borrador')
+    await user.click(screen.getByRole('button', { name: 'Enviar operación' }))
+
+    // rowVersion 3 es el que devolvió el reemplazo del plan de pago, no el
+    // 1 del alta: el panel conserva la última respuesta del backend.
+    expect(mocks.submitOperation).toHaveBeenCalledWith('operation-1', 3)
+    await waitFor(() =>
+      expect(screen.getByTestId('created-operation-status')).toHaveTextContent('Pendiente'),
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Enviar operación' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('ofrece cerrar una operación aprobada con reserva física y encadena expectedVersion', async () => {
+    mocks.extraPermissions = ['ventas.cerrar']
+    const reservation = {
+      id: 'reservation-1',
+      unitId: 'unit-1',
+      supplierAvailabilityId: null,
+      status: 'ACTIVO',
+      quantity: 1,
+      expiresAt: null,
+      releasedAt: null,
+      releaseReason: null,
+    }
+    const approved = operation({ rowVersion: 4, status: 'APROBADA', reservation })
+    mocks.submitOperation.mockResolvedValueOnce(approved)
+    mocks.closeOperation.mockResolvedValueOnce({
+      ...approved,
+      rowVersion: 5,
+      status: 'CERRADA',
+      reservation: { ...reservation, status: 'CONSUMIDA' },
+    })
+    renderPage()
+    const user = await completeBaseData()
+    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    await user.click(await screen.findByRole('button', { name: 'Enviar operación' }))
+
+    await user.click(await screen.findByRole('button', { name: 'Cerrar operación' }))
+    expect(mocks.closeOperation).toHaveBeenCalledWith('operation-1', 4)
+    await waitFor(() =>
+      expect(screen.getByTestId('created-operation-status')).toHaveTextContent('Cerrada'),
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Cerrar operación' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('recarga la operación ante un 409 para no reutilizar una versión vieja', async () => {
+    mocks.submitOperation.mockRejectedValueOnce(
+      new ApiError(409, 'Version conflict', { code: 'VERSION_CONFLICT' } as never),
+    )
+    mocks.getOperation.mockResolvedValueOnce(
+      operation({ rowVersion: 7, status: 'PENDIENTE_APROBACION' }),
+    )
+    renderPage()
+    const user = await completeBaseData()
+    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    await user.click(await screen.findByRole('button', { name: 'Enviar operación' }))
+
+    expect(mocks.getOperation).toHaveBeenCalledWith('operation-1')
+    await waitFor(() =>
+      expect(screen.getByTestId('created-operation-status')).toHaveTextContent('Pendiente'),
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('cambió mientras la tenías abierta')
   })
 
   it('preserva la operación creada cuando falla un dato relacionado', async () => {
