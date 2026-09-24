@@ -175,12 +175,15 @@ function jsonResponse(body: unknown, status = 200) {
 function mockFinanceApi(
   user: AuthUser,
   records: { purchases?: SupplierPurchase[]; incomes?: Income[]; expenses?: Expense[] },
+  branches = [branch],
 ) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url.endsWith('/auth/me')) return jsonResponse(user)
     if (url.includes('/inventory/branches')) {
-      return jsonResponse([{ ...branch, organizationId: organization.id }])
+      return jsonResponse(
+        branches.map((item) => ({ ...item, organizationId: organization.id })),
+      )
     }
     if (url.includes('/suppliers?')) return jsonResponse(supplierResponse)
     if (url.includes('/catalog/versions?')) return jsonResponse(versionResponse)
@@ -218,6 +221,47 @@ afterEach(() => {
 })
 
 describe('administración financiera', () => {
+  it('fija la sucursal de San Miguel en el alta y no ofrece otras sucursales', async () => {
+    openRoute('/compras')
+    const scopedUser: AuthUser = {
+      ...authUser(['compras.consultar', 'compras.gestionar', 'compras.costos.consultar']),
+      globalAccess: false,
+      branchScope: { allBranches: false, branches: [branch] },
+    }
+    const fetchMock = mockFinanceApi(scopedUser, { purchases: [] }, [
+      branch,
+      { id: 'branch-2', code: 'DV', name: 'Del Viso' },
+    ])
+    const user = userEvent.setup()
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'No hay resultados' })
+    await user.click(screen.getByRole('button', { name: 'Nuevo compra' }))
+    const dialog = screen.getByRole('dialog')
+    await waitFor(() => expect(within(dialog).getByLabelText('Proveedor *')).not.toBeDisabled())
+    const branchSelect = within(dialog).getByLabelText('Sucursal *')
+    expect(branchSelect).toBeDisabled()
+    expect(branchSelect).toHaveValue(branch.id)
+    expect(
+      within(branchSelect).queryByRole('option', { name: /Del Viso/ }),
+    ).not.toBeInTheDocument()
+
+    await user.selectOptions(within(dialog).getByLabelText('Proveedor *'), 'supplier-1')
+    await user.selectOptions(within(dialog).getByLabelText('Unidad / VIN'), 'unit-1')
+    await user.type(within(dialog).getByLabelText('Importe base *'), '1000')
+    await user.click(within(dialog).getByRole('button', { name: 'Guardar compra' }))
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([url, init]) =>
+        String(url).endsWith('/supplier-purchases') && init?.method === 'POST',
+      )
+      expect(call).toBeDefined()
+      expect(JSON.parse(String(call?.[1]?.body))).toMatchObject({
+        branchId: branch.id,
+      })
+    })
+  })
+
   it('explica cuándo un ingreso legado requiere conciliación', () => {
     expect(
       financialErrorMessage(

@@ -197,11 +197,19 @@ export type SalesOperationQuery = {
   limit?: number
 }
 
+export type SalesPersonBranch = {
+  id: string
+  code: string
+  name: string
+}
+
 export type SalesSeller = {
   id: string
   employeeCode: string
   fullName: string
   isCurrentUser?: boolean
+  branch?: SalesPersonBranch | null
+  branches?: SalesPersonBranch[]
 }
 
 export type SalesSellerPage = {

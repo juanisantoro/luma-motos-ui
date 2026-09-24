@@ -296,7 +296,89 @@ async function completeBaseData() {
   return user
 }
 
+async function selectSupplierAvailability() {
+  const user = userEvent.setup()
+  fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
+    target: { value: 'Proveedor Uno' },
+  })
+  await user.click(
+    await screen.findByRole('option', {
+      name: /Stock de Proveedor Uno \(2\) · Chasis al recibir/,
+    }),
+  )
+  return user
+}
+
 describe('Nueva operación productiva', () => {
+  it('fija la sucursal y oculta las de otras sucursales para un usuario de San Miguel', async () => {
+    mocks.authRoleCode = 'ADMINISTRATIVA'
+    mocks.listBranches.mockResolvedValue([
+      { id: 'branch-1', name: 'Centro' },
+      { id: 'branch-2', name: 'Del Viso' },
+    ])
+    mocks.listSellers.mockResolvedValue({
+      items: [
+        {
+          id: 'seller-1',
+          employeeCode: 'V001',
+          fullName: 'Vendedor Uno',
+          isCurrentUser: true,
+          branch: { id: 'branch-1', code: 'CENTRO', name: 'Centro' },
+          branches: [{ id: 'branch-1', code: 'CENTRO', name: 'Centro' }],
+        },
+        {
+          id: 'seller-3',
+          employeeCode: 'V003',
+          fullName: 'Vendedor Del Viso',
+          branch: { id: 'branch-2', code: 'DEL_VISO', name: 'Del Viso' },
+          branches: [{ id: 'branch-2', code: 'DEL_VISO', name: 'Del Viso' }],
+        },
+      ],
+      total: 2,
+      page: 1,
+      limit: 100,
+    })
+    renderPage()
+    await selectSupplierAvailability()
+
+    const branch = await screen.findByLabelText(/Sucursal de la operación/)
+    await waitFor(() => expect(branch).toHaveValue('branch-1'))
+    expect(branch).toBeDisabled()
+    expect(
+      within(branch).queryByRole('option', { name: 'Del Viso' }),
+    ).not.toBeInTheDocument()
+
+    const seller = await screen.findByLabelText(/Quién hizo la venta/)
+    await waitFor(() =>
+      expect(
+        within(seller).getByRole('option', { name: /Vendedor Uno/ }),
+      ).toBeInTheDocument(),
+    )
+    expect(
+      within(seller).queryByRole('option', { name: /Vendedor Del Viso/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('deja elegir sucursal a un administrador con acceso a todas', async () => {
+    mocks.authRoleCode = 'ADMINISTRADOR'
+    mocks.authHasBranch = false
+    mocks.authGlobalAccess = true
+    mocks.listBranches.mockResolvedValue([
+      { id: 'branch-1', name: 'Centro' },
+      { id: 'branch-2', name: 'Del Viso' },
+    ])
+    renderPage()
+    await selectSupplierAvailability()
+
+    const branch = await screen.findByLabelText(/Sucursal de la operación/)
+    await waitFor(() =>
+      expect(
+        within(branch).getByRole('option', { name: 'Del Viso' }),
+      ).toBeInTheDocument(),
+    )
+    expect(branch).toBeEnabled()
+  })
+
   it('muestra vendedores y contactos reales con el usuario actual seleccionado', async () => {
     renderPage()
 

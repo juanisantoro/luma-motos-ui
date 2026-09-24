@@ -2,6 +2,10 @@ import { LockKeyhole, RefreshCw } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { useAuth } from '../auth/AuthContext'
+import {
+  filterAllowedBranches,
+  isBranchSelectionLocked,
+} from '../auth/branchScope'
 import { hasPermission } from '../auth/PermissionRoute'
 import { StockWorkspace } from './StockWorkspace'
 import { stockErrorMessage } from './errors'
@@ -166,7 +170,8 @@ export function StockPage({
   return (
     <StockWorkspace
       capabilities={capabilities}
-      data={data}
+      data={{ ...data, branches: filterAllowedBranches(user, data.branches) }}
+      branchLocked={isBranchSelectionLocked(user, data.branches)}
       onCreateUnits={(input) =>
         mutateAndReload(() =>
           gateway.createUnits(input, targetOrganizationId),

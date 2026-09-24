@@ -1,6 +1,9 @@
 import { ApiError, NetworkError } from '../../shared/api/client'
+import { branchScopeErrorMessage } from '../auth/branchScope'
 
 export function salesErrorMessage(error: unknown) {
+  const branchScopeMessage = branchScopeErrorMessage(error)
+  if (branchScopeMessage) return branchScopeMessage
   if (error instanceof NetworkError) {
     return 'No pudimos conectar con el servidor. Revisá tu conexión e intentá nuevamente.'
   }

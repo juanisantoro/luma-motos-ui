@@ -17,6 +17,8 @@ type UnitFormModalProps = {
   vehicleType: VehicleKind
   catalog: CatalogModel[]
   branches: { id: string; name: string }[]
+  /** Single allowed branch: preselected and not editable. */
+  branchLocked?: boolean
   canCreateCatalog: boolean
   submitting: boolean
   error: string | null
@@ -69,6 +71,7 @@ export function UnitFormModal({
   vehicleType,
   catalog,
   branches,
+  branchLocked = false,
   canCreateCatalog,
   submitting,
   error,
@@ -456,6 +459,7 @@ export function UnitFormModal({
                         onChange={(event) =>
                           updateUnit(unit.key, { branchId: event.target.value })
                         }
+                        disabled={branchLocked}
                         required
                       >
                         <option value="">Seleccionar</option>

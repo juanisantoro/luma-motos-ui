@@ -1,7 +1,10 @@
 import { ApiError, NetworkError } from '../../shared/api/client'
+import { branchScopeErrorMessage } from '../auth/branchScope'
 import type { DecimalString, FinancialKind, FinancialStatus } from './types'
 
 export function financialErrorMessage(error: unknown) {
+  const branchScopeMessage = branchScopeErrorMessage(error)
+  if (branchScopeMessage) return branchScopeMessage
   if (error instanceof NetworkError) {
     return 'No pudimos conectar con el servidor. Revisá tu conexión e intentá nuevamente.'
   }

@@ -47,6 +47,8 @@ type FilterValue<T extends string> = T | 'ALL'
 type StockWorkspaceProps = {
   vehicleType: VehicleKind
   data: StockWorkspaceData
+  /** Scoped user with a single branch: branch selectors stay fixed. */
+  branchLocked?: boolean
   capabilities: StockCapabilities
   onCreateUnits: (input: CreateUnitsInput) => Promise<void>
   onUpsertAvailability: (input: UpsertAvailabilityInput) => Promise<void>
@@ -912,6 +914,7 @@ function SuppliesList({
 export function StockWorkspace({
   vehicleType,
   data,
+  branchLocked = false,
   capabilities,
   onCreateUnits,
   onUpsertAvailability,
@@ -1351,10 +1354,13 @@ export function StockWorkspace({
               <span className="sr-only">Sucursal</span>
               <select
                 aria-label="Sucursal"
+                disabled={branchLocked}
                 onChange={(event) => setBranchId(event.target.value)}
-                value={branchId}
+                value={branchLocked ? (data.branches[0]?.id ?? 'ALL') : branchId}
               >
-                <option value="ALL">Todas las sucursales</option>
+                {!branchLocked && (
+                  <option value="ALL">Todas las sucursales</option>
+                )}
                 {data.branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
@@ -1508,6 +1514,7 @@ export function StockWorkspace({
       {unitModal && (
         <UnitFormModal
           branches={data.branches}
+          branchLocked={branchLocked}
           canCreateCatalog={capabilities.createCatalog}
           catalog={data.catalog}
           error={actionError}

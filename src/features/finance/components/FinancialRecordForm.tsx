@@ -27,6 +27,12 @@ import type {
 } from '../types'
 import { useAuth } from '../../auth/AuthContext'
 import { hasPermission } from '../../auth/PermissionRoute'
+import {
+  branchScopeKey,
+  defaultBranchId as scopedDefaultBranchId,
+  filterAllowedBranches,
+  isBranchSelectionLocked,
+} from '../../auth/branchScope'
 
 type FinancialRecordFormProps = {
   kind: FinancialKind
@@ -80,6 +86,10 @@ export function FinancialRecordForm({
     user?.name ?? user?.email ?? '',
   )
   const [recovered, setRecovered] = useState(false)
+  // A user with a single allowed branch cannot pick another one.
+  const branchLocked = isBranchSelectionLocked(user, branches)
+  const scopeKey = branchScopeKey(user)
+  const userBranchId = user?.branch?.id ?? null
   const canViewOperations = hasPermission(
     user?.role.permissions,
     'ventas.consultar',
@@ -113,7 +123,17 @@ export function FinancialRecordForm({
     const controller = new AbortController()
     const requests: Promise<void>[] = []
     if (kind !== 'expense') {
-      requests.push(listInventoryBranches(controller.signal).then(setBranches))
+      requests.push(
+        listInventoryBranches(controller.signal).then((items) => {
+          const allowed = filterAllowedBranches(scopeKey, items)
+          setBranches(allowed)
+          setBranchId((current) =>
+            allowed.some((branch) => branch.id === current)
+              ? current
+              : scopedDefaultBranchId(scopeKey, allowed, userBranchId),
+          )
+        }),
+      )
     }
     if (kind === 'purchase') {
       requests.push(
@@ -132,7 +152,7 @@ export function FinancialRecordForm({
         if (!controller.signal.aborted) setLoadingOptions(false)
       })
     return () => controller.abort()
-  }, [canViewOperations, kind, vehicleType])
+  }, [canViewOperations, kind, scopeKey, userBranchId, vehicleType])
 
   useEffect(() => {
     const timeout = setTimeout(
@@ -328,17 +348,18 @@ export function FinancialRecordForm({
             {kind !== 'expense' && <label className="field">
               <span>Sucursal *</span>
               <select
-                name="branchId"
+                {...(branchLocked ? {} : { name: 'branchId' })}
                 value={branchId}
                 onChange={(event) => setBranchId(event.target.value)}
                 required
-                disabled={loadingOptions}
+                disabled={loadingOptions || branchLocked}
               >
                 <option value="">Seleccionar sucursal</option>
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>{branch.code} · {branch.name}</option>
                 ))}
               </select>
+              {branchLocked && <input type="hidden" name="branchId" value={branchId} />}
             </label>}
             {kind === 'purchase' && (
               <>

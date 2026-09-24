@@ -117,6 +117,7 @@ const capabilities: StockCapabilities = {
 function renderWorkspace(overrides?: {
   data?: StockWorkspaceData
   capabilities?: StockCapabilities
+  branchLocked?: boolean
 }) {
   const handlers = {
     onCreateUnits: vi.fn().mockResolvedValue(undefined),
@@ -132,6 +133,7 @@ function renderWorkspace(overrides?: {
     <StockWorkspace
       capabilities={overrides?.capabilities ?? capabilities}
       data={overrides?.data ?? data}
+      branchLocked={overrides?.branchLocked ?? false}
       vehicleType="MOTO"
       {...handlers}
     />,
@@ -140,6 +142,26 @@ function renderWorkspace(overrides?: {
 }
 
 describe('workspace de stock', () => {
+  it('fija la sucursal en filtros y altas para un usuario de una sola sucursal', async () => {
+    const user = userEvent.setup()
+    renderWorkspace({ branchLocked: true })
+
+    const filter = screen.getByRole('combobox', { name: 'Sucursal' })
+    expect(filter).toBeDisabled()
+    expect(filter).toHaveValue(branch.id)
+    expect(
+      within(filter).queryByRole('option', { name: 'Todas las sucursales' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Ingresar motos/ }))
+    const dialog = screen.getByRole('dialog', {
+      name: 'Ingresar motos al stock',
+    })
+    const unitBranch = within(dialog).getByLabelText('Sucursal unidad 1')
+    expect(unitBranch).toBeDisabled()
+    expect(unitBranch).toHaveValue(branch.id)
+  })
+
   it('filtra unidades físicas por marca o modelo', async () => {
     const user = userEvent.setup()
     renderWorkspace()

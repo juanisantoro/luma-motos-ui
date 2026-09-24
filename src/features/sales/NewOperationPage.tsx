@@ -12,6 +12,13 @@ import { Link } from 'react-router-dom'
 import { ApiError, NetworkError } from '../../shared/api/client'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { useAuth } from '../auth/AuthContext'
+import {
+  branchScopeKey,
+  defaultBranchId,
+  filterAllowedBranches,
+  filterPeopleInScope,
+  isBranchSelectionLocked,
+} from '../auth/branchScope'
 import { hasPermission } from '../auth/PermissionRoute'
 import { CreditAlert, useCreditCheck } from '../credit-checks'
 import { confirmOperationCredit, listCreditPlans } from '../credit-plans/api'
@@ -251,7 +258,6 @@ export function NewOperationPage({
     : undefined
   const peopleOrganizationId = user?.organization.id
   const isSeller = user?.role.code === 'VENDEDOR' || user?.role.code === 'CALLCENTER'
-  const hasFixedBranch = Boolean(user?.branch?.id) && !user?.globalAccess
 
   const [documentType, setDocumentType] = useState<'DNI' | 'CI'>('DNI')
   const [documentNumber, setDocumentNumber] = useState('')
@@ -289,6 +295,11 @@ export function NewOperationPage({
     'loading' | 'success' | 'error'
   >('loading')
   const [branchError, setBranchError] = useState('')
+  // Only the branches in the user's scope are offered; with a single one the
+  // selector stays fixed (the API rejects any other branch anyway).
+  const hasFixedBranch = isBranchSelectionLocked(user, branches)
+  const scopeKey = branchScopeKey(user)
+  const userBranchId = user?.branch?.id ?? null
   const [color, setColor] = useState('')
   const [colorOptions, setColorOptions] = useState<
     { id: string; name: string }[]
@@ -348,12 +359,11 @@ export function NewOperationPage({
     void listSalesBranches(organizationId, controller.signal)
       .then((items) => {
         if (controller.signal.aborted) return
-        setBranches(items)
+        const allowed = filterAllowedBranches(scopeKey, items)
+        setBranches(allowed)
         setBranchId((current) => {
-          if (items.some((branch) => branch.id === current)) return current
-          return (
-            items.find((branch) => branch.id === user?.branch?.id)?.id ?? ''
-          )
+          if (allowed.some((branch) => branch.id === current)) return current
+          return defaultBranchId(scopeKey, allowed, userBranchId)
         })
         setBranchStatus('success')
       })
@@ -365,7 +375,7 @@ export function NewOperationPage({
         setBranchStatus('error')
       })
     return () => controller.abort()
-  }, [organizationId, user?.branch?.id, vehicleLoadKey])
+  }, [organizationId, userBranchId, scopeKey, vehicleLoadKey])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -525,9 +535,10 @@ export function NewOperationPage({
       if (controller.signal.aborted) return
       const errors: string[] = []
       if (sellerResult.status === 'fulfilled') {
-        setSellers(sellerResult.value.items)
+        const scopedSellers = filterPeopleInScope(scopeKey, sellerResult.value.items)
+        setSellers(scopedSellers)
         setSellerId((current) => {
-          if (sellerResult.value.items.some((person) => person.id === current)) {
+          if (scopedSellers.some((person) => person.id === current)) {
             return current
           }
           // Default the seller to whoever is loading the sale, for every
@@ -536,16 +547,16 @@ export function NewOperationPage({
           // what this fixes is operations silently landing on a leftover
           // or wrong seller because the field defaulted to blank.
           const currentUser =
-            sellerResult.value.items.find((person) => person.isCurrentUser) ??
-            sellerResult.value.items.find(
+            scopedSellers.find((person) => person.isCurrentUser) ??
+            scopedSellers.find(
               (person) =>
                 user?.name &&
                 person.fullName.localeCompare(user.name, 'es', {
                   sensitivity: 'base',
                 }) === 0,
             ) ??
-            (isSeller && sellerResult.value.items.length === 1
-              ? sellerResult.value.items[0]
+            (isSeller && scopedSellers.length === 1
+              ? scopedSellers[0]
               : undefined)
           return currentUser?.id ?? ''
         })
@@ -554,9 +565,10 @@ export function NewOperationPage({
         errors.push(`Vendedores: ${resourceError(sellerResult.reason)}`)
       }
       if (contactResult.status === 'fulfilled') {
-        setContacts(contactResult.value.items)
+        const scopedContacts = filterPeopleInScope(scopeKey, contactResult.value.items)
+        setContacts(scopedContacts)
         setContactId((current) =>
-          contactResult.value.items.some((person) => person.id === current)
+          scopedContacts.some((person) => person.id === current)
             ? current
             : '',
         )
@@ -572,6 +584,7 @@ export function NewOperationPage({
     isSeller,
     peopleOrganizationId,
     peopleLoadKey,
+    scopeKey,
     user?.name,
   ])
 

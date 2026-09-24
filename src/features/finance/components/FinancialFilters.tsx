@@ -6,6 +6,12 @@ import {
   listInventoryBranches,
 } from '../api'
 import { financialErrorMessage } from '../format'
+import { useAuth } from '../../auth/AuthContext'
+import {
+  branchScopeKey,
+  filterAllowedBranches,
+  isBranchSelectionLocked,
+} from '../../auth/branchScope'
 import type {
   BranchOption,
   CashAccount,
@@ -36,17 +42,24 @@ export function FinancialFilters({
   value,
   onApply,
 }: FinancialFiltersProps) {
+  const { user } = useAuth()
   const [draft, setDraft] = useState(value)
   const [month, setMonth] = useState('')
   const [branches, setBranches] = useState<BranchOption[]>([])
   const [accounts, setAccounts] = useState<CashAccount[]>([])
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
   const [optionsError, setOptionsError] = useState('')
+  // Scoped users only see their branches; with one the filter stays fixed
+  // (the API already limits every list to it).
+  const branchLocked = isBranchSelectionLocked(user, branches)
+  const scopeKey = branchScopeKey(user)
 
   useEffect(() => {
     const controller = new AbortController()
     const requests: Promise<void>[] = [
-      listInventoryBranches(controller.signal).then(setBranches),
+      listInventoryBranches(controller.signal).then((items) =>
+        setBranches(filterAllowedBranches(scopeKey, items)),
+      ),
     ]
     if (kind === 'purchase') {
       requests.push(
@@ -61,7 +74,7 @@ export function FinancialFilters({
       if (!controller.signal.aborted) setOptionsError(financialErrorMessage(error))
     })
     return () => controller.abort()
-  }, [kind])
+  }, [kind, scopeKey])
 
   const change = <K extends keyof FinancialListQuery>(
     key: K,
@@ -159,10 +172,11 @@ export function FinancialFilters({
         <label className="filter-field">
           <span>Sucursal</span>
           <select
-            value={draft.branchId ?? ''}
+            value={branchLocked ? (branches[0]?.id ?? '') : (draft.branchId ?? '')}
             onChange={(event) => change('branchId', event.target.value)}
+            disabled={branchLocked}
           >
-            <option value="">Todas</option>
+            {!branchLocked && <option value="">Todas</option>}
             {branches.map((branch) => (
               <option key={branch.id} value={branch.id}>{branch.code} · {branch.name}</option>
             ))}

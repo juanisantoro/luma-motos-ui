@@ -26,6 +26,18 @@ export type AuthUser = {
     code: string
     name: string
   } | null
+  /**
+   * Branches the user can operate (main branch + acceso_personal_sucursal).
+   * `allBranches` comes from `sucursales.todas` or global access.
+   */
+  branchScope?: {
+    allBranches: boolean
+    branches: Array<{
+      id: string
+      code: string
+      name: string
+    }>
+  }
 }
 
 export type LoginCredentials = {

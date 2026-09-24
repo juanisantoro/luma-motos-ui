@@ -10,6 +10,9 @@ Object.defineProperty(window, 'innerWidth', {
 
 afterEach(() => {
   cleanup()
+  // SweetAlert mounts its dialog outside the React root, so cleanup() does
+  // not remove it and the next test would find two dialogs.
+  document.querySelectorAll('.swal2-container').forEach((node) => node.remove())
   sessionStorage.clear()
   Object.defineProperty(window, 'innerWidth', {
     configurable: true,
