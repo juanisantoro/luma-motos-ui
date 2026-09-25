@@ -1,5 +1,11 @@
-import { Unlock } from 'lucide-react'
+import { FileBadge, Unlock } from 'lucide-react'
 import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
+import {
+  licensingModeLabels,
+  licensingStatusClass,
+  licensingStatusLabels,
+  licensingWindowLabel,
+} from './licensing'
 import {
   formatMoney,
   formatOperationDate,
@@ -60,6 +66,57 @@ function isBelowList(operation: SalesOperation) {
   )
 }
 
+function rowClass(operation: SalesOperation, showLicensing: boolean) {
+  return [
+    isBelowList(operation) ? 'sales-row--below-list' : '',
+    showLicensing && operation.licensing?.overdue
+      ? 'sales-row--licensing-overdue'
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+function LicensingSummary({
+  operation,
+  onManage,
+}: {
+  operation: SalesOperation
+  onManage?: ((operation: SalesOperation) => void) | undefined
+}) {
+  const licensing = operation.licensing
+  if (!licensing) return <span>—</span>
+  return (
+    <div className="licensing-cell">
+      <strong>
+        {licensing.mode ? licensingModeLabels[licensing.mode] : 'Sin definir'}
+      </strong>
+      <span className={`status-badge ${licensingStatusClass(licensing.status)}`}>
+        {licensingStatusLabels[licensing.status]}
+      </span>
+      <small>
+        {licensing.plateLoaded
+          ? 'Patente cargada'
+          : licensingWindowLabel(licensing.estimatedFrom, licensing.estimatedTo)}
+      </small>
+      {licensing.overdue && (
+        <small className="licensing-overdue">Pasó la fecha estimada sin patente</small>
+      )}
+      {onManage && operation.status !== 'CANCELADA' && (
+        <button
+          aria-label={`Gestionar patentamiento de la operación #${operation.number}`}
+          className="button button--secondary button--compact"
+          onClick={() => onManage(operation)}
+          type="button"
+        >
+          <FileBadge size={15} />
+          Gestionar
+        </button>
+      )}
+    </div>
+  )
+}
+
 function ReleaseButton({
   operation,
   busyId,
@@ -94,11 +151,16 @@ export function SalesOperationList({
   canRelease = false,
   busyId,
   onRelease,
+  showLicensing = false,
+  onManageLicensing,
 }: {
   operations: SalesOperation[]
   canRelease?: boolean
   busyId?: string | null
   onRelease?: (operation: SalesOperation) => void
+  // Columna de patentamiento de la grilla administrativa.
+  showLicensing?: boolean
+  onManageLicensing?: (operation: SalesOperation) => void
 }) {
   const cards = useMediaQuery('(max-width: 768px)')
 
@@ -107,7 +169,7 @@ export function SalesOperationList({
       <div className="sales-card-list">
         {operations.map((operation) => (
           <article
-            className={`sales-card ${isBelowList(operation) ? 'sales-row--below-list' : ''}`}
+            className={`sales-card ${rowClass(operation, showLicensing)}`}
             key={operation.id}
           >
             <div className="sales-card__heading">
@@ -167,6 +229,23 @@ export function SalesOperationList({
                 <dt>Abastecimiento</dt>
                 <dd>{supplyStatus(operation)}</dd>
               </div>
+              {operation.ticketNumber && (
+                <div>
+                  <dt>Boleto</dt>
+                  <dd>{operation.ticketNumber}</dd>
+                </div>
+              )}
+              {showLicensing && (
+                <div>
+                  <dt>Patentamiento</dt>
+                  <dd>
+                    <LicensingSummary
+                      operation={operation}
+                      onManage={onManageLicensing}
+                    />
+                  </dd>
+                </div>
+              )}
             </dl>
             <p className="sales-card__note">
               <strong>Observación:</strong> {observation(operation)}
@@ -198,6 +277,7 @@ export function SalesOperationList({
             <th>Vendedor</th>
             <th>Estado operación</th>
             <th>Abastecimiento</th>
+            {showLicensing && <th>Patentamiento</th>}
             <th>Observación</th>
             {canRelease && (
               <th>
@@ -208,12 +288,12 @@ export function SalesOperationList({
         </thead>
         <tbody>
           {operations.map((operation) => (
-            <tr
-              className={isBelowList(operation) ? 'sales-row--below-list' : ''}
-              key={operation.id}
-            >
+            <tr className={rowClass(operation, showLicensing)} key={operation.id}>
               <td>
                 <strong>#{operation.number}</strong>
+                {operation.ticketNumber && (
+                  <small>Boleto {operation.ticketNumber}</small>
+                )}
               </td>
               <td>{formatOperationDate(operation.operationDate)}</td>
               <td>
@@ -253,6 +333,14 @@ export function SalesOperationList({
                 </span>
               </td>
               <td>{supplyStatus(operation)}</td>
+              {showLicensing && (
+                <td>
+                  <LicensingSummary
+                    operation={operation}
+                    onManage={onManageLicensing}
+                  />
+                </td>
+              )}
               <td>{observation(operation)}</td>
               {canRelease && (
                 <td>

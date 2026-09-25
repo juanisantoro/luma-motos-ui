@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   CreditCard,
   FileCheck2,
+  HardHat,
   LoaderCircle,
   RefreshCw,
   Store,
@@ -10,6 +11,10 @@ import {
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, NetworkError } from '../../shared/api/client'
+import {
+  ConfirmPreviewModal,
+  type ConfirmPreviewSection,
+} from '../../shared/components/ConfirmPreviewModal'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { useAuth } from '../auth/AuthContext'
 import {
@@ -53,6 +58,12 @@ import {
   OperationVehiclePicker,
   type OperationVehicleOption,
 } from './OperationVehiclePicker'
+import {
+  licensingEstimate,
+  licensingModeDescriptions,
+  licensingModeLabels,
+  licensingWindowLabel,
+} from './licensing'
 import { formatMoney } from './presentation'
 import { localIsoDate } from '../../shared/utils/date'
 import {
@@ -62,6 +73,7 @@ import {
 import type {
   SalesDebt,
   SalesFinancialInstitution,
+  SalesLicensingMode,
   SalesOperation,
   SalesPaymentComponentInput,
   SalesPaymentPlatform,
@@ -91,6 +103,8 @@ type FormField =
   | 'personalCreditFirstDueDate'
   | 'tradeInDescription'
   | 'tradeInAmount'
+  | 'licensingMode'
+  | 'licensingAmount'
 
 type FieldErrors = Partial<Record<FormField, string>>
 
@@ -282,6 +296,14 @@ export function NewOperationPage({
   const [personalCreditFirstDueDate, setPersonalCreditFirstDueDate] = useState('')
   const [guarantor, setGuarantor] = useState('')
   const [ticketNumber, setTicketNumber] = useState('')
+  const [includesHelmet, setIncludesHelmet] = useState(false)
+  const [licensingMode, setLicensingMode] = useState<SalesLicensingMode | ''>(
+    '',
+  )
+  const [licensingAmount, setLicensingAmount] = useState('')
+  // Acción pendiente de confirmar en la previsualización: guardar borrador
+  // (false) o guardar y enviar (true). null = formulario visible.
+  const [pendingSave, setPendingSave] = useState<boolean | null>(null)
   const [tradeInDescription, setTradeInDescription] = useState('')
   const [tradeInAmount, setTradeInAmount] = useState('')
   const [sellerId, setSellerId] = useState('')
@@ -785,6 +807,15 @@ export function NewOperationPage({
       errors.agreedPrice =
         'La combinación debe dejar un importe positivo para efectivo.'
     }
+    if (!licensingMode) {
+      errors.licensingMode = 'Elegí la modalidad de patentamiento.'
+    }
+    if (licensingMode === 'PAGA_CLIENTE' && licensingAmount.trim()) {
+      const amount = Number(licensingAmount)
+      if (!Number.isFinite(amount) || amount <= 0) {
+        errors.licensingAmount = 'Ingresá un importe mayor a cero o dejalo vacío.'
+      }
+    }
     if (creditBlocksSale) {
       errors.documentNumber =
         'El antecedente crediticio bloquea esta operación según el backend.'
@@ -821,6 +852,15 @@ export function NewOperationPage({
     }
     setFormError('')
     return true
+  }
+
+  // Guardar/Enviar primero valida y abre la previsualización; recién
+  // "Confirmar" dispara el POST.
+  const requestSave = (sendOperation: boolean) => {
+    if (!validate() || !selectedVehicle || !catalogModel || !condition || !policy) {
+      return
+    }
+    setPendingSave(sendOperation)
   }
 
   const save = async (sendOperation: boolean) => {
@@ -860,6 +900,11 @@ export function NewOperationPage({
         submit: false,
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         ...(ticketNumber.trim() ? { ticketNumber: ticketNumber.trim() } : {}),
+        includesHelmet,
+        licensingMode: licensingMode as SalesLicensingMode,
+        ...(licensingMode === 'PAGA_CLIENTE' && licensingAmount.trim()
+          ? { licensingAmount: Number(licensingAmount) }
+          : {}),
         ...(organizationId ? { organizationId } : {}),
       })
 
@@ -956,7 +1001,182 @@ export function NewOperationPage({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    void save(true)
+    requestSave(true)
+  }
+
+  const confirmPendingSave = () => {
+    if (pendingSave === null) return
+    const sendOperation = pendingSave
+    setPendingSave(null)
+    void save(sendOperation)
+  }
+
+  const previewSections = (): ConfirmPreviewSection[] => {
+    const currency = policy?.currency ?? 'ARS'
+    const money = (value: number) => formatMoney(String(value), currency)
+    const branch = branches.find((item) => item.id === branchId)
+    const seller = sellers.find((item) => item.id === sellerId)
+    const contact = contacts.find((item) => item.id === contactId)
+    const institution = financialInstitutions.find(
+      (item) => item.id === financialInstitutionId,
+    )
+    const platformLabel =
+      paymentOptions.find((option) => option.value === paymentPlatform)?.label ??
+      paymentPlatform
+    const components = paymentPlan(
+      paymentPlatform,
+      price,
+      credit,
+      financialInstitutionId,
+      tradeIn,
+      tradeInRequired ? 'pending' : undefined,
+    )
+    const componentLabels: Record<SalesPaymentComponentInput['type'], string> = {
+      EFECTIVO: 'Efectivo',
+      TRANSFERENCIA_BANCARIA: 'Transferencia',
+      TARJETA: 'Tarjeta',
+      FINANCIACION: institution
+        ? `Financiación · ${institution.name}`
+        : 'Financiación',
+      TOMA_PARTE_PAGO: 'Toma en parte de pago',
+      OTRO: 'Otro',
+    }
+    const estimate = licensingEstimate(operationDate)
+    const vehicleName = catalogModel
+      ? [catalogModel.brand, catalogModel.model, catalogModel.version]
+          .filter(Boolean)
+          .join(' ')
+      : ''
+    return [
+      {
+        title: 'Cliente',
+        rows: [
+          {
+            label: 'Nombre',
+            value: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          },
+          {
+            label: 'Documento',
+            value: `${documentType} ${normalizeDocument(documentNumber)}`,
+          },
+          { label: 'Teléfono', value: phone.trim() },
+        ],
+      },
+      {
+        title: 'Vehículo',
+        rows: [
+          { label: 'Modelo', value: vehicleName },
+          {
+            label: 'Condición',
+            value: condition === 'USADO' ? 'Usado' : 'Nuevo',
+          },
+          {
+            label: 'Origen',
+            value:
+              selectedVehicle?.source === 'PHYSICAL'
+                ? `Stock físico · chasis ${selectedVehicle.unit.vin}`
+                : selectedVehicle
+                  ? `Proveedor · ${selectedVehicle.availability.supplier.name}`
+                  : '',
+          },
+          ...(selectedVehicle?.source === 'SUPPLIER' && color.trim()
+            ? [{ label: 'Color', value: color.trim() }]
+            : []),
+        ],
+      },
+      {
+        title: 'Precio',
+        rows: [
+          {
+            label: 'Precio de lista',
+            value: policy ? formatMoney(policy.listPrice, currency) : '',
+          },
+          {
+            label: 'Precio mínimo',
+            value: policy ? formatMoney(policy.minimumPrice, currency) : '',
+          },
+          { label: 'Precio acordado', value: money(price), emphasis: belowList },
+          ...(belowList
+            ? [
+                {
+                  label: 'Debajo de lista',
+                  value: `${money(listDifference)} · requiere aprobación`,
+                  emphasis: true,
+                },
+              ]
+            : []),
+        ],
+      },
+      {
+        title: 'Plan de pago',
+        rows: [
+          { label: 'Plataforma', value: platformLabel },
+          ...components.map((component) => ({
+            label: componentLabels[component.type],
+            value: money(component.amount),
+          })),
+          ...(tradeInRequired && tradeInDescription.trim()
+            ? [{ label: 'Unidad tomada', value: tradeInDescription.trim() }]
+            : []),
+          ...(guarantor.trim()
+            ? [{ label: 'Garante', value: guarantor.trim() }]
+            : []),
+          ...(selectedPersonalCreditPlan
+            ? [
+                {
+                  label: 'Crédito personal',
+                  value: `${selectedPersonalCreditPlan.name} · ${formatCreditAmount(Number(personalCreditAmount))}`,
+                },
+              ]
+            : []),
+        ],
+      },
+      {
+        title: 'Entrega y patentamiento',
+        rows: [
+          { label: 'Casco de regalo', value: includesHelmet ? 'Sí' : 'No' },
+          {
+            label: 'Patentamiento',
+            value: licensingMode ? licensingModeLabels[licensingMode] : '',
+          },
+          ...(licensingMode === 'PAGA_CLIENTE'
+            ? [
+                {
+                  label: 'Importe de patente',
+                  value: licensingAmount.trim()
+                    ? money(Number(licensingAmount))
+                    : 'A definir cuando llegue la patente',
+                },
+              ]
+            : []),
+          {
+            label: 'Llegada estimada',
+            value: estimate
+              ? licensingWindowLabel(estimate.from, estimate.to)
+              : '',
+          },
+          {
+            label: 'Papeles entregados',
+            value: papersDelivered ? 'Sí' : 'No',
+          },
+        ],
+      },
+      {
+        title: 'Operación',
+        rows: [
+          { label: 'Fecha', value: operationDate.split('-').reverse().join('/') },
+          { label: 'Sucursal', value: branch?.name ?? '' },
+          { label: 'Vendedor', value: seller?.fullName ?? '' },
+          ...(contact ? [{ label: 'Contacto', value: contact.fullName }] : []),
+          ...(ticketNumber.trim()
+            ? [{ label: 'Número de boleto', value: ticketNumber.trim() }]
+            : []),
+          ...(notes.trim()
+            ? [{ label: 'Observaciones', value: notes.trim() }]
+            : []),
+        ],
+      },
+    ]
   }
 
   if (completion) {
@@ -976,6 +1196,20 @@ export function NewOperationPage({
       {reservationConflict && (
         <ReservationConflictModal
           onClose={() => setReservationConflict(false)}
+        />
+      )}
+      {pendingSave !== null && (
+        <ConfirmPreviewModal
+          backLabel="Volver"
+          confirmLabel={
+            pendingSave ? 'Confirmar y enviar' : 'Confirmar borrador'
+          }
+          description="Revisá lo que se va a guardar. Podés volver al formulario sin perder los datos."
+          eyebrow={pendingSave ? 'GUARDAR Y ENVIAR' : 'GUARDAR BORRADOR'}
+          onBack={() => setPendingSave(null)}
+          onConfirm={confirmPendingSave}
+          sections={previewSections()}
+          title={`Confirmá la operación de ${vehicleType === 'MOTO' ? 'moto' : 'auto'}`}
         />
       )}
       <header className="page-heading operation-page-heading">
@@ -1709,6 +1943,80 @@ export function NewOperationPage({
                   value={ticketNumber}
                 />
               </label>
+              <div className="field">
+                <span id="operation-licensing-mode-label">Patentamiento *</span>
+                <select
+                  aria-invalid={Boolean(fieldErrors.licensingMode)}
+                  aria-labelledby="operation-licensing-mode-label"
+                  data-field="licensingMode"
+                  onChange={(event) => {
+                    const mode = event.target.value as SalesLicensingMode | ''
+                    setLicensingMode(mode)
+                    if (mode !== 'PAGA_CLIENTE') {
+                      setLicensingAmount('')
+                      clearError('licensingAmount')
+                    }
+                    clearError('licensingMode')
+                  }}
+                  value={licensingMode}
+                >
+                  <option value="">Seleccionar modalidad</option>
+                  <option value="BONIFICADA">
+                    {licensingModeLabels.BONIFICADA}
+                  </option>
+                  <option value="PAGA_CLIENTE">
+                    {licensingModeLabels.PAGA_CLIENTE}
+                  </option>
+                </select>
+                {licensingMode && (
+                  <small>{licensingModeDescriptions[licensingMode]}</small>
+                )}
+                <FieldError message={fieldErrors.licensingMode} />
+              </div>
+              {licensingMode === 'PAGA_CLIENTE' && (
+                <div className="field">
+                  <span id="operation-licensing-amount-label">
+                    Importe de patente
+                  </span>
+                  <input
+                    aria-invalid={Boolean(fieldErrors.licensingAmount)}
+                    aria-labelledby="operation-licensing-amount-label"
+                    data-field="licensingAmount"
+                    min="0.01"
+                    onChange={(event) => {
+                      setLicensingAmount(event.target.value)
+                      clearError('licensingAmount')
+                    }}
+                    placeholder="Opcional"
+                    step="0.01"
+                    type="number"
+                    value={licensingAmount}
+                  />
+                  <small>Opcional. El cobro se registra cuando llega la patente.</small>
+                  <FieldError message={fieldErrors.licensingAmount} />
+                </div>
+              )}
+              <div className="field">
+                <span>Llegada estimada de la patente</span>
+                <div className="operation-readonly">
+                  {(() => {
+                    const estimate = licensingEstimate(operationDate)
+                    return estimate
+                      ? licensingWindowLabel(estimate.from, estimate.to)
+                      : 'Elegí la fecha de la operación'
+                  })()}
+                </div>
+                <small>Informativa: 10 a 15 días hábiles desde la operación.</small>
+              </div>
+              <label className="operation-check">
+                <input
+                  checked={includesHelmet}
+                  onChange={(event) => setIncludesHelmet(event.target.checked)}
+                  type="checkbox"
+                />
+                <HardHat size={17} aria-hidden="true" />
+                <span>Casco de regalo</span>
+              </label>
               <label className="operation-check">
                 <input
                   checked={papersDelivered}
@@ -1740,7 +2048,7 @@ export function NewOperationPage({
             <button
               className="button button--secondary"
               disabled={submitting}
-              onClick={() => void save(false)}
+              onClick={() => requestSave(false)}
               type="button"
             >
               Guardar borrador

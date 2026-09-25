@@ -45,6 +45,35 @@ export type SalesDebt =
   | 'ACCESORIOS'
   | 'OTRO'
 
+export type SalesLicensingMode = 'BONIFICADA' | 'PAGA_CLIENTE'
+
+export type SalesLicensingStatus =
+  | 'SIN_DEFINIR'
+  | 'COBRO_PENDIENTE'
+  | 'COBRADO'
+  | 'PAGO_PENDIENTE'
+  | 'PAGADO'
+
+export type SalesLicensing = {
+  mode: SalesLicensingMode | null
+  amount: string | null
+  status: SalesLicensingStatus
+  estimatedFrom: string | null
+  estimatedTo: string | null
+  plateLoaded: boolean
+  overdue: boolean
+  collection: {
+    status: 'SIN_REGISTRAR' | 'PENDIENTE' | 'PAGO_PARCIAL' | 'PAGADO'
+    amount: string
+    incomeIds: string[]
+  }
+  payment: {
+    status: 'SIN_REGISTRAR' | 'PENDIENTE' | 'PAGADO'
+    amount: string
+    paymentIds: string[]
+  }
+}
+
 export type SalesOperation = {
   id: string
   number: string
@@ -64,6 +93,8 @@ export type SalesOperation = {
   creditAmount: string | null
   guarantor: string | null
   ticketNumber: string | null
+  includesHelmet: boolean
+  licensing: SalesLicensing
   notes: string | null
   rowVersion: number
   organizationId: string
@@ -190,6 +221,8 @@ export type SalesOperationQuery = {
   mine?: boolean
   versionId?: string
   search?: string
+  licensingMode?: SalesLicensingMode | 'SIN_DEFINIR'
+  licensingOverdue?: boolean
   from?: string
   to?: string
   organizationId?: string
@@ -294,6 +327,9 @@ type CreateSalesOperationBase = {
   submit?: boolean
   notes?: string
   ticketNumber?: string
+  includesHelmet?: boolean
+  licensingMode: SalesLicensingMode
+  licensingAmount?: number
   organizationId?: string
 }
 
@@ -330,4 +366,13 @@ export type UpdateSalesOperationInput = {
   debt?: SalesDebt
   notes?: string | null
   ticketNumber?: string | null
+  includesHelmet?: boolean
+  licensingMode?: SalesLicensingMode
+  licensingAmount?: number | null
+}
+
+export type UpdateSalesLicensingInput = {
+  expectedVersion: number
+  mode: SalesLicensingMode
+  amount?: number | null
 }

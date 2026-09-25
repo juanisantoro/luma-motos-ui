@@ -77,6 +77,9 @@ describe('contrato API de operaciones', () => {
       papersDelivered: false,
       debt: 'NO',
       submit: true,
+      includesHelmet: true,
+      licensingMode: 'PAGA_CLIENTE',
+      licensingAmount: 85_000,
     })
 
     const [, request] = fetchMock.mock.calls[0] as [string, RequestInit]
@@ -95,6 +98,9 @@ describe('contrato API de operaciones', () => {
       papersDelivered: false,
       debt: 'NO',
       submit: true,
+      includesHelmet: true,
+      licensingMode: 'PAGA_CLIENTE',
+      licensingAmount: 85_000,
     })
   })
 

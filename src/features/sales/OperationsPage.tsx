@@ -16,14 +16,31 @@ import { listSalesOperations } from './api'
 import { releaseSalesReservation } from './api'
 import { salesErrorMessage } from './errors'
 import { alertError, alertSuccess } from '../../shared/alerts'
+import { LicensingModal } from './LicensingModal'
 import { SalesDecisionModal } from './SalesDecisionModal'
 import { SalesOperationList } from './SalesOperationList'
 import type {
+  SalesOperation,
   SalesOperationPage,
+  SalesOperationQuery,
   SalesOperationStatus,
 } from './types'
 
 type FilterStatus = SalesOperationStatus | 'TODOS'
+type LicensingFilter =
+  | 'TODAS'
+  | 'BONIFICADA'
+  | 'PAGA_CLIENTE'
+  | 'SIN_DEFINIR'
+  | 'DEMORADAS'
+
+function licensingQuery(
+  filter: LicensingFilter,
+): Pick<SalesOperationQuery, 'licensingMode' | 'licensingOverdue'> {
+  if (filter === 'TODAS') return {}
+  if (filter === 'DEMORADAS') return { licensingOverdue: true }
+  return { licensingMode: filter }
+}
 const PAGE_SIZE = 20
 
 function periodRange(period: string) {
@@ -55,6 +72,12 @@ export function OperationsPage({
   const [operationStatus, setOperationStatus] =
     useState<FilterStatus>('TODOS')
   const [period, setPeriod] = useState('')
+  const [licensingFilter, setLicensingFilter] =
+    useState<LicensingFilter>('TODAS')
+  const [licensingOperation, setLicensingOperation] =
+    useState<SalesOperation | null>(null)
+  // Grilla administrativa: la ve quien no está limitado a "mis operaciones".
+  const showLicensing = !effectiveMine
   const [refreshKey, setRefreshKey] = useState(0)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -78,6 +101,7 @@ export function OperationsPage({
           ? {}
           : { status: operationStatus }),
         ...range,
+        ...(showLicensing ? licensingQuery(licensingFilter) : {}),
         ...(effectiveMine ? { mine: true } : {}),
       },
       controller.signal,
@@ -94,7 +118,9 @@ export function OperationsPage({
     return () => controller.abort()
   }, [
     effectiveMine,
+    licensingFilter,
     operationStatus,
+    showLicensing,
     page,
     period,
     refreshKey,
@@ -195,6 +221,24 @@ export function OperationsPage({
               <option value="CERRADA">Cerrada</option>
             </select>
           </label>
+          {showLicensing && (
+            <label className="filter-field">
+              <span className="sr-only">Patentamiento</span>
+              <select
+                value={licensingFilter}
+                onChange={(event) => {
+                  setPage(1)
+                  setLicensingFilter(event.target.value as LicensingFilter)
+                }}
+              >
+                <option value="TODAS">Todo patentamiento</option>
+                <option value="BONIFICADA">Patente bonificada</option>
+                <option value="PAGA_CLIENTE">Patente paga el cliente</option>
+                <option value="SIN_DEFINIR">Patentamiento sin definir</option>
+                <option value="DEMORADAS">Patente demorada</option>
+              </select>
+            </label>
+          )}
           <label className="sales-date-field">
             <span>Período</span>
             <input
@@ -243,6 +287,7 @@ export function OperationsPage({
               description={
                 search ||
                 operationStatus !== 'TODOS' ||
+                licensingFilter !== 'TODAS' ||
                 period
                   ? 'Probá con otros términos o modificá los filtros.'
                   : `Creá la primera operación de ${vehicleNoun === 'motos' ? 'moto' : 'auto'} para iniciar este circuito comercial.`
@@ -258,6 +303,8 @@ export function OperationsPage({
                 setActionError('')
                 setRelease(operation)
               }}
+              showLicensing={showLicensing}
+              onManageLicensing={setLicensingOperation}
             />
           )}
         </div>
@@ -296,6 +343,15 @@ export function OperationsPage({
           </footer>
         )}
       </section>
+      {licensingOperation && (
+        <LicensingModal
+          globalAccess={user?.globalAccess ?? false}
+          onChanged={() => setRefreshKey((value) => value + 1)}
+          onClose={() => setLicensingOperation(null)}
+          operation={licensingOperation}
+          permissions={user?.role.permissions}
+        />
+      )}
       {release && (
         <SalesDecisionModal
           kind="release"

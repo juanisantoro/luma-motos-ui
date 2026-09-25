@@ -293,7 +293,31 @@ async function completeBaseData() {
   await waitFor(() =>
     expect(screen.getByText(/5\.000\.000/)).toBeInTheDocument(),
   )
+  chooseLicensing()
   return user
+}
+
+function chooseLicensing(mode: 'BONIFICADA' | 'PAGA_CLIENTE' = 'BONIFICADA') {
+  fireEvent.change(screen.getByLabelText('Patentamiento *'), {
+    target: { value: mode },
+  })
+}
+
+// Guardar/Enviar abre la previsualización; el POST sale recién al confirmar.
+async function confirmSave(
+  user: ReturnType<typeof userEvent.setup>,
+  action: 'Guardar borrador' | 'Guardar y enviar operación',
+) {
+  await user.click(screen.getByRole('button', { name: action }))
+  const dialog = await screen.findByRole('dialog', {
+    name: /Confirmá la operación/,
+  })
+  await user.click(
+    within(dialog).getByRole('button', {
+      name:
+        action === 'Guardar borrador' ? 'Confirmar borrador' : 'Confirmar y enviar',
+    }),
+  )
 }
 
 async function selectSupplierAvailability() {
@@ -505,9 +529,7 @@ describe('Nueva operación productiva', () => {
     })
     const closingPrice = screen.getByLabelText('Precio de cierre *')
     fireEvent.change(closingPrice, { target: { value: '4400000' } })
-    await user.click(
-      screen.getByRole('button', { name: 'Guardar y enviar operación' }),
-    )
+    await confirmSave(user, 'Guardar y enviar operación')
 
     expect(mocks.createOperation).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -549,10 +571,100 @@ describe('Nueva operación productiva', () => {
     ).toBeInTheDocument()
   })
 
+  it('exige la modalidad de patentamiento antes de previsualizar', async () => {
+    renderPage()
+    const user = await completeBaseData()
+    fireEvent.change(screen.getByLabelText('Patentamiento *'), {
+      target: { value: '' },
+    })
+    await user.click(
+      screen.getByRole('button', { name: 'Guardar y enviar operación' }),
+    )
+
+    expect(
+      await screen.findByText('Elegí la modalidad de patentamiento.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(mocks.createOperation).not.toHaveBeenCalled()
+  })
+
+  it('previsualiza lo que se va a guardar y vuelve al formulario sin perder datos', async () => {
+    renderPage()
+    const user = await completeBaseData()
+    chooseLicensing('PAGA_CLIENTE')
+    fireEvent.change(screen.getByLabelText('Importe de patente'), {
+      target: { value: '85000' },
+    })
+    await user.click(screen.getByLabelText('Casco de regalo'))
+    fireEvent.change(screen.getByLabelText('Número de boleto'), {
+      target: { value: 'B-123' },
+    })
+    await user.click(
+      screen.getByRole('button', { name: 'Guardar y enviar operación' }),
+    )
+
+    const dialog = await screen.findByRole('dialog', {
+      name: /Confirmá la operación de moto/,
+    })
+    const row = (label: string) =>
+      within(dialog).getByText(label).closest('div') as HTMLElement
+    expect(within(row('Nombre')).getByText('Ana Cliente')).toBeInTheDocument()
+    expect(within(row('Precio de lista')).getByText(/5\.000\.000/)).toBeInTheDocument()
+    expect(within(row('Precio mínimo')).getByText(/4\.500\.000/)).toBeInTheDocument()
+    expect(within(row('Precio acordado')).getByText(/5\.000\.000/)).toBeInTheDocument()
+    expect(within(row('Plataforma')).getByText('Efectivo')).toBeInTheDocument()
+    expect(within(row('Casco de regalo')).getByText('Sí')).toBeInTheDocument()
+    expect(
+      within(row('Patentamiento')).getByText('Paga el cliente'),
+    ).toBeInTheDocument()
+    expect(within(row('Importe de patente')).getByText(/85\.000/)).toBeInTheDocument()
+    expect(
+      within(row('Llegada estimada')).getByText(/Patente estimada entre/),
+    ).toBeInTheDocument()
+    expect(within(row('Sucursal')).getByText('Centro')).toBeInTheDocument()
+    expect(within(row('Vendedor')).getByText('Vendedor Uno')).toBeInTheDocument()
+    expect(within(row('Número de boleto')).getByText('B-123')).toBeInTheDocument()
+    expect(mocks.createOperation).not.toHaveBeenCalled()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Volver' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(mocks.createOperation).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Número de boleto')).toHaveValue('B-123')
+    expect(screen.getByLabelText('Casco de regalo')).toBeChecked()
+    expect(screen.getByLabelText('Importe de patente')).toHaveValue(85000)
+
+    await confirmSave(user, 'Guardar y enviar operación')
+    expect(mocks.createOperation).toHaveBeenCalledTimes(1)
+    expect(mocks.createOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includesHelmet: true,
+        licensingMode: 'PAGA_CLIENTE',
+        licensingAmount: 85_000,
+        ticketNumber: 'B-123',
+      }),
+    )
+  })
+
+  it('no envía importe de patente cuando es bonificada', async () => {
+    renderPage()
+    const user = await completeBaseData()
+    await confirmSave(user, 'Guardar borrador')
+
+    const payload = mocks.createOperation.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >
+    expect(payload).toMatchObject({
+      includesHelmet: false,
+      licensingMode: 'BONIFICADA',
+    })
+    expect(payload).not.toHaveProperty('licensingAmount')
+  })
+
   it('guarda un documento nuevo como borrador y delega al backend crear el cliente', async () => {
     renderPage()
     const user = await completeBaseData()
-    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    await confirmSave(user, 'Guardar borrador')
 
     expect(mocks.createOperation).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -604,7 +716,8 @@ describe('Nueva operación productiva', () => {
     fireEvent.change(screen.getByLabelText('Valor aceptado *'), {
       target: { value: '1000000' },
     })
-    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    chooseLicensing()
+    await confirmSave(user, 'Guardar borrador')
 
     expect(mocks.createOperation).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -659,7 +772,7 @@ describe('Nueva operación productiva', () => {
     )
     renderPage()
     const user = await completeBaseData()
-    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    await confirmSave(user, 'Guardar borrador')
 
     expect(
       await screen.findByRole('heading', {
@@ -768,7 +881,7 @@ describe('Nueva operación productiva', () => {
   it('ofrece enviar la operación recién guardada sin recargar y usa el rowVersion vigente', async () => {
     renderPage()
     const user = await completeBaseData()
-    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    await confirmSave(user, 'Guardar borrador')
 
     expect(
       await screen.findByRole('heading', { name: 'Operación #105' }),
@@ -809,7 +922,7 @@ describe('Nueva operación productiva', () => {
     })
     renderPage()
     const user = await completeBaseData()
-    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    await confirmSave(user, 'Guardar borrador')
     await user.click(await screen.findByRole('button', { name: 'Enviar operación' }))
 
     await user.click(await screen.findByRole('button', { name: 'Cerrar operación' }))
@@ -831,7 +944,7 @@ describe('Nueva operación productiva', () => {
     )
     renderPage()
     const user = await completeBaseData()
-    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    await confirmSave(user, 'Guardar borrador')
     await user.click(await screen.findByRole('button', { name: 'Enviar operación' }))
 
     expect(mocks.getOperation).toHaveBeenCalledWith('operation-1')
@@ -845,7 +958,7 @@ describe('Nueva operación productiva', () => {
     mocks.replacePaymentPlan.mockRejectedValueOnce(new NetworkError())
     renderPage()
     const user = await completeBaseData()
-    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    await confirmSave(user, 'Guardar borrador')
 
     expect(
       await screen.findByRole('heading', { name: 'Operación #105' }),

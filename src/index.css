@@ -6472,3 +6472,101 @@ a {
     padding: 18px;
   }
 }
+
+/* Previsualización genérica antes de guardar (ConfirmPreviewModal). */
+.confirm-preview-modal {
+  width: min(720px, 100%);
+}
+
+.confirm-preview__body {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.confirm-preview__section {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.confirm-preview__section h3 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.confirm-preview__section dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.confirm-preview__row {
+  display: grid;
+  grid-template-columns: minmax(120px, 38%) 1fr;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.confirm-preview__row dt {
+  color: var(--muted);
+}
+
+.confirm-preview__row dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.confirm-preview__row--emphasis dd {
+  color: var(--red);
+}
+
+@media (max-width: 560px) {
+  .confirm-preview__row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* Patentamiento en la grilla de operaciones. */
+.licensing-cell {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.licensing-cell small {
+  color: var(--muted);
+}
+
+.licensing-cell .button {
+  margin-top: 2px;
+}
+
+.licensing-overdue {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.sales-row--licensing-overdue {
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.licensing-modal {
+  width: min(620px, 100%);
+}
+
+.licensing-modal__section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.licensing-modal__section h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}

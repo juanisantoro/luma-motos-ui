@@ -12,6 +12,7 @@ import type {
   SalesOperationPage,
   SalesOperationQuery,
   ReplaceSalesPaymentPlanInput,
+  UpdateSalesLicensingInput,
   UpdateSalesOperationInput,
 } from './types'
 
@@ -188,6 +189,16 @@ export function updateSalesOperation(
   input: UpdateSalesOperationInput,
 ) {
   return request<SalesOperation>(`/sales/operations/${id}`, {
+    method: 'PATCH',
+    body: input,
+  })
+}
+
+export function updateSalesLicensing(
+  id: string,
+  input: UpdateSalesLicensingInput,
+) {
+  return request<SalesOperation>(`/sales/operations/${id}/licensing`, {
     method: 'PATCH',
     body: input,
   })
