@@ -277,6 +277,26 @@ describe('administración financiera', () => {
     ).toBe('Este ingreso requiere conciliación antes de registrar un cobro.')
   })
 
+  it('explica el motivo de un conflicto a partir del code del backend', () => {
+    const conflict = (code: string, message: string) =>
+      financialErrorMessage(new ApiError(409, 'Conflict', { code, message }))
+    expect(conflict('OVERPAYMENT', 'Collection exceeds income balance')).toBe(
+      'El importe supera el saldo pendiente.',
+    )
+    expect(
+      conflict('IDEMPOTENCY_CONFLICT', 'Idempotency key was reused'),
+    ).toBe('La operación ya fue enviada con otros datos. Actualizá y reintentá.')
+    expect(
+      financialErrorMessage(
+        new ApiError(409, 'Conflict', {
+          message: 'Income conflicts with another request',
+        }),
+      ),
+    ).toBe(
+      'Otro usuario modificó el registro al mismo tiempo. Actualizá y reintentá.',
+    )
+  })
+
   it('oculta costos y alta de compras sin el permiso sensible, también en 393 px', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 393 })
     openRoute('/compras')

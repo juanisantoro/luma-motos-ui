@@ -7,15 +7,19 @@ import { licensingFixture, operationFixture } from './licensing.fixtures'
 
 const mocks = vi.hoisted(() => ({
   updateLicensing: vi.fn(),
-  createFinancialRecord: vi.fn(),
+  collectLicensing: vi.fn(),
+  listCashAccounts: vi.fn(),
   createVehiclePayment: vi.fn(),
   listConcepts: vi.fn(),
   listProviders: vi.fn(),
 }))
 
-vi.mock('./api', () => ({ updateSalesLicensing: mocks.updateLicensing }))
+vi.mock('./api', () => ({
+  updateSalesLicensing: mocks.updateLicensing,
+  collectSalesLicensing: mocks.collectLicensing,
+}))
 vi.mock('../finance/api', () => ({
-  createFinancialRecord: mocks.createFinancialRecord,
+  listAllCashAccounts: mocks.listCashAccounts,
 }))
 vi.mock('../vehicle-payments/api', () => ({
   createVehiclePayment: mocks.createVehiclePayment,
@@ -29,7 +33,7 @@ vi.mock('../../shared/alerts', () => ({
 
 const allPermissions = [
   'ventas.patentamiento.gestionar',
-  'ingresos.gestionar',
+  'ingresos.cobrar',
   'pagos_vehiculo.gestionar',
 ]
 
@@ -55,6 +59,29 @@ beforeEach(() => {
   mocks.listConcepts.mockResolvedValue([
     { id: 'concept-seguro', name: 'Seguro' },
     { id: 'concept-patente', name: 'Patente' },
+  ])
+  const account = (
+    id: string,
+    code: string,
+    branchId: string | null,
+    currency = 'ARS',
+  ) => ({
+    id,
+    code,
+    name: `Cuenta ${code}`,
+    type: 'CAJA',
+    branchId,
+    responsiblePersonnelId: null,
+    currency,
+    active: true,
+    balance: '0.00',
+  })
+  mocks.listCashAccounts.mockResolvedValue([
+    account('hist', 'HIST-001', 'branch-1'),
+    account('other-branch', 'CAJA-DV', 'branch-2'),
+    account('usd', 'CAJA-USD', 'branch-1', 'USD'),
+    account('caja-centro', 'CAJA-CENTRO', 'branch-1'),
+    account('banco', 'BANCO', null),
   ])
   mocks.listProviders.mockResolvedValue([
     { id: 'provider-1', name: 'Gestora Carolina' },
@@ -116,28 +143,68 @@ describe('Gestión de patentamiento', () => {
     ).toBeInTheDocument()
   })
 
-  it('registra el cobro al cliente como ingreso de tipo Patente vinculado a la operación', async () => {
+  it('registra el cobro de patente y lo acredita en caja en un paso', async () => {
     const user = userEvent.setup()
-    mocks.createFinancialRecord.mockResolvedValue({ id: 'income-1' })
+    mocks.collectLicensing.mockResolvedValue(
+      operationFixture({
+        licensing: licensingFixture({ status: 'COBRADO' }),
+      }),
+    )
     const { onChanged, onClose } = renderModal()
     const form = screen.getByRole('form', { name: 'Registrar cobro al cliente' })
+    const accountSelect = within(form).getByLabelText('Cuenta de caja *')
+    await within(form).findByRole('option', { name: /CAJA-CENTRO/ })
+    // Sólo cuentas de la sucursal (o sin sucursal) y en la moneda de la
+    // operación; las históricas al final.
+    expect(
+      within(accountSelect)
+        .getAllByRole('option')
+        .map((option) => option.getAttribute('value')),
+    ).toEqual(['', 'banco', 'caja-centro', 'hist'])
+    expect(accountSelect).toHaveValue('banco')
+    await user.selectOptions(accountSelect, 'caja-centro')
     expect(within(form).getByLabelText('Importe cobrado *')).toHaveValue(85000)
     await user.click(within(form).getByRole('button', { name: 'Registrar cobro' }))
 
-    expect(mocks.createFinancialRecord).toHaveBeenCalledWith(
-      'income',
+    expect(mocks.collectLicensing).toHaveBeenCalledWith(
+      'operation-1',
       expect.objectContaining({
-        branchId: 'branch-1',
-        type: 'Patente',
-        operationId: 'operation-1',
-        unitId: 'unit-1',
-        reference: 'B-0001',
-        totalAmount: '85000.00',
+        accountId: 'caja-centro',
+        amount: '85000.00',
+        idempotencyKey: expect.any(String) as string,
       }),
     )
-    expect(screen.queryByRole('form', { name: 'Registrar pago de patente' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('form', { name: 'Registrar pago de patente' }),
+    ).not.toBeInTheDocument()
     expect(onChanged).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('reusa la misma clave si el cobro se reintenta', async () => {
+    const user = userEvent.setup()
+    mocks.collectLicensing
+      .mockRejectedValueOnce(new ApiError(503, 'unavailable'))
+      .mockResolvedValueOnce(operationFixture())
+    renderModal()
+    const form = screen.getByRole('form', { name: 'Registrar cobro al cliente' })
+    await within(form).findByRole('option', { name: /CAJA-CENTRO/ })
+    const submit = within(form).getByRole('button', { name: 'Registrar cobro' })
+    await user.click(submit)
+    await user.click(submit)
+    const keys = mocks.collectLicensing.mock.calls.map(
+      (call) => (call[1] as { idempotencyKey: string }).idempotencyKey,
+    )
+    expect(keys).toHaveLength(2)
+    expect(keys[0]).toBe(keys[1])
+  })
+
+  it('no ofrece el cobro sin el permiso de cobrar ingresos', () => {
+    renderModal(operationFixture(), ['ventas.patentamiento.gestionar'])
+    expect(
+      screen.queryByRole('form', { name: 'Registrar cobro al cliente' }),
+    ).not.toBeInTheDocument()
+    expect(mocks.listCashAccounts).not.toHaveBeenCalled()
   })
 
   it('registra el pago de una patente bonificada con el concepto Patente', async () => {

@@ -11,6 +11,7 @@ import type {
   SalesOperation,
   SalesOperationPage,
   SalesOperationQuery,
+  RegisterSalesLicensingCollectionInput,
   ReplaceSalesPaymentPlanInput,
   UpdateSalesLicensingInput,
   UpdateSalesOperationInput,
@@ -202,6 +203,16 @@ export function updateSalesLicensing(
     method: 'PATCH',
     body: input,
   })
+}
+
+export function collectSalesLicensing(
+  id: string,
+  input: RegisterSalesLicensingCollectionInput,
+) {
+  return request<SalesOperation>(
+    `/sales/operations/${id}/licensing/collections`,
+    { method: 'POST', body: input },
+  )
 }
 
 export function reserveSalesUnit(

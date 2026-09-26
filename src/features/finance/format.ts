@@ -2,6 +2,21 @@ import { ApiError, NetworkError } from '../../shared/api/client'
 import { branchScopeErrorMessage } from '../auth/branchScope'
 import type { DecimalString, FinancialKind, FinancialStatus } from './types'
 
+const financialConflictMessages: Record<string, string> = {
+  INCOME_REQUIRES_RECONCILIATION:
+    'Este ingreso requiere conciliación antes de registrar un cobro.',
+  OVERPAYMENT: 'El importe supera el saldo pendiente.',
+  ALREADY_REVERSED: 'Ese movimiento ya fue reversado.',
+  EDIT_BELOW_SETTLED:
+    'El total no puede quedar por debajo de los movimientos vigentes.',
+  IDEMPOTENCY_CONFLICT:
+    'La operación ya fue enviada con otros datos. Actualizá y reintentá.',
+  OVER_RECOVERY: 'El importe supera el saldo recuperable del gasto.',
+  RECOVERY_EXISTS: 'El gasto ya tiene un recupero registrado.',
+  EXPENSE_NOT_RECOVERABLE: 'Este gasto no está marcado como recuperable.',
+  UNBALANCED_TRANSFER: 'La transferencia entre cuentas no está balanceada.',
+}
+
 export function financialErrorMessage(error: unknown) {
   const branchScopeMessage = branchScopeErrorMessage(error)
   if (branchScopeMessage) return branchScopeMessage
@@ -15,22 +30,20 @@ export function financialErrorMessage(error: unknown) {
       return 'El registro no existe o no pertenece a tu organización.'
     }
     if (error.status === 409) {
-      if (error.details?.code === 'INCOME_REQUIRES_RECONCILIATION') {
-        return 'Este ingreso requiere conciliación antes de registrar un cobro.'
-      }
+      // El backend identifica el motivo en `code`; el `message` es texto
+      // en inglés. Se mantiene el match por mensaje como respaldo.
       const message = Array.isArray(error.details?.message)
         ? error.details.message.join(' ')
         : error.details?.message ?? ''
-      if (/income_requires_reconciliation/i.test(message)) {
-        return 'Este ingreso requiere conciliación antes de registrar un cobro.'
-      }
-      if (/overpayment/i.test(message)) return 'El importe supera el saldo pendiente.'
-      if (/already_reversed/i.test(message)) return 'Ese movimiento ya fue reversado.'
-      if (/edit_below_settled/i.test(message)) {
-        return 'El total no puede quedar por debajo de los movimientos vigentes.'
-      }
-      if (/idempotency_conflict/i.test(message)) {
-        return 'La operación ya fue enviada con otros datos. Actualizá y reintentá.'
+      const code = error.details?.code ?? ''
+      const known = financialConflictMessages[code]
+      if (known) return known
+      const byMessage = Object.entries(financialConflictMessages).find(
+        ([key]) => new RegExp(key, 'i').test(message),
+      )
+      if (byMessage) return byMessage[1]
+      if (/conflicts with another request/i.test(message)) {
+        return 'Otro usuario modificó el registro al mismo tiempo. Actualizá y reintentá.'
       }
       return 'La operación entra en conflicto con el estado actual del registro.'
     }

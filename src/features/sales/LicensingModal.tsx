@@ -5,14 +5,16 @@ import { alertSuccess } from '../../shared/alerts'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { localIsoDate } from '../../shared/utils/date'
 import { hasPermission } from '../auth/PermissionRoute'
-import { createFinancialRecord } from '../finance/api'
+import { listAllCashAccounts } from '../finance/api'
+import { newIdempotencyKey } from '../finance/format'
+import type { CashAccount } from '../finance/types'
 import {
   createVehiclePayment,
   listVehiclePaymentConcepts,
   listVehiclePaymentProviders,
 } from '../vehicle-payments/api'
 import type { CatalogOption } from '../vehicle-payments/types'
-import { updateSalesLicensing } from './api'
+import { collectSalesLicensing, updateSalesLicensing } from './api'
 import { salesErrorMessage } from './errors'
 import {
   licensingModeDescriptions,
@@ -38,6 +40,15 @@ function licensingErrorMessage(error: unknown) {
     }
     if (code === 'LICENSING_AMOUNT_NOT_ALLOWED') {
       return 'El importe sólo aplica cuando el cliente paga la patente.'
+    }
+    if (code === 'LICENSING_COLLECTION_NOT_ALLOWED') {
+      return 'Sólo se registra cobro cuando el cliente paga la patente.'
+    }
+    if (code === 'CURRENCY_MISMATCH') {
+      return 'La cuenta elegida tiene otra moneda que la operación.'
+    }
+    if (code === 'IDEMPOTENCY_CONFLICT') {
+      return 'Ese cobro ya se envió con otros datos. Cerrá y volvé a abrir la gestión.'
     }
   }
   return salesErrorMessage(error)
@@ -77,7 +88,9 @@ export function LicensingModal({
   const [operation, setOperation] = useState(initialOperation)
   const licensing = operation.licensing
   const canManage = hasPermission(permissions, 'ventas.patentamiento.gestionar')
-  const canCollect = hasPermission(permissions, 'ingresos.gestionar')
+  // Cobro en un paso: crea el ingreso y lo acredita en caja.
+  const canCollect =
+    canManage && hasPermission(permissions, 'ingresos.cobrar')
   const canPay = hasPermission(permissions, 'pagos_vehiculo.gestionar')
 
   const [mode, setMode] = useState<SalesLicensingMode | ''>(licensing.mode ?? '')
@@ -91,6 +104,13 @@ export function LicensingModal({
   const [collectionAmount, setCollectionAmount] = useState(
     licensing.amount ?? '',
   )
+  const [collectionAccountId, setCollectionAccountId] = useState('')
+  const [collectionAccounts, setCollectionAccounts] = useState<CashAccount[]>(
+    [],
+  )
+  const [accountsError, setAccountsError] = useState('')
+  // Una clave por apertura del modal: un reintento no duplica el cobro.
+  const [collectionKey] = useState(newIdempotencyKey)
 
   const [paymentDate, setPaymentDate] = useState(localIsoDate())
   const [paymentAmount, setPaymentAmount] = useState('')
@@ -134,6 +154,47 @@ export function LicensingModal({
     return () => controller.abort()
   }, [canPay, effectiveMode])
 
+  useEffect(() => {
+    if (effectiveMode !== 'PAGA_CLIENTE' || !canCollect) return
+    const controller = new AbortController()
+    setAccountsError('')
+    listAllCashAccounts(controller.signal)
+      .then((accounts) => {
+        const usable = accounts
+          .filter(
+            (account) =>
+              account.active &&
+              account.currency === operation.currency &&
+              (account.branchId === null ||
+                account.branchId === operation.branch.id),
+          )
+          // Las cuentas históricas importadas quedan al final.
+          .sort(
+            (left, right) =>
+              Number(left.code.startsWith('HIST-')) -
+                Number(right.code.startsWith('HIST-')) ||
+              left.name.localeCompare(right.name, 'es-AR'),
+          )
+        setCollectionAccounts(usable)
+        setCollectionAccountId((current) => current || usable[0]?.id || '')
+        if (!usable.length) {
+          setAccountsError(
+            'No hay cuentas de caja activas para la sucursal de la operación.',
+          )
+        }
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return
+        setAccountsError(salesErrorMessage(loadError))
+      })
+    return () => controller.abort()
+  }, [
+    canCollect,
+    effectiveMode,
+    operation.branch.id,
+    operation.currency,
+  ])
+
   const organizationScope =
     globalAccess ? { organizationId: operation.organizationId } : {}
 
@@ -174,24 +235,22 @@ export function LicensingModal({
       setError('Ingresá el importe cobrado al cliente.')
       return
     }
+    if (!collectionAccountId) {
+      setError('Elegí la cuenta de caja donde ingresa el dinero.')
+      return
+    }
     setBusy('collection')
     setError('')
     try {
-      await createFinancialRecord('income', {
-        ...organizationScope,
-        branchId: operation.branch.id,
-        incomeDate: collectionDate,
-        type: 'Patente',
-        operationId: operation.id,
-        ...(unit ? { unitId: unit.id } : {}),
-        ...(operation.ticketNumber ? { reference: operation.ticketNumber } : {}),
-        description: `Cobro de patente · operación #${operation.number}`,
-        totalAmount: value.toFixed(2),
+      const updated = await collectSalesLicensing(operation.id, {
+        idempotencyKey: collectionKey,
+        accountId: collectionAccountId,
+        amount: value.toFixed(2),
+        collectionDate,
       })
+      setOperation(updated)
       onChanged()
-      void alertSuccess(
-        'Se registró el cobro de patente. La acreditación en caja se gestiona desde Ingresos.',
-      )
+      void alertSuccess('Se registró el cobro de patente y se acreditó en caja.')
       onClose()
     } catch (saveError) {
       setError(licensingErrorMessage(saveError))
@@ -377,7 +436,23 @@ export function LicensingModal({
             onSubmit={registerCollection}
           >
             <h3>Registrar cobro al cliente</h3>
+            {accountsError && <p className="field-error">{accountsError}</p>}
             <div className="client-form-grid">
+              <label className="field field--wide">
+                <span>Cuenta de caja *</span>
+                <select
+                  onChange={(event) => setCollectionAccountId(event.target.value)}
+                  required
+                  value={collectionAccountId}
+                >
+                  <option value="">Seleccionar cuenta</option>
+                  {collectionAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.code} · {account.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="field">
                 <span>Fecha *</span>
                 <input
@@ -400,13 +475,14 @@ export function LicensingModal({
               </label>
             </div>
             <small>
-              Se registra como ingreso de tipo Patente vinculado a la
-              operación; la acreditación en caja se hace desde Ingresos.
+              Crea el ingreso de tipo Patente vinculado a la operación y lo
+              acredita en la cuenta elegida: queda cobrado sin pasar por
+              Ingresos.
             </small>
             <div className="client-modal__actions">
               <button
                 className="button button--primary"
-                disabled={busy !== null}
+                disabled={busy !== null || !collectionAccountId}
                 type="submit"
               >
                 {busy === 'collection' && (

@@ -371,6 +371,15 @@ export type UpdateSalesOperationInput = {
   licensingAmount?: number | null
 }
 
+export type RegisterSalesLicensingCollectionInput = {
+  idempotencyKey: string
+  accountId: string
+  amount: string
+  collectionDate?: string
+  reference?: string
+  notes?: string
+}
+
 export type UpdateSalesLicensingInput = {
   expectedVersion: number
   mode: SalesLicensingMode
