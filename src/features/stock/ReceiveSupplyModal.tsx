@@ -3,10 +3,27 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { localIsoDate } from '../../shared/utils/date'
 import { listUnitColors } from './api'
-import type { BranchOption, ReceiveSupplyInput, SupplyOrder } from './types'
+import type {
+  BranchOption,
+  CatalogModel,
+  ReceiveSupplyInput,
+  SupplyOrder,
+} from './types'
+
+// Lo mínimo que necesita la recepción: sirve tanto para el pedido de stock
+// como para el pedido de una operación en la bandeja de asignación.
+export type ReceivableSupply = Pick<
+  SupplyOrder,
+  'id' | 'vehicleType' | 'condition' | 'color' | 'destinationBranch'
+> & {
+  catalogModel: Pick<CatalogModel, 'brand' | 'model'>
+  supplier: { name: string }
+  estimatedCost?: string | null | undefined
+  operationNumber?: string | null | undefined
+}
 
 type ReceiveSupplyModalProps = {
-  supply: SupplyOrder
+  supply: ReceivableSupply
   branches: BranchOption[]
   submitting: boolean
   error: string | null
@@ -50,8 +67,14 @@ export function ReceiveSupplyModal({
     const data = new FormData(event.currentTarget)
     const licensePlate = String(data.get('licensePlate') ?? '').trim()
     const color = String(data.get('color') ?? '').trim()
+    const purchaseCost = String(data.get('purchaseCost') ?? '').trim()
+    const engineNumber = String(data.get('engineNumber') ?? '')
+      .trim()
+      .toUpperCase()
     onSubmit({
       vin: String(data.get('vin')).trim().toUpperCase(),
+      ...(engineNumber ? { engineNumber } : {}),
+      ...(purchaseCost ? { purchaseCost: Number(purchaseCost) } : {}),
       branchId: String(data.get('branchId')),
       year: Number(data.get('year')),
       mileage:
@@ -81,6 +104,9 @@ export function ReceiveSupplyModal({
             <p>
               {supply.catalogModel.brand} {supply.catalogModel.model} ·{' '}
               {supply.supplier.name}
+              {supply.operationNumber
+                ? ` · operación #${supply.operationNumber}`
+                : ''}
             </p>
           </div>
           <button
@@ -102,7 +128,10 @@ export function ReceiveSupplyModal({
 
         <div className="separation-note separation-note--success">
           <PackageCheck size={18} aria-hidden="true" />
-          Al confirmar se creará una unidad física identificada en la sucursal.
+          Al confirmar se creará la unidad física en la sucursal
+          {supply.operationNumber
+            ? ' y quedará asignada a la operación.'
+            : '.'}
         </div>
 
         <form onSubmit={submit}>
@@ -116,6 +145,28 @@ export function ReceiveSupplyModal({
                 autoCapitalize="characters"
                 required
               />
+            </label>
+            <label className="field">
+              <span>
+                Número de motor{supply.vehicleType === 'MOTO' ? ' *' : ''}
+              </span>
+              <input
+                name="engineNumber"
+                maxLength={60}
+                autoCapitalize="characters"
+                required={supply.vehicleType === 'MOTO'}
+              />
+            </label>
+            <label className="field">
+              <span>Costo</span>
+              <input
+                name="purchaseCost"
+                defaultValue={supply.estimatedCost ?? ''}
+                min="0"
+                step="0.01"
+                type="number"
+              />
+              <small>Proveedor del pedido: {supply.supplier.name}</small>
             </label>
             <label className="field">
               <span>Sucursal de recepción *</span>

@@ -1,3 +1,4 @@
+import { supplyFulfillmentLabel } from '../sales/fulfillment'
 import {
   Building2,
   Check,
@@ -831,7 +832,9 @@ function SuppliesList({
                         : 'warning'
                   }
                 >
-                  {supplyStatusLabels[supply.status]}
+                  {supply.vehicleType === 'MOTO'
+                    ? supplyFulfillmentLabel(supply)
+                    : supplyStatusLabels[supply.status]}
                 </Badge>
               </div>
               <dl>

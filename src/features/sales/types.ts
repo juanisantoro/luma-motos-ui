@@ -74,6 +74,24 @@ export type SalesLicensing = {
   }
 }
 
+export type SalesFulfillmentStatus =
+  | 'PENDIENTE_ASIGNACION'
+  | 'PEDIDA'
+  | 'PENDIENTE_INGRESO'
+  | 'RECIBIDA'
+  | 'ASIGNADA'
+
+export type SalesFulfillment = {
+  status: SalesFulfillmentStatus
+  supplyRequestId: string | null
+  supplyStatus: string | null
+  supplier: { id: string; legalName: string } | null
+  requestedAt: string | null
+  orderedAt: string | null
+  dispatchedAt: string | null
+  receivedAt: string | null
+}
+
 export type SalesOperation = {
   id: string
   number: string
@@ -93,6 +111,8 @@ export type SalesOperation = {
   creditAmount: string | null
   guarantor: string | null
   ticketNumber: string | null
+  requestedColor?: string | null
+  fulfillment?: SalesFulfillment
   includesHelmet: boolean
   licensing: SalesLicensing
   notes: string | null
@@ -223,6 +243,7 @@ export type SalesOperationQuery = {
   search?: string
   licensingMode?: SalesLicensingMode | 'SIN_DEFINIR'
   licensingOverdue?: boolean
+  fulfillmentStatus?: SalesFulfillmentStatus | 'SIN_ASIGNAR'
   from?: string
   to?: string
   organizationId?: string
@@ -369,6 +390,22 @@ export type UpdateSalesOperationInput = {
   includesHelmet?: boolean
   licensingMode?: SalesLicensingMode
   licensingAmount?: number | null
+}
+
+export type AssignSalesUnitInput = {
+  expectedVersion: number
+  unitId: string
+  vin?: string
+  engineNumber?: string
+}
+
+export type RequestSalesSupplyInput = {
+  expectedVersion: number
+  supplierId: string
+  color?: string
+  supplierReference?: string
+  estimatedCost?: number
+  notes?: string
 }
 
 export type RegisterSalesLicensingCollectionInput = {

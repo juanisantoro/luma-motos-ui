@@ -7,7 +7,7 @@ import {
   ShoppingCart,
 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
@@ -19,7 +19,14 @@ import { alertError, alertSuccess } from '../../shared/alerts'
 import { LicensingModal } from './LicensingModal'
 import { SalesDecisionModal } from './SalesDecisionModal'
 import { SalesOperationList } from './SalesOperationList'
+import {
+  availableUnitActions,
+  unitActionPermissions,
+  UnitFulfillmentDialogs,
+  type ActiveUnitAction,
+} from './UnitFulfillmentDialogs'
 import type {
+  SalesFulfillmentStatus,
   SalesOperation,
   SalesOperationPage,
   SalesOperationQuery,
@@ -42,6 +49,22 @@ function licensingQuery(
   return { licensingMode: filter }
 }
 const PAGE_SIZE = 20
+
+// Filtro de unidad (fase 3, sólo motos). Vive en la URL (?unidad=...) para
+// que el atajo "A asignar" del menú abra esta misma grilla ya filtrada.
+type UnitFilter = Exclude<SalesFulfillmentStatus, 'ASIGNADA'> | 'SIN_ASIGNAR'
+const UNIT_FILTERS: readonly UnitFilter[] = [
+  'SIN_ASIGNAR',
+  'PENDIENTE_ASIGNACION',
+  'PEDIDA',
+  'PENDIENTE_INGRESO',
+  'RECIBIDA',
+]
+export const UNIT_FILTER_PARAM = 'unidad'
+
+function parseUnitFilter(value: string | null): UnitFilter | null {
+  return UNIT_FILTERS.includes(value as UnitFilter) ? (value as UnitFilter) : null
+}
 
 function periodRange(period: string) {
   if (!period) return {}
@@ -78,6 +101,13 @@ export function OperationsPage({
     useState<SalesOperation | null>(null)
   // Grilla administrativa: la ve quien no está limitado a "mis operaciones".
   const showLicensing = !effectiveMine
+  const showUnitFilter = showLicensing && vehicleType === 'MOTO'
+  const [searchParams, setSearchParams] = useSearchParams()
+  const unitFilter = showUnitFilter
+    ? parseUnitFilter(searchParams.get(UNIT_FILTER_PARAM))
+    : null
+  const unitPermissions = unitActionPermissions(user?.role.permissions)
+  const [unitAction, setUnitAction] = useState<ActiveUnitAction | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -102,6 +132,7 @@ export function OperationsPage({
           : { status: operationStatus }),
         ...range,
         ...(showLicensing ? licensingQuery(licensingFilter) : {}),
+        ...(unitFilter ? { fulfillmentStatus: unitFilter } : {}),
         ...(effectiveMine ? { mine: true } : {}),
       },
       controller.signal,
@@ -125,8 +156,27 @@ export function OperationsPage({
     period,
     refreshKey,
     search,
+    unitFilter,
     vehicleType,
   ])
+
+  // El atajo del menú puede cambiar el filtro estando en otra página.
+  useEffect(() => {
+    setPage(1)
+  }, [unitFilter])
+
+  const changeUnitFilter = (value: UnitFilter | null) => {
+    setPage(1)
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (value) next.set(UNIT_FILTER_PARAM, value)
+        else next.delete(UNIT_FILTER_PARAM)
+        return next
+      },
+      { replace: true },
+    )
+  }
 
   const submitFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -239,6 +289,28 @@ export function OperationsPage({
               </select>
             </label>
           )}
+          {showUnitFilter && (
+            <label className="filter-field">
+              <span className="sr-only">Situación de la unidad</span>
+              <select
+                value={unitFilter ?? 'TODAS'}
+                onChange={(event) =>
+                  changeUnitFilter(parseUnitFilter(event.target.value))
+                }
+              >
+                <option value="TODAS">Toda situación de unidad</option>
+                <option value="SIN_ASIGNAR">Sin unidad</option>
+                <option value="PENDIENTE_ASIGNACION">
+                  Pendientes de asignar unidad
+                </option>
+                <option value="PEDIDA">Pedidas a proveedor</option>
+                <option value="PENDIENTE_INGRESO">
+                  Pendientes de ingreso del proveedor
+                </option>
+                <option value="RECIBIDA">Recibidas, falta asignar</option>
+              </select>
+            </label>
+          )}
           <label className="sales-date-field">
             <span>Período</span>
             <input
@@ -288,6 +360,7 @@ export function OperationsPage({
                 search ||
                 operationStatus !== 'TODOS' ||
                 licensingFilter !== 'TODAS' ||
+                unitFilter ||
                 period
                   ? 'Probá con otros términos o modificá los filtros.'
                   : `Creá la primera operación de ${vehicleNoun === 'motos' ? 'moto' : 'auto'} para iniciar este circuito comercial.`
@@ -305,6 +378,16 @@ export function OperationsPage({
               }}
               showLicensing={showLicensing}
               onManageLicensing={setLicensingOperation}
+              {...(showLicensing
+                ? {
+                    unitActions: (operation: SalesOperation) =>
+                      availableUnitActions(operation, unitPermissions),
+                    onUnitAction: (
+                      operation: SalesOperation,
+                      action: ActiveUnitAction['action'],
+                    ) => setUnitAction({ operation, action }),
+                  }
+                : {})}
             />
           )}
         </div>
@@ -352,6 +435,15 @@ export function OperationsPage({
           permissions={user?.role.permissions}
         />
       )}
+      <UnitFulfillmentDialogs
+        active={unitAction}
+        canEditUnit={unitPermissions.canEditUnit}
+        onClose={() => setUnitAction(null)}
+        onDone={() => {
+          setUnitAction(null)
+          setRefreshKey((value) => value + 1)
+        }}
+      />
       {release && (
         <SalesDecisionModal
           kind="release"

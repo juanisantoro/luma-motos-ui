@@ -32,14 +32,17 @@ import { formatMoney as formatCreditAmount } from '../credit-plans/format'
 import type { CreditPlan } from '../credit-plans/types'
 import {
   listSalesBranches,
+  listSalesCatalogVersions,
   listSalesPhysicalUnits,
   listSalesSupplierAvailability,
   listUnitColors,
 } from '../stock/api'
 import type {
   BranchOption,
+  CatalogModel,
   PhysicalUnit,
   SupplierAvailability,
+  VehicleCondition,
   VehicleKind,
 } from '../stock/types'
 import {
@@ -56,6 +59,7 @@ import { salesErrorMessage } from './errors'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import {
   OperationVehiclePicker,
+  optionCatalogModel,
   type OperationVehicleOption,
 } from './OperationVehiclePicker'
 import {
@@ -152,17 +156,16 @@ function resourceError(error: unknown) {
 }
 
 function selectedModel(option: OperationVehicleOption | null) {
-  if (!option) return null
-  return option.source === 'PHYSICAL'
-    ? option.unit.catalogModel
-    : option.availability.catalogModel
+  return option ? optionCatalogModel(option) : null
 }
 
-function selectedCondition(option: OperationVehicleOption | null) {
+function selectedCondition(
+  option: OperationVehicleOption | null,
+): VehicleCondition | null {
   if (!option) return null
-  return option.source === 'PHYSICAL'
-    ? option.unit.condition
-    : option.availability.condition
+  if (option.source === 'PHYSICAL') return option.unit.condition
+  if (option.source === 'SUPPLIER') return option.availability.condition
+  return 'NUEVO'
 }
 
 function FieldError({ message }: { message: string | undefined }) {
@@ -328,6 +331,11 @@ export function NewOperationPage({
   >([])
   const [colorsLoading, setColorsLoading] = useState(true)
   const [units, setUnits] = useState<PhysicalUnit[]>([])
+  // Fase 3 (sólo motos): 0 km se vende desde el catálogo; usadas, desde el
+  // stock físico. Autos sin cambios (unidad o disponibilidad de proveedor).
+  const isMoto = vehicleType === 'MOTO'
+  const [motoCondition, setMotoCondition] = useState<VehicleCondition>('NUEVO')
+  const [catalogVersions, setCatalogVersions] = useState<CatalogModel[]>([])
   const [availability, setAvailability] = useState<SupplierAvailability[]>([])
   const [vehicleLoading, setVehicleLoading] = useState(true)
   const [vehicleErrors, setVehicleErrors] = useState<
@@ -427,6 +435,7 @@ export function NewOperationPage({
 
   useEffect(() => {
     if (!vehicleSearchQuery) {
+      setCatalogVersions([])
       setUnits([])
       setAvailability([])
       setVehicleErrors([])
@@ -437,6 +446,14 @@ export function NewOperationPage({
     setVehicleLoading(true)
     setVehicleErrors([])
     void Promise.allSettled([
+      vehicleType === 'MOTO'
+        ? listSalesCatalogVersions(
+            vehicleType,
+            organizationId,
+            vehicleSearchQuery,
+            controller.signal,
+          )
+        : Promise.resolve([]),
       listSalesPhysicalUnits(
         vehicleType,
         organizationId,
@@ -452,9 +469,18 @@ export function NewOperationPage({
           )
         : Promise.resolve([]),
     ]).then(
-      ([unitResult, availabilityResult]) => {
+      ([versionResult, unitResult, availabilityResult]) => {
       if (controller.signal.aborted) return
       const errors: Array<{ source: string; message: string }> = []
+      if (versionResult.status === 'fulfilled') {
+        setCatalogVersions(versionResult.value)
+      } else {
+        setCatalogVersions([])
+        errors.push({
+          source: 'Catálogo 0 km',
+          message: resourceError(versionResult.reason),
+        })
+      }
       if (unitResult.status === 'fulfilled') {
         setUnits(unitResult.value)
       } else {
@@ -504,23 +530,60 @@ export function NewOperationPage({
   )
 
   const vehicleOptions = useMemo<OperationVehicleOption[]>(() => {
-    const physical = units
-      .filter((unit) => unit.vehicleType === vehicleType)
-      .map((unit) => ({
-        key: `unit:${unit.id}`,
-        source: 'PHYSICAL' as const,
-        unit,
-      }))
-    const supplier = availability
-      .filter(
-        (item) => item.vehicleType === vehicleType && item.quantity > 0,
-      )
-      .map((item) => ({
-        key: `availability:${item.id}`,
-        source: 'SUPPLIER' as const,
-        availability: item,
-      }))
-    const fresh = [...physical, ...supplier]
+    let fresh: OperationVehicleOption[]
+    if (isMoto && motoCondition === 'NUEVO') {
+      // 0 km: versiones del catálogo; stock y proveedores sólo de referencia.
+      fresh = catalogVersions
+        .filter((version) => version.vehicleType === vehicleType)
+        .map((version) => ({
+          key: `version:${version.id}`,
+          source: 'CATALOG' as const,
+          catalogModel: version,
+          stockCount: units.filter(
+            (unit) =>
+              unit.catalogModel.id === version.id &&
+              unit.condition === 'NUEVO' &&
+              (!branchId || unit.branch.id === branchId),
+          ).length,
+          supplierNames: [
+            ...new Set(
+              availability
+                .filter(
+                  (item) =>
+                    item.catalogModel.id === version.id &&
+                    item.condition === 'NUEVO' &&
+                    item.quantity > 0,
+                )
+                .map((item) => item.supplier.name),
+            ),
+          ],
+        }))
+    } else {
+      const physical = units
+        .filter(
+          (unit) =>
+            unit.vehicleType === vehicleType &&
+            (!isMoto || unit.condition === 'USADO'),
+        )
+        .map((unit) => ({
+          key: `unit:${unit.id}`,
+          source: 'PHYSICAL' as const,
+          unit,
+        }))
+      // Autos: además la disponibilidad de proveedores, como siempre.
+      const supplier = isMoto
+        ? []
+        : availability
+            .filter(
+              (item) => item.vehicleType === vehicleType && item.quantity > 0,
+            )
+            .map((item) => ({
+              key: `availability:${item.id}`,
+              source: 'SUPPLIER' as const,
+              availability: item,
+            }))
+      fresh = [...physical, ...supplier]
+    }
     if (
       pinnedVehicleOption &&
       !fresh.some((option) => option.key === pinnedVehicleOption.key)
@@ -528,7 +591,16 @@ export function NewOperationPage({
       return [pinnedVehicleOption, ...fresh]
     }
     return fresh
-  }, [availability, pinnedVehicleOption, units, vehicleType])
+  }, [
+    availability,
+    branchId,
+    catalogVersions,
+    isMoto,
+    motoCondition,
+    pinnedVehicleOption,
+    units,
+    vehicleType,
+  ])
 
   const selectedVehicle =
     vehicleOptions.find((option) => option.key === vehicleKey) ?? null
@@ -741,6 +813,8 @@ export function NewOperationPage({
   }
 
   const selectVehicle = (option: OperationVehicleOption) => {
+    // Re-elegir la misma opción no debe borrar el precio ya cargado.
+    if (option.key === vehicleKey) return
     setVehicleKey(option.key)
     setPinnedVehicleOption(option)
     clearError('vehicle')
@@ -887,10 +961,15 @@ export function NewOperationPage({
         ...(guarantor.trim() ? { guarantor: guarantor.trim() } : {}),
         ...(selectedVehicle.source === 'PHYSICAL'
           ? { unitId: selectedVehicle.unit.id }
-          : {
-              supplierAvailabilityId: selectedVehicle.availability.id,
-              ...(color.trim() ? { color: color.trim() } : {}),
-            }),
+          : selectedVehicle.source === 'SUPPLIER'
+            ? {
+                supplierAvailabilityId: selectedVehicle.availability.id,
+                ...(color.trim() ? { color: color.trim() } : {}),
+              }
+            : // Moto 0 km: sin unidad ni proveedor; asigna la administrativa.
+              color.trim()
+              ? { color: color.trim() }
+              : {}),
         sellerId,
         ...(contactId ? { contactId } : {}),
         operationDate,
@@ -1075,12 +1154,26 @@ export function NewOperationPage({
             value:
               selectedVehicle?.source === 'PHYSICAL'
                 ? `Stock físico · chasis ${selectedVehicle.unit.vin}`
-                : selectedVehicle
+                : selectedVehicle?.source === 'SUPPLIER'
                   ? `Proveedor · ${selectedVehicle.availability.supplier.name}`
-                  : '',
+                  : selectedVehicle?.source === 'CATALOG'
+                    ? `0 km · la unidad la asigna la administrativa (${
+                        selectedVehicle.stockCount > 0
+                          ? `${selectedVehicle.stockCount} en stock en la sucursal`
+                          : 'sin stock, se pide a proveedor'
+                      })`
+                    : '',
           },
-          ...(selectedVehicle?.source === 'SUPPLIER' && color.trim()
-            ? [{ label: 'Color', value: color.trim() }]
+          ...(selectedVehicle && selectedVehicle.source !== 'PHYSICAL' && color.trim()
+            ? [
+                {
+                  label:
+                    selectedVehicle.source === 'CATALOG'
+                      ? 'Color deseado'
+                      : 'Color',
+                  value: color.trim(),
+                },
+              ]
             : []),
         ],
       },
@@ -1337,8 +1430,32 @@ export function NewOperationPage({
               id="operation-vehicle-title"
               number={2}
               title="Vehículo y precio"
-              description="Buscá una unidad física o disponibilidad real de proveedor."
+              description={
+                isMoto
+                  ? 'Moto 0 km: elegí la versión del catálogo. Moto usada: elegí la unidad en stock.'
+                  : 'Buscá una unidad física o disponibilidad real de proveedor.'
+              }
             />
+            {isMoto && (
+              <label className="field">
+                <span>Condición *</span>
+                <select
+                  aria-label="Condición"
+                  onChange={(event) => {
+                    setMotoCondition(event.target.value as VehicleCondition)
+                    // Cambia el origen (catálogo o stock): se vuelve a elegir.
+                    setVehicleKey('')
+                    setPinnedVehicleOption(null)
+                    setPolicy(null)
+                    setAgreedPrice('')
+                  }}
+                  value={motoCondition}
+                >
+                  <option value="NUEVO">0 km (catálogo)</option>
+                  <option value="USADO">Usada (stock)</option>
+                </select>
+              </label>
+            )}
             <OperationVehiclePicker
               errors={vehicleErrorsWithBranches}
               loading={vehicleLoading}
@@ -1368,7 +1485,9 @@ export function NewOperationPage({
                     {condition === 'NUEVO' ? 'Nuevo' : 'Usado'} ·{' '}
                     {selectedVehicle.source === 'PHYSICAL'
                       ? `Stock físico · ${selectedVehicle.unit.branch.name}`
-                      : `Stock de ${selectedVehicle.availability.supplier.name} (${selectedVehicle.availability.quantity}) · Chasis al recibir`}
+                      : selectedVehicle.source === 'SUPPLIER'
+                        ? `Stock de ${selectedVehicle.availability.supplier.name} (${selectedVehicle.availability.quantity}) · Chasis al recibir`
+                        : 'La unidad la asigna la administrativa'}
                   </span>
                 </div>
                 <dl>
@@ -1377,7 +1496,11 @@ export function NewOperationPage({
                     <dd>
                       {selectedVehicle.source === 'PHYSICAL'
                         ? 'Unidad física'
-                        : 'Disponibilidad proveedor'}
+                        : selectedVehicle.source === 'SUPPLIER'
+                          ? 'Disponibilidad proveedor'
+                          : selectedVehicle.stockCount > 0
+                            ? `0 km · ${selectedVehicle.stockCount} en stock`
+                            : '0 km · a pedir a proveedor'}
                     </dd>
                   </div>
                   <div>
@@ -1385,7 +1508,9 @@ export function NewOperationPage({
                     <dd>
                       {selectedVehicle.source === 'PHYSICAL'
                         ? selectedVehicle.unit.vin
-                        : 'Pendiente al recibir'}
+                        : selectedVehicle.source === 'SUPPLIER'
+                          ? 'Pendiente al recibir'
+                          : 'Al asignar la unidad'}
                     </dd>
                   </div>
                 </dl>
@@ -1436,9 +1561,17 @@ export function NewOperationPage({
 
             {selectedVehicle && selectedVehicle.source !== 'PHYSICAL' && (
               <label className="field">
-                <span>Color solicitado (opcional)</span>
+                <span>
+                  {selectedVehicle.source === 'CATALOG'
+                    ? 'Color deseado (opcional)'
+                    : 'Color solicitado (opcional)'}
+                </span>
                 <select
-                  aria-label="Color solicitado al proveedor"
+                  aria-label={
+                    selectedVehicle.source === 'CATALOG'
+                      ? 'Color deseado'
+                      : 'Color solicitado al proveedor'
+                  }
                   disabled={colorsLoading}
                   onChange={(event) => setColor(event.target.value)}
                   value={color}
@@ -1453,8 +1586,9 @@ export function NewOperationPage({
                   ))}
                 </select>
                 <small>
-                  Se guarda en el pedido y queda precargado al recibir la
-                  unidad.
+                  {selectedVehicle.source === 'CATALOG'
+                    ? 'Se usa al elegir la unidad o al pedirla al proveedor.'
+                    : 'Se guarda en el pedido y queda precargado al recibir la unidad.'}
                 </small>
               </label>
             )}
@@ -1930,9 +2064,11 @@ export function NewOperationPage({
                 <div className="operation-readonly">
                   {selectedVehicle?.source === 'PHYSICAL'
                     ? selectedVehicle.unit.vin
-                    : selectedVehicle
-                      ? 'Pendiente al recibir'
-                      : 'Seleccioná un vehículo'}
+                    : selectedVehicle?.source === 'CATALOG'
+                      ? 'Lo asigna la administrativa'
+                      : selectedVehicle
+                        ? 'Pendiente al recibir'
+                        : 'Seleccioná un vehículo'}
                 </div>
               </div>
               <label className="field">

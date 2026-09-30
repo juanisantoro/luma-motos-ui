@@ -124,6 +124,8 @@ export type SupplyOrder = {
   color: string | null
   destinationBranch: BranchOption
   requestedAt: string | null
+  orderedAt?: string | null
+  estimatedCost?: string | null
   operation: {
     id: string
     number: string | null
@@ -213,6 +215,8 @@ export type UpdateCatalogModelInput = {
 
 export type ReceiveSupplyInput = {
   vin: string
+  engineNumber?: string
+  purchaseCost?: number
   branchId: string
   year: number
   mileage: number

@@ -9,11 +9,34 @@ import {
   Warehouse,
 } from 'lucide-react'
 import { useMemo } from 'react'
-import type { PhysicalUnit, SupplierAvailability } from '../stock/types'
+import type {
+  CatalogModel,
+  PhysicalUnit,
+  SupplierAvailability,
+} from '../stock/types'
 
+// PHYSICAL: unidad en stock (autos y motos usadas).
+// SUPPLIER: disponibilidad de proveedor (autos, sin cambios).
+// CATALOG: versión del catálogo para motos 0 km (fase 3): la unidad la
+// asigna después la administrativa; stock y proveedores son referencia.
 export type OperationVehicleOption =
   | { key: string; source: 'PHYSICAL'; unit: PhysicalUnit }
   | { key: string; source: 'SUPPLIER'; availability: SupplierAvailability }
+  | {
+      key: string
+      source: 'CATALOG'
+      catalogModel: CatalogModel
+      stockCount: number
+      supplierNames: string[]
+    }
+
+export function optionCatalogModel(option: OperationVehicleOption) {
+  return option.source === 'PHYSICAL'
+    ? option.unit.catalogModel
+    : option.source === 'SUPPLIER'
+      ? option.availability.catalogModel
+      : option.catalogModel
+}
 
 type VehicleSourceError = {
   source: string
@@ -21,11 +44,19 @@ type VehicleSourceError = {
 }
 
 function versionLabel(option: OperationVehicleOption) {
-  const model =
-    option.source === 'PHYSICAL'
-      ? option.unit.catalogModel
-      : option.availability.catalogModel
+  const model = optionCatalogModel(option)
   return [model.brand, model.model, model.version].filter(Boolean).join(' ')
+}
+
+function catalogHint(option: { stockCount: number; supplierNames: string[] }) {
+  const stock =
+    option.stockCount > 0
+      ? `${option.stockCount} en stock en la sucursal`
+      : 'Sin stock en la sucursal'
+  const suppliers = option.supplierNames.length
+    ? ` · Disponible en ${option.supplierNames.join(', ')}`
+    : ''
+  return `${stock}${suppliers}`
 }
 
 export function vehicleOptionSearchText(option: OperationVehicleOption) {
@@ -41,6 +72,9 @@ export function vehicleOptionSearchText(option: OperationVehicleOption) {
     ]
       .filter(Boolean)
       .join(' ')
+  }
+  if (option.source === 'CATALOG') {
+    return [versionLabel(option), ...option.supplierNames, '0 km'].join(' ')
   }
   const { availability } = option
   return [
@@ -152,6 +186,31 @@ export function OperationVehiclePicker({
           >
             {filtered.map((option) => {
               const selected = selectedKey === option.key
+              if (option.source === 'CATALOG') {
+                const inStock = option.stockCount > 0
+                return (
+                  <button
+                    aria-selected={selected}
+                    className={selected ? 'is-selected' : ''}
+                    key={option.key}
+                    onClick={() => onSelect(option)}
+                    role="option"
+                    type="button"
+                  >
+                    <span className="operation-vehicle-results__icon">
+                      {inStock ? <Warehouse size={19} /> : <Store size={19} />}
+                    </span>
+                    <span>
+                      <strong>{versionLabel(option)}</strong>
+                      <small>0 km · {catalogHint(option)}</small>
+                    </span>
+                    <span className="operation-vehicle-results__source">
+                      {inStock ? 'Hay stock' : 'A pedir'}
+                    </span>
+                    {selected && <CheckCircle2 size={19} aria-hidden="true" />}
+                  </button>
+                )
+              }
               const physical = option.source === 'PHYSICAL'
               const branch = physical ? option.unit.branch.name : null
               const supplier = physical ? null : option.availability.supplier.name

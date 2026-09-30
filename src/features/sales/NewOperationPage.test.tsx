@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   authOrganizationId: 'org-1',
   listBranches: vi.fn(),
   listUnits: vi.fn(),
+  listCatalogVersions: vi.fn(),
   listAvailability: vi.fn(),
   listSellers: vi.fn(),
   listContacts: vi.fn(),
@@ -66,6 +67,7 @@ vi.mock('../../shared/alerts', () => ({
 vi.mock('../stock/api', () => ({
   listSalesBranches: mocks.listBranches,
   listSalesPhysicalUnits: mocks.listUnits,
+  listSalesCatalogVersions: mocks.listCatalogVersions,
   listSalesSupplierAvailability: mocks.listAvailability,
   listUnitColors: mocks.listUnitColors,
 }))
@@ -186,6 +188,7 @@ beforeEach(() => {
   mocks.listUnitColors.mockResolvedValue([])
   mocks.listBranches.mockResolvedValue([{ id: 'branch-1', name: 'Centro' }])
   mocks.listUnits.mockResolvedValue([unit])
+  mocks.listCatalogVersions.mockResolvedValue([catalogModel, autoCatalogModel])
   mocks.listAvailability.mockResolvedValue([availability])
   mocks.listSellers.mockResolvedValue({
     items: [
@@ -286,9 +289,9 @@ async function completeBaseData() {
     target: { value: '11 5555-5555' },
   })
   fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
-    target: { value: 'VIN-001' },
+    target: { value: 'Wave' },
   })
-  const option = await screen.findByRole('option', { name: /VIN-001/ })
+  const option = await screen.findByRole('option', { name: /Honda Wave 110 S/ })
   await user.click(option)
   await waitFor(() =>
     expect(screen.getByText(/5\.000\.000/)).toBeInTheDocument(),
@@ -320,15 +323,13 @@ async function confirmSave(
   )
 }
 
-async function selectSupplierAvailability() {
+async function selectVersion() {
   const user = userEvent.setup()
   fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
-    target: { value: 'Proveedor Uno' },
+    target: { value: 'Wave' },
   })
   await user.click(
-    await screen.findByRole('option', {
-      name: /Stock de Proveedor Uno \(2\) · Chasis al recibir/,
-    }),
+    await screen.findByRole('option', { name: /Honda Wave 110 S/ }),
   )
   return user
 }
@@ -363,7 +364,7 @@ describe('Nueva operación productiva', () => {
       limit: 100,
     })
     renderPage()
-    await selectSupplierAvailability()
+    await selectVersion()
 
     const branch = await screen.findByLabelText(/Sucursal de la operación/)
     await waitFor(() => expect(branch).toHaveValue('branch-1'))
@@ -392,7 +393,7 @@ describe('Nueva operación productiva', () => {
       { id: 'branch-2', name: 'Del Viso' },
     ])
     renderPage()
-    await selectSupplierAvailability()
+    await selectVersion()
 
     const branch = await screen.findByLabelText(/Sucursal de la operación/)
     await waitFor(() =>
@@ -544,7 +545,6 @@ describe('Nueva operación productiva', () => {
         versionId: 'version-1',
         sellerId: 'seller-1',
         contactId: 'contact-2',
-        unitId: 'unit-1',
         agreedPrice: 4_400_000,
         paymentPlatform: 'EFECTIVO_CREDITO',
         creditAmount: 1_000_000,
@@ -679,7 +679,7 @@ describe('Nueva operación productiva', () => {
     ).toBeInTheDocument()
   })
 
-  it('registra disponibilidad de proveedor y parte de pago con disclosure progresivo', async () => {
+  it('registra parte de pago con disclosure progresivo', async () => {
     renderPage()
     const user = userEvent.setup()
     fireEvent.change(screen.getByLabelText('DNI / CI *'), {
@@ -696,12 +696,10 @@ describe('Nueva operación productiva', () => {
       target: { value: '1144445555' },
     })
     fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
-      target: { value: 'Proveedor Uno' },
+      target: { value: 'Wave' },
     })
     await user.click(
-      await screen.findByRole('option', {
-        name: /Stock de Proveedor Uno \(2\) · Chasis al recibir/,
-      }),
+      await screen.findByRole('option', { name: /Honda Wave 110 S/ }),
     )
     await waitFor(() => expect(screen.getByText(/5\.000\.000/)).toBeInTheDocument())
     expect(screen.queryByLabelText('Unidad recibida como parte de pago *')).not.toBeInTheDocument()
@@ -721,7 +719,6 @@ describe('Nueva operación productiva', () => {
 
     expect(mocks.createOperation).toHaveBeenCalledWith(
       expect.objectContaining({
-        supplierAvailabilityId: 'availability-1',
         client: expect.objectContaining({ fullName: 'Cliente Existente' }),
       }),
     )
@@ -749,9 +746,10 @@ describe('Nueva operación productiva', () => {
     )
   })
 
-  it('no ofrece pedidos sintéticos cuando no hay disponibilidad informada', async () => {
+  it('no inventa versiones cuando el catálogo no tiene coincidencias', async () => {
     mocks.listAvailability.mockResolvedValue([])
     mocks.listUnits.mockResolvedValue([])
+    mocks.listCatalogVersions.mockResolvedValue([])
     renderPage()
     fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
       target: { value: 'Wave 110' },
@@ -764,14 +762,111 @@ describe('Nueva operación productiva', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('invalida sólo la unidad perdida ante una reserva concurrente 409', async () => {
+  it('vende una moto 0 km desde el catálogo sin elegir unidad ni proveedor', async () => {
+    renderPage()
+    const user = userEvent.setup()
+    expect(screen.getByLabelText('Condición')).toHaveValue('NUEVO')
+    fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
+      target: { value: 'Wave' },
+    })
+    const option = await screen.findByRole('option', { name: /Honda Wave 110 S/ })
+    // Stock y disponibilidad sólo como referencia.
+    expect(option).toHaveTextContent('0 km · 1 en stock en la sucursal')
+    expect(option).toHaveTextContent('Disponible en Proveedor Uno')
+    expect(
+      screen.queryByRole('option', { name: /VIN-001/ }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('option', { name: /Stock de Proveedor Uno/ }),
+    ).not.toBeInTheDocument()
+    await user.click(option)
+
+    const user2 = await completeBaseData()
+    await confirmSave(user2, 'Guardar borrador')
+    const payload = mocks.createOperation.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >
+    expect(payload).toMatchObject({
+      versionId: 'version-1',
+      condition: 'NUEVO',
+      branchId: 'branch-1',
+    })
+    expect(payload).not.toHaveProperty('unitId')
+    expect(payload).not.toHaveProperty('supplierAvailabilityId')
+  })
+
+  it('vende una moto usada eligiendo la unidad en stock', async () => {
+    mocks.listUnits.mockResolvedValue([
+      unit,
+      { ...unit, id: 'used-unit', condition: 'USADO', vin: 'USED-VIN-9' },
+    ])
+    renderPage()
+    const user = userEvent.setup()
+    await user.selectOptions(screen.getByLabelText('Condición'), 'USADO')
+    fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
+      target: { value: 'Wave' },
+    })
+    await user.click(await screen.findByRole('option', { name: /USED-VIN-9/ }))
+    // Sólo unidades usadas en stock, sin catálogo ni proveedores.
+    expect(screen.queryByRole('option', { name: /VIN-001/ })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('option', { name: /Hay stock|A pedir/ }),
+    ).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('DNI / CI *'), {
+      target: { value: '12.345.678' },
+    })
+    fireEvent.change(screen.getByLabelText('Nombre *'), {
+      target: { value: 'Ana' },
+    })
+    fireEvent.change(screen.getByLabelText('Apellido *'), {
+      target: { value: 'Cliente' },
+    })
+    fireEvent.change(screen.getByLabelText('Teléfono *'), {
+      target: { value: '11 5555-5555' },
+    })
+    await waitFor(() =>
+      expect(screen.getByText(/5\.000\.000/)).toBeInTheDocument(),
+    )
+    chooseLicensing()
+    await confirmSave(user, 'Guardar borrador')
+    expect(mocks.createOperation).toHaveBeenCalledWith(
+      expect.objectContaining({ unitId: 'used-unit', condition: 'USADO' }),
+    )
+  })
+
+  it('invalida sólo la unidad usada perdida ante una reserva concurrente 409', async () => {
+    mocks.listUnits.mockResolvedValue([
+      { ...unit, id: 'used-unit', condition: 'USADO', vin: 'USED-VIN-9' },
+    ])
     mocks.createOperation.mockRejectedValueOnce(
       new ApiError(409, 'already reserved', {
         code: 'INVENTORY_UNIT_ALREADY_RESERVED',
       }),
     )
     renderPage()
-    const user = await completeBaseData()
+    const user = userEvent.setup()
+    await user.selectOptions(screen.getByLabelText('Condición'), 'USADO')
+    fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
+      target: { value: 'Wave' },
+    })
+    await user.click(await screen.findByRole('option', { name: /USED-VIN-9/ }))
+    fireEvent.change(screen.getByLabelText('DNI / CI *'), {
+      target: { value: '12.345.678' },
+    })
+    fireEvent.change(screen.getByLabelText('Nombre *'), {
+      target: { value: 'Ana' },
+    })
+    fireEvent.change(screen.getByLabelText('Apellido *'), {
+      target: { value: 'Cliente' },
+    })
+    fireEvent.change(screen.getByLabelText('Teléfono *'), {
+      target: { value: '11 5555-5555' },
+    })
+    await waitFor(() =>
+      expect(screen.getByText(/5\.000\.000/)).toBeInTheDocument(),
+    )
+    chooseLicensing()
     await confirmSave(user, 'Guardar borrador')
 
     expect(
@@ -780,7 +875,6 @@ describe('Nueva operación productiva', () => {
       }),
     ).toBeInTheDocument()
     expect(screen.getByLabelText('Nombre *')).toHaveValue('Ana')
-    expect(screen.getByLabelText('Apellido *')).toHaveValue('Cliente')
     await user.click(
       screen.getByRole('button', { name: 'Elegir otra unidad' }),
     )
@@ -855,6 +949,36 @@ describe('Nueva operación productiva', () => {
       expect.any(AbortSignal),
     )
     expect(screen.queryByText('Honda Wave 110 S')).not.toBeInTheDocument()
+    // AUTO no usa el catálogo de motos 0 km ni el selector de condición.
+    expect(mocks.listCatalogVersions).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('Condición')).not.toBeInTheDocument()
+  })
+
+  it('mantiene la venta de AUTO desde disponibilidad de proveedor', async () => {
+    mocks.listUnits.mockResolvedValue([])
+    mocks.listAvailability.mockResolvedValue([
+      {
+        ...availability,
+        id: 'auto-availability',
+        vehicleType: 'AUTO',
+        catalogModel: autoCatalogModel,
+      },
+    ])
+    renderPage('AUTO')
+    const user = userEvent.setup()
+    fireEvent.change(await screen.findByLabelText('Buscar vehículo *'), {
+      target: { value: 'Proveedor Uno' },
+    })
+    await user.click(
+      await screen.findByRole('option', { name: /Stock de Proveedor Uno/ }),
+    )
+    expect(mocks.listAvailability).toHaveBeenCalledWith(
+      'AUTO',
+      undefined,
+      'Proveedor Uno',
+      expect.any(AbortSignal),
+    )
+    expect(mocks.listCatalogVersions).not.toHaveBeenCalled()
   })
 
   it('expone causa y reintenta stock sin ocultar el resto del formulario', async () => {
@@ -864,17 +988,19 @@ describe('Nueva operación productiva', () => {
     renderPage()
     const user = userEvent.setup()
     fireEvent.change(screen.getByLabelText('Buscar vehículo *'), {
-      target: { value: 'VIN-001' },
+      target: { value: 'Wave' },
     })
 
     const alert = await screen.findByRole('alert', {
       name: '',
-    }).catch(() => screen.getByText(/No se pudo cargar toda la disponibilidad/).closest('[role="alert"]'))
+    }).catch(() => screen.getByText(/No se pudo cargar toda la información/).closest('[role="alert"]'))
     expect(alert).toHaveTextContent('Stock físico')
     expect(alert).toHaveTextContent('backend no respondió')
     expect(screen.getByLabelText('DNI / CI *')).toBeInTheDocument()
     await user.click(within(alert as HTMLElement).getByRole('button', { name: 'Reintentar' }))
-    expect(await screen.findByRole('option', { name: /VIN-001/ })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('option', { name: /1 en stock en la sucursal/ }),
+    ).toBeInTheDocument()
     expect(mocks.listUnits).toHaveBeenCalledTimes(2)
   })
 

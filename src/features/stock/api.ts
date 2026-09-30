@@ -142,6 +142,8 @@ type SupplyRequestDto = {
   status: SupplyStatus
   color: string | null
   requestedAt: string
+  orderedAt?: string | null
+  estimatedCost?: string | null
   version: VersionSummaryDto
   supplier: SupplierDto
   branch: BranchDto
@@ -396,6 +398,21 @@ export function listSalesSupplierAvailability(
   ).then((items) => items.map(availability))
 }
 
+// Versiones activas que el vendedor puede vender (fase 3: la venta elige
+// versión, no unidad).
+export function listSalesCatalogVersions(
+  vehicleType: VehicleKind,
+  organizationId?: string,
+  search?: string,
+  signal?: AbortSignal,
+) {
+  return requestAll<VersionDto>(
+    '/catalog/versions',
+    { vehicleType, active: true, organizationId, search },
+    signal,
+  ).then((items) => items.map((item) => catalogVersion(item)))
+}
+
 export function listSalesCatalogModels(
   vehicleType: VehicleKind,
   organizationId?: string,
@@ -422,6 +439,8 @@ function supplyRequest(dto: SupplyRequestDto): SupplyOrder {
     color: dto.color,
     destinationBranch: branch(dto.branch),
     requestedAt: dto.requestedAt,
+    orderedAt: dto.orderedAt ?? null,
+    estimatedCost: dto.estimatedCost ?? null,
     operation:
       dto.operation || dto.operationId
         ? {
@@ -804,6 +823,10 @@ export const stockApiGateway: StockGateway = {
         method: 'POST',
         body: {
           vin: input.vin,
+          engineNumber: input.engineNumber,
+          ...(input.purchaseCost !== undefined
+            ? { purchaseCost: input.purchaseCost }
+            : {}),
           branchId: input.branchId,
           manufactureYear: input.year,
           mileageKm: input.mileage,

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  PackageSearch,
   Bike,
   BadgeDollarSign,
   CarFront,
@@ -99,6 +100,14 @@ const navigationGroups: NavGroup[] = [
             icon: Bike,
             permissions: ['ventas.consultar'],
             excludeRoles: ['VENDEDOR', 'CALLCENTER'],
+          },
+          {
+            label: 'A asignar',
+            description: 'Operaciones sin unidad',
+            // Atajo a la grilla de operaciones con el filtro "Sin unidad".
+            to: '/motos/operaciones?unidad=SIN_ASIGNAR',
+            icon: PackageSearch,
+            permissions: ['ventas.consultar', 'ventas.asignar_unidad'],
           },
           {
             label: 'Aprobaciones',
@@ -480,13 +489,18 @@ export function AppLayout() {
       ),
     ),
   ]
+  // Los atajos con query (?unidad=...) sólo se activan con esa query; así
+  // "A asignar" y "Operaciones" no se marcan a la vez.
+  const locationWithSearch = `${location.pathname}${location.search}`
   const activeItem =
     navigationItems
-      .filter((item) =>
-        item.to === '/'
-          ? location.pathname === '/'
-          : location.pathname.startsWith(item.activePrefix ?? item.to),
-      )
+      .filter((item) => {
+        if (item.to === '/') return location.pathname === '/'
+        const target = item.activePrefix ?? item.to
+        return target.includes('?')
+          ? locationWithSearch.startsWith(target)
+          : location.pathname.startsWith(target)
+      })
       .sort(
         (left, right) =>
           (right.activePrefix ?? right.to).length -

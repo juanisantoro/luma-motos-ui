@@ -405,6 +405,7 @@ describe('contrato API de stock', () => {
     await stockApiGateway.transitionSupply('supply-1', 'PEDIDO')
     await stockApiGateway.receiveSupply('supply-1', {
       vin: 'VIN-RECIBIDO',
+      engineNumber: 'MOTOR-1',
       branchId: branch.id,
       year: 2026,
       mileage: 0,
@@ -425,6 +426,7 @@ describe('contrato API de stock', () => {
     const receiveRequest = fetchMock.mock.calls[1]?.[1] as RequestInit
     expect(JSON.parse(String(receiveRequest.body))).toEqual({
       vin: 'VIN-RECIBIDO',
+      engineNumber: 'MOTOR-1',
       branchId: 'branch-1',
       manufactureYear: 2026,
       mileageKm: 0,

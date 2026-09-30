@@ -406,6 +406,7 @@ describe('workspace de stock', () => {
       name: 'Recibir abastecimiento',
     })
     await user.type(within(dialog).getByLabelText('VIN / chasis real *'), 'vin-arribo-2')
+    await user.type(within(dialog).getByLabelText('Número de motor *'), 'jc41e-778')
     await user.click(
       within(dialog).getByRole('button', {
         name: 'Recibir y crear unidad',
@@ -416,6 +417,7 @@ describe('workspace de stock', () => {
       supply.id,
       expect.objectContaining({
         vin: 'VIN-ARRIBO-2',
+        engineNumber: 'JC41E-778',
         branchId: branch.id,
       }),
     )

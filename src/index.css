@@ -6570,3 +6570,73 @@ a {
   margin: 0 0 10px;
   font-size: 15px;
 }
+
+/* Fase 3: unidad de la operación (grilla de operaciones). */
+.unit-cell {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.unit-cell__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.assignment-modal {
+  width: min(680px, 100%);
+}
+
+.assignment-units {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+}
+
+.assignment-units legend {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.assignment-unit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.assignment-unit:has(input:checked) {
+  border-color: var(--red);
+  background: var(--red-soft);
+}
+
+.assignment-unit span {
+  display: grid;
+  gap: 2px;
+}
+
+.assignment-unit small {
+  color: var(--muted);
+}
+
+.assignment-suggestions {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.assignment-suggestions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

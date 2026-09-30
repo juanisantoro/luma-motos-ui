@@ -1,5 +1,17 @@
-import { FileBadge, Unlock } from 'lucide-react'
+import {
+  FileBadge,
+  PackageCheck,
+  Store,
+  Unlock,
+  Warehouse,
+} from 'lucide-react'
 import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
+import {
+  fulfillmentLabel,
+  fulfillmentStatusClass,
+  operationFulfillment,
+} from './fulfillment'
+import type { UnitAction } from './UnitFulfillmentDialogs'
 import {
   licensingModeLabels,
   licensingStatusClass,
@@ -27,11 +39,26 @@ function sourceAndDestination(operation: SalesOperation) {
   if (operation.vehicle.unit) {
     return `Stock físico · ${operation.branch.name}`
   }
-  return operation.supply
-    ? `${operation.supply.supplier.legalName} → ${operation.supply.destinationBranch.name}`
-    : `Proveedor → ${operation.branch.name}`
+  if (operation.supply) {
+    return `${operation.supply.supplier.legalName} → ${operation.supply.destinationBranch.name}`
+  }
+  // Motos (fase 3): la unidad la define la administrativa (stock o pedido).
+  if (operation.vehicle.model.vehicleType === 'MOTO') {
+    const supplier = operation.fulfillment?.supplier?.legalName
+    return supplier
+      ? `${supplier} → ${operation.branch.name}`
+      : `A definir → ${operation.branch.name}`
+  }
+  return `Proveedor → ${operation.branch.name}`
 }
 
+function requestedColorLabel(operation: SalesOperation) {
+  return !operation.vehicle.unit && operation.requestedColor
+    ? ` · Color ${operation.requestedColor}`
+    : ''
+}
+
+// Autos: sin cambios respecto de fase 2 (texto de abastecimiento/reserva).
 function supplyStatus(operation: SalesOperation) {
   if (operation.supply) return operation.supply.status
   if (
@@ -46,6 +73,75 @@ function supplyStatus(operation: SalesOperation) {
   if (operation.reservation?.status === 'VENCIDA') return 'Reserva vencida'
   if (!operation.vehicle.unit) return 'Pendiente de abastecimiento'
   return 'Unidad asignada'
+}
+
+const isAuto = (operation: SalesOperation) =>
+  operation.vehicle.model.vehicleType === 'AUTO'
+
+const unitActionButtons: Record<
+  UnitAction,
+  { label: string; aria: string; icon: typeof Warehouse; primary: boolean }
+> = {
+  assign: {
+    label: 'Asignar de stock',
+    aria: 'Asignar de stock a la operación',
+    icon: Warehouse,
+    primary: true,
+  },
+  order: {
+    label: 'Pedir a proveedor',
+    aria: 'Pedir a proveedor para la operación',
+    icon: Store,
+    primary: false,
+  },
+  receive: {
+    label: 'Registrar llegada',
+    aria: 'Registrar llegada de la operación',
+    icon: PackageCheck,
+    primary: true,
+  },
+}
+
+// Motos (fase 3): estado de asignación de la unidad y, en la grilla
+// administrativa, las acciones para asignarla, pedirla o recibirla.
+function UnitStatus({
+  operation,
+  actions = [],
+  onAction,
+}: {
+  operation: SalesOperation
+  actions?: UnitAction[] | undefined
+  onAction?: ((operation: SalesOperation, action: UnitAction) => void) | undefined
+}) {
+  if (isAuto(operation)) return <>{supplyStatus(operation)}</>
+  const fulfillment = operationFulfillment(operation)
+  return (
+    <div className="unit-cell">
+      <span className={`status-badge ${fulfillmentStatusClass(fulfillment.status)}`}>
+        {fulfillmentLabel(fulfillment)}
+      </span>
+      {onAction && actions.length > 0 && (
+        <div className="unit-cell__actions">
+          {actions.map((action) => {
+            const button = unitActionButtons[action]
+            const Icon = button.icon
+            return (
+              <button
+                aria-label={`${button.aria} #${operation.number}`}
+                className={`button button--compact ${button.primary ? 'button--primary' : 'button--secondary'}`}
+                key={action}
+                onClick={() => onAction(operation, action)}
+                type="button"
+              >
+                <Icon size={15} />
+                {button.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function observation(operation: SalesOperation) {
@@ -153,6 +249,8 @@ export function SalesOperationList({
   onRelease,
   showLicensing = false,
   onManageLicensing,
+  unitActions,
+  onUnitAction,
 }: {
   operations: SalesOperation[]
   canRelease?: boolean
@@ -161,8 +259,15 @@ export function SalesOperationList({
   // Columna de patentamiento de la grilla administrativa.
   showLicensing?: boolean
   onManageLicensing?: (operation: SalesOperation) => void
+  // Fase 3 (motos): acciones de unidad disponibles por fila.
+  unitActions?: (operation: SalesOperation) => UnitAction[]
+  onUnitAction?: (operation: SalesOperation, action: UnitAction) => void
 }) {
   const cards = useMediaQuery('(max-width: 768px)')
+  const unitColumn =
+    operations.length > 0 && operations.every(isAuto)
+      ? 'Abastecimiento'
+      : 'Unidad'
 
   if (cards) {
     return (
@@ -200,7 +305,8 @@ export function SalesOperationList({
                     ·{' '}
                     {operation.vehicle.condition === 'NUEVO'
                       ? 'Nuevo'
-                      : 'Usado'}{' '}
+                      : 'Usado'}
+                    {requestedColorLabel(operation)}{' '}
                     · {operation.vehicle.unit?.vin ?? 'Sin chasis asignado'}
                   </small>
                 </dd>
@@ -226,8 +332,14 @@ export function SalesOperationList({
                 <dd>{operation.seller?.fullName ?? 'Sin asignar'}</dd>
               </div>
               <div>
-                <dt>Abastecimiento</dt>
-                <dd>{supplyStatus(operation)}</dd>
+                <dt>{isAuto(operation) ? 'Abastecimiento' : 'Unidad'}</dt>
+                <dd>
+                  <UnitStatus
+                  actions={unitActions?.(operation)}
+                  onAction={onUnitAction}
+                  operation={operation}
+                />
+                </dd>
               </div>
               {operation.ticketNumber && (
                 <div>
@@ -276,7 +388,7 @@ export function SalesOperationList({
             <th>Precio</th>
             <th>Vendedor</th>
             <th>Estado operación</th>
-            <th>Abastecimiento</th>
+            <th>{unitColumn}</th>
             {showLicensing && <th>Patentamiento</th>}
             <th>Observación</th>
             {canRelease && (
@@ -309,7 +421,8 @@ export function SalesOperationList({
                   ·{' '}
                   {operation.vehicle.condition === 'NUEVO'
                     ? 'Nuevo'
-                    : 'Usado'}{' '}
+                    : 'Usado'}
+                  {requestedColorLabel(operation)}{' '}
                   · {operation.vehicle.unit?.vin ?? 'Sin chasis asignado'}
                 </small>
               </td>
@@ -332,7 +445,13 @@ export function SalesOperationList({
                   {operationStatusLabels[operation.status]}
                 </span>
               </td>
-              <td>{supplyStatus(operation)}</td>
+              <td>
+                <UnitStatus
+                  actions={unitActions?.(operation)}
+                  onAction={onUnitAction}
+                  operation={operation}
+                />
+              </td>
               {showLicensing && (
                 <td>
                   <LicensingSummary

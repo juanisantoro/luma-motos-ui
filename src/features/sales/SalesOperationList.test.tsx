@@ -71,7 +71,7 @@ it('mantiene acciones en la última columna de la tabla', () => {
     'Precio',
     'Vendedor',
     'Estado operación',
-    'Abastecimiento',
+    'Unidad',
     'Observación',
     'Acciones',
   ])
