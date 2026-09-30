@@ -19,7 +19,9 @@ import type {
   CreditInstallmentQuery,
   CreditInstallmentStatus,
   PageResponse,
+  PayCreditInstallmentInput,
 } from './types'
+import { cashCollectionErrorMessage } from '../sales/tracking'
 
 const PAGE_SIZE = 20
 
@@ -84,7 +86,7 @@ export function CreditInstallmentsPage() {
 
   const totalPages = result ? Math.max(1, Math.ceil(result.total / result.limit)) : 1
 
-  const submitPayment = async (input: { amount: number; paymentDate: string }) => {
+  const submitPayment = async (input: PayCreditInstallmentInput) => {
     if (!payingInstallment) return
     setSubmitting(true)
     setPayError(null)
@@ -94,7 +96,8 @@ export function CreditInstallmentsPage() {
       reload()
       void alertSuccess(`Cobro registrado para la cuota #${payingInstallment.number}.`)
     } catch (error) {
-      const message = creditPlansErrorMessage(error)
+      const message =
+        cashCollectionErrorMessage(error) ?? creditPlansErrorMessage(error)
       setPayError(message)
       void alertError(message)
     } finally {

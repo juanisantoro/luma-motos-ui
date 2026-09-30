@@ -6640,3 +6640,100 @@ a {
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* Fase 4: seguimiento de cobros de operaciones */
+.tracking-tabs .access-tab {
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tracking-filters {
+  flex-wrap: wrap;
+}
+
+.tracking-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tracking-table {
+  min-width: 1480px;
+}
+
+.tracking-table td .status-badge {
+  margin-top: 4px;
+}
+
+.tracking-balance--due {
+  color: var(--red-dark);
+}
+
+.tracking-detail > td {
+  padding: 0 13px 16px;
+  border-top: 0;
+  background: #fafbfc;
+}
+
+.tracking-detail__empty {
+  margin: 0;
+  padding: 12px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tracking-incomes {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.tracking-incomes th {
+  padding: 8px 10px;
+  color: #707986;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.5px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.tracking-incomes td {
+  padding: 10px;
+  border-top: 1px solid #eceef1;
+  font-size: 12px;
+  vertical-align: top;
+}
+
+.tracking-handover {
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+}
+
+.tracking-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 13px 13px 0;
+}
+
+.tracking-components {
+  margin-bottom: 10px;
+}
+
+.tracking-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}

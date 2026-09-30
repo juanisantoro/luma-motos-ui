@@ -1,3 +1,4 @@
+import type { PaymentMethod } from '../sales/tracking'
 export type CreditCalculationMethod = 'FRANCES' | 'INTERES_SIMPLE'
 
 export type CreditInstallmentStatus = 'PENDIENTE' | 'PAGADA' | 'VENCIDA' | 'PARCIAL'
@@ -107,6 +108,13 @@ export type CreditInstallmentQuery = {
 export type PayCreditInstallmentInput = {
   amount: number
   paymentDate: string
+  // Fase 4: la cuota entra a caja como cualquier cobro.
+  idempotencyKey: string
+  accountId: string
+  paymentMethod: PaymentMethod
+  handoverToId?: string
+  reference?: string
+  notes?: string
 }
 
 export type PageResponse<T> = {

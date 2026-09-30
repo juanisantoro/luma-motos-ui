@@ -1,7 +1,16 @@
 import { LoaderCircle, X } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { localIsoDate } from '../../shared/utils/date'
+import { listAllCashAccounts } from '../finance/api'
+import { newIdempotencyKey } from '../finance/format'
+import type { CashAccount } from '../finance/types'
+import {
+  listHandoverRecipients,
+  paymentMethodLabels,
+  type HandoverRecipient,
+  type PaymentMethod,
+} from '../sales/tracking'
 import { formatDate, formatMoney } from './format'
 import type { CreditInstallment, PayCreditInstallmentInput } from './types'
 
@@ -30,6 +39,43 @@ export function PayCreditInstallmentModal({
   const [amount, setAmount] = useState(String(balance))
   const [paymentDate, setPaymentDate] = useState(today)
   const [validationError, setValidationError] = useState('')
+  // Fase 4: la cuota entra a caja.
+  const [method, setMethod] = useState<PaymentMethod>('EFECTIVO')
+  const [accountId, setAccountId] = useState('')
+  const [accounts, setAccounts] = useState<CashAccount[]>([])
+  const [recipients, setRecipients] = useState<HandoverRecipient[]>([])
+  const [handoverToId, setHandoverToId] = useState('')
+  const [loadError, setLoadError] = useState('')
+  // Una clave por apertura: un reintento no duplica el cobro.
+  const [idempotencyKey] = useState(newIdempotencyKey)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    Promise.all([
+      listAllCashAccounts(controller.signal),
+      listHandoverRecipients(controller.signal),
+    ])
+      .then(([accountItems, recipientItems]) => {
+        const usable = accountItems
+          .filter((account) => account.active && account.currency === 'ARS')
+          .sort(
+            (left, right) =>
+              Number(left.code.startsWith('HIST-')) -
+                Number(right.code.startsWith('HIST-')) ||
+              left.name.localeCompare(right.name, 'es-AR'),
+          )
+        setAccounts(usable)
+        setAccountId((current) => current || usable[0]?.id || '')
+        setRecipients(recipientItems)
+        if (recipientItems.length === 1)
+          setHandoverToId((current) => current || recipientItems[0]!.id)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setLoadError('No pudimos cargar las cuentas de caja.')
+      })
+    return () => controller.abort()
+  }, [])
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -42,8 +88,23 @@ export function PayCreditInstallmentModal({
       setValidationError('El importe no puede superar el saldo pendiente de la cuota.')
       return
     }
+    if (!accountId) {
+      setValidationError('Elegí la cuenta de caja donde ingresa el dinero.')
+      return
+    }
+    if (method === 'EFECTIVO' && !handoverToId) {
+      setValidationError('Indicá a quién se rinde el efectivo.')
+      return
+    }
     setValidationError('')
-    onSubmit({ amount: parsed, paymentDate })
+    onSubmit({
+      amount: parsed,
+      paymentDate,
+      idempotencyKey,
+      accountId,
+      paymentMethod: method,
+      ...(method === 'EFECTIVO' ? { handoverToId } : {}),
+    })
   }
 
   return (
@@ -82,6 +143,11 @@ export function PayCreditInstallmentModal({
             {error}
           </div>
         )}
+        {loadError && (
+          <div className="form-alert form-alert--error" role="alert">
+            {loadError}
+          </div>
+        )}
         {validationError && (
           <div className="form-alert form-alert--error" role="alert">
             {validationError}
@@ -111,6 +177,53 @@ export function PayCreditInstallmentModal({
                 value={paymentDate}
               />
             </label>
+            <label className="field">
+              <span>Medio *</span>
+              <select
+                id="installment-payment-method"
+                onChange={(event) => setMethod(event.target.value as PaymentMethod)}
+                value={method}
+              >
+                {(Object.keys(paymentMethodLabels) as PaymentMethod[]).map((item) => (
+                  <option key={item} value={item}>
+                    {paymentMethodLabels[item]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Cuenta de caja *</span>
+              <select
+                id="installment-account"
+                onChange={(event) => setAccountId(event.target.value)}
+                value={accountId}
+              >
+                <option value="">Seleccionar cuenta</option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.code} · {account.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {method === 'EFECTIVO' && (
+              <label className="field">
+                <span>Se rinde a *</span>
+                <select
+                  id="installment-handover"
+                  onChange={(event) => setHandoverToId(event.target.value)}
+                  value={handoverToId}
+                >
+                  <option value="">Seleccionar quién recibe el efectivo</option>
+                  {recipients.map((recipient) => (
+                    <option key={recipient.id} value={recipient.id}>
+                      {recipient.fullName}
+                      {recipient.isCurrentUser ? ' (vos)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
           <footer className="stock-modal__actions">
             <button

@@ -17,6 +17,7 @@ import { releaseSalesReservation } from './api'
 import { salesErrorMessage } from './errors'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import { LicensingModal } from './LicensingModal'
+import { OperationTrackingPanel } from './OperationTrackingPanel'
 import { SalesDecisionModal } from './SalesDecisionModal'
 import { SalesOperationList } from './SalesOperationList'
 import {
@@ -61,6 +62,9 @@ const UNIT_FILTERS: readonly UnitFilter[] = [
   'RECIBIDA',
 ]
 export const UNIT_FILTER_PARAM = 'unidad'
+// Fase 4: solapa de seguimiento (?vista=seguimiento).
+export const VIEW_PARAM = 'vista'
+export const TRACKING_VIEW = 'seguimiento'
 
 function parseUnitFilter(value: string | null): UnitFilter | null {
   return UNIT_FILTERS.includes(value as UnitFilter) ? (value as UnitFilter) : null
@@ -106,6 +110,21 @@ export function OperationsPage({
   const unitFilter = showUnitFilter
     ? parseUnitFilter(searchParams.get(UNIT_FILTER_PARAM))
     : null
+  const canTrack =
+    showLicensing &&
+    hasPermission(user?.role.permissions, 'ingresos.consultar')
+  const trackingView =
+    canTrack && searchParams.get(VIEW_PARAM) === TRACKING_VIEW
+  const changeView = (tracking: boolean) =>
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (tracking) next.set(VIEW_PARAM, TRACKING_VIEW)
+        else next.delete(VIEW_PARAM)
+        return next
+      },
+      { replace: true },
+    )
   const unitPermissions = unitActionPermissions(user?.role.permissions)
   const [unitAction, setUnitAction] = useState<ActiveUnitAction | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -117,6 +136,7 @@ export function OperationsPage({
   >(null)
 
   useEffect(() => {
+    if (trackingView) return
     const controller = new AbortController()
     setStatus('loading')
     setError('')
@@ -156,6 +176,7 @@ export function OperationsPage({
     period,
     refreshKey,
     search,
+    trackingView,
     unitFilter,
     vehicleType,
   ])
@@ -240,192 +261,217 @@ export function OperationsPage({
         )}
       </header>
 
-      <section className="sales-panel" aria-label="Historial de operaciones">
-        <form className="sales-filters" onSubmit={submitFilters}>
-          <label className="search-field">
-            <span className="sr-only">Buscar operaciones</span>
-            <Search size={18} />
-            <input
-              maxLength={80}
-              onChange={(event) => setSearchDraft(event.target.value)}
-              placeholder="Operación, cliente, VIN, patente o boleto"
-              type="search"
-              value={searchDraft}
-            />
-          </label>
-          <label className="filter-field">
-            <span className="sr-only">Estado de operación</span>
-            <select
-              value={operationStatus}
-              onChange={(event) => {
-                setPage(1)
-                setOperationStatus(event.target.value as FilterStatus)
-              }}
-            >
-              <option value="TODOS">Todos los estados</option>
-              <option value="BORRADOR">Borrador</option>
-              <option value="PENDIENTE_APROBACION">Pendiente</option>
-              <option value="APROBADA">Aprobada</option>
-              <option value="RECHAZADA">Rechazada</option>
-              <option value="CANCELADA">Cancelada</option>
-              <option value="CERRADA">Cerrada</option>
-            </select>
-          </label>
-          {showLicensing && (
+      {canTrack && (
+        <nav className="access-tabs tracking-tabs" aria-label="Vistas de operaciones">
+          <button
+            aria-current={trackingView ? undefined : 'page'}
+            className={`access-tab${trackingView ? '' : ' access-tab--active'}`}
+            onClick={() => changeView(false)}
+            type="button"
+          >
+            Operaciones
+          </button>
+          <button
+            aria-current={trackingView ? 'page' : undefined}
+            className={`access-tab${trackingView ? ' access-tab--active' : ''}`}
+            onClick={() => changeView(true)}
+            type="button"
+          >
+            Seguimiento de cobros
+          </button>
+        </nav>
+      )}
+
+      {trackingView ? (
+        <OperationTrackingPanel vehicleType={vehicleType} />
+      ) : (
+        <section className="sales-panel" aria-label="Historial de operaciones">
+          <form className="sales-filters" onSubmit={submitFilters}>
+            <label className="search-field">
+              <span className="sr-only">Buscar operaciones</span>
+              <Search size={18} />
+              <input
+                maxLength={80}
+                onChange={(event) => setSearchDraft(event.target.value)}
+                placeholder="Operación, cliente, VIN, patente o boleto"
+                type="search"
+                value={searchDraft}
+              />
+            </label>
             <label className="filter-field">
-              <span className="sr-only">Patentamiento</span>
+              <span className="sr-only">Estado de operación</span>
               <select
-                value={licensingFilter}
+                value={operationStatus}
                 onChange={(event) => {
                   setPage(1)
-                  setLicensingFilter(event.target.value as LicensingFilter)
+                  setOperationStatus(event.target.value as FilterStatus)
                 }}
               >
-                <option value="TODAS">Todo patentamiento</option>
-                <option value="BONIFICADA">Patente bonificada</option>
-                <option value="PAGA_CLIENTE">Patente paga el cliente</option>
-                <option value="SIN_DEFINIR">Patentamiento sin definir</option>
-                <option value="DEMORADAS">Patente demorada</option>
+                <option value="TODOS">Todos los estados</option>
+                <option value="BORRADOR">Borrador</option>
+                <option value="PENDIENTE_APROBACION">Pendiente</option>
+                <option value="APROBADA">Aprobada</option>
+                <option value="RECHAZADA">Rechazada</option>
+                <option value="CANCELADA">Cancelada</option>
+                <option value="CERRADA">Cerrada</option>
               </select>
             </label>
-          )}
-          {showUnitFilter && (
-            <label className="filter-field">
-              <span className="sr-only">Situación de la unidad</span>
-              <select
-                value={unitFilter ?? 'TODAS'}
-                onChange={(event) =>
-                  changeUnitFilter(parseUnitFilter(event.target.value))
-                }
-              >
-                <option value="TODAS">Toda situación de unidad</option>
-                <option value="SIN_ASIGNAR">Sin unidad</option>
-                <option value="PENDIENTE_ASIGNACION">
-                  Pendientes de asignar unidad
-                </option>
-                <option value="PEDIDA">Pedidas a proveedor</option>
-                <option value="PENDIENTE_INGRESO">
-                  Pendientes de ingreso del proveedor
-                </option>
-                <option value="RECIBIDA">Recibidas, falta asignar</option>
-              </select>
+            {showLicensing && (
+              <label className="filter-field">
+                <span className="sr-only">Patentamiento</span>
+                <select
+                  value={licensingFilter}
+                  onChange={(event) => {
+                    setPage(1)
+                    setLicensingFilter(event.target.value as LicensingFilter)
+                  }}
+                >
+                  <option value="TODAS">Todo patentamiento</option>
+                  <option value="BONIFICADA">Patente bonificada</option>
+                  <option value="PAGA_CLIENTE">Patente paga el cliente</option>
+                  <option value="SIN_DEFINIR">Patentamiento sin definir</option>
+                  <option value="DEMORADAS">Patente demorada</option>
+                </select>
+              </label>
+            )}
+            {showUnitFilter && (
+              <label className="filter-field">
+                <span className="sr-only">Situación de la unidad</span>
+                <select
+                  value={unitFilter ?? 'TODAS'}
+                  onChange={(event) =>
+                    changeUnitFilter(parseUnitFilter(event.target.value))
+                  }
+                >
+                  <option value="TODAS">Toda situación de unidad</option>
+                  <option value="SIN_ASIGNAR">Sin unidad</option>
+                  <option value="PENDIENTE_ASIGNACION">
+                    Pendientes de asignar unidad
+                  </option>
+                  <option value="PEDIDA">Pedidas a proveedor</option>
+                  <option value="PENDIENTE_INGRESO">
+                    Pendientes de ingreso del proveedor
+                  </option>
+                  <option value="RECIBIDA">Recibidas, falta asignar</option>
+                </select>
+              </label>
+            )}
+            <label className="sales-date-field">
+              <span>Período</span>
+              <input
+                type="month"
+                value={period}
+                onChange={(event) => {
+                  setPage(1)
+                  setPeriod(event.target.value)
+                }}
+              />
             </label>
-          )}
-          <label className="sales-date-field">
-            <span>Período</span>
-            <input
-              type="month"
-              value={period}
-              onChange={(event) => {
-                setPage(1)
-                setPeriod(event.target.value)
-              }}
-            />
-          </label>
-          <button className="button button--secondary" type="submit">
-            Buscar
-          </button>
-        </form>
+            <button className="button button--secondary" type="submit">
+              Buscar
+            </button>
+          </form>
 
-        <div className="sales-content" aria-live="polite">
-          {status === 'loading' && (
-            <div className="client-loading">
-              <div className="loading-mark" />
-              <span>Cargando operaciones…</span>
-            </div>
-          )}
-          {status === 'error' && (
-            <StatePanel
-              icon={RefreshCw}
-              title="No pudimos cargar las operaciones"
-              description={error}
-              tone="danger"
-              action={
+          <div className="sales-content" aria-live="polite">
+            {status === 'loading' && (
+              <div className="client-loading">
+                <div className="loading-mark" />
+                <span>Cargando operaciones…</span>
+              </div>
+            )}
+            {status === 'error' && (
+              <StatePanel
+                icon={RefreshCw}
+                title="No pudimos cargar las operaciones"
+                description={error}
+                tone="danger"
+                action={
+                  <button
+                    className="button button--primary"
+                    onClick={() => setRefreshKey((value) => value + 1)}
+                    type="button"
+                  >
+                    <RefreshCw size={17} />
+                    Reintentar
+                  </button>
+                }
+              />
+            )}
+            {status === 'success' && visibleOperations.length === 0 && (
+              <StatePanel
+                icon={ShoppingCart}
+                title="No hay operaciones"
+                description={
+                  search ||
+                  operationStatus !== 'TODOS' ||
+                  licensingFilter !== 'TODAS' ||
+                  unitFilter ||
+                  period
+                    ? 'Probá con otros términos o modificá los filtros.'
+                    : `Creá la primera operación de ${vehicleNoun === 'motos' ? 'moto' : 'auto'} para iniciar este circuito comercial.`
+                }
+              />
+            )}
+            {status === 'success' && visibleOperations.length > 0 && (
+              <SalesOperationList
+                operations={visibleOperations}
+                canRelease={canRelease}
+                busyId={busyId}
+                onRelease={(operation) => {
+                  setActionError('')
+                  setRelease(operation)
+                }}
+                showLicensing={showLicensing}
+                onManageLicensing={setLicensingOperation}
+                {...(showLicensing
+                  ? {
+                      unitActions: (operation: SalesOperation) =>
+                        availableUnitActions(operation, unitPermissions),
+                      onUnitAction: (
+                        operation: SalesOperation,
+                        action: ActiveUnitAction['action'],
+                      ) => setUnitAction({ operation, action }),
+                    }
+                  : {})}
+              />
+            )}
+          </div>
+
+          {status === 'success' && result && result.total > 0 && (
+            <footer className="pagination">
+              <span>
+                {result.total}{' '}
+                {result.total === 1 ? 'operación' : 'operaciones'}
+              </span>
+              <div>
                 <button
-                  className="button button--primary"
-                  onClick={() => setRefreshKey((value) => value + 1)}
+                  className="icon-button"
+                  aria-label="Página anterior"
+                  disabled={page <= 1}
+                  onClick={() => setPage((value) => Math.max(1, value - 1))}
                   type="button"
                 >
-                  <RefreshCw size={17} />
-                  Reintentar
+                  <ChevronLeft size={19} />
                 </button>
-              }
-            />
-          )}
-          {status === 'success' && visibleOperations.length === 0 && (
-            <StatePanel
-              icon={ShoppingCart}
-              title="No hay operaciones"
-              description={
-                search ||
-                operationStatus !== 'TODOS' ||
-                licensingFilter !== 'TODAS' ||
-                unitFilter ||
-                period
-                  ? 'Probá con otros términos o modificá los filtros.'
-                  : `Creá la primera operación de ${vehicleNoun === 'motos' ? 'moto' : 'auto'} para iniciar este circuito comercial.`
-              }
-            />
-          )}
-          {status === 'success' && visibleOperations.length > 0 && (
-            <SalesOperationList
-              operations={visibleOperations}
-              canRelease={canRelease}
-              busyId={busyId}
-              onRelease={(operation) => {
-                setActionError('')
-                setRelease(operation)
-              }}
-              showLicensing={showLicensing}
-              onManageLicensing={setLicensingOperation}
-              {...(showLicensing
-                ? {
-                    unitActions: (operation: SalesOperation) =>
-                      availableUnitActions(operation, unitPermissions),
-                    onUnitAction: (
-                      operation: SalesOperation,
-                      action: ActiveUnitAction['action'],
-                    ) => setUnitAction({ operation, action }),
+                <strong>
+                  Página {result.page} de {totalPages}
+                </strong>
+                <button
+                  className="icon-button"
+                  aria-label="Página siguiente"
+                  disabled={page >= totalPages}
+                  onClick={() =>
+                    setPage((value) => Math.min(totalPages, value + 1))
                   }
-                : {})}
-            />
+                  type="button"
+                >
+                  <ChevronRight size={19} />
+                </button>
+              </div>
+            </footer>
           )}
-        </div>
-
-        {status === 'success' && result && result.total > 0 && (
-          <footer className="pagination">
-            <span>
-              {result.total}{' '}
-              {result.total === 1 ? 'operación' : 'operaciones'}
-            </span>
-            <div>
-              <button
-                className="icon-button"
-                aria-label="Página anterior"
-                disabled={page <= 1}
-                onClick={() => setPage((value) => Math.max(1, value - 1))}
-                type="button"
-              >
-                <ChevronLeft size={19} />
-              </button>
-              <strong>
-                Página {result.page} de {totalPages}
-              </strong>
-              <button
-                className="icon-button"
-                aria-label="Página siguiente"
-                disabled={page >= totalPages}
-                onClick={() =>
-                  setPage((value) => Math.min(totalPages, value + 1))
-                }
-                type="button"
-              >
-                <ChevronRight size={19} />
-              </button>
-            </div>
-          </footer>
-        )}
-      </section>
+        </section>
+      )}
       {licensingOperation && (
         <LicensingModal
           globalAccess={user?.globalAccess ?? false}
