@@ -27,6 +27,7 @@ import type {
   VehicleCondition,
   VehicleKind,
 } from './types'
+import { displayVersion } from '../../shared/utils/vehicleVersion'
 
 type Page<T> = {
   items: T[]
@@ -252,7 +253,7 @@ function catalogVersion(
     vehicleType: dto.model.vehicleType,
     brand: dto.model.brand.name,
     model: dto.model.name,
-    version: dto.name,
+    version: displayVersion(dto.name, dto.model.name),
     active,
     ...(dto.scope ? { scope: dto.scope } : {}),
     ...(versionDto.pricingStatus

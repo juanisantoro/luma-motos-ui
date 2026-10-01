@@ -33,6 +33,7 @@ import {
   filterAllowedBranches,
   isBranchSelectionLocked,
 } from '../../auth/branchScope'
+import { displayVersion } from '../../../shared/utils/vehicleVersion'
 
 type FinancialRecordFormProps = {
   kind: FinancialKind
@@ -583,7 +584,7 @@ export function FinancialRecordForm({
                               type="button"
                             >
                               <strong>{operation.number} · {operation.client.fullName}</strong>
-                              <span>{operation.vehicle.unit?.vin ?? operation.vehicle.versionName}</span>
+                              <span>{operation.vehicle.unit?.vin ?? displayVersion(operation.vehicle.versionName) ?? 'Sin unidad asignada'}</span>
                             </button>
                           ))}
                         </div>

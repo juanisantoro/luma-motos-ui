@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { displayVersion } from '../../shared/utils/vehicleVersion'
 
 type KpiCardProps = {
   icon: LucideIcon
@@ -129,12 +130,15 @@ export function TopModelsPanel({
         <PanelEmptyState>Todavía no hay ventas computables este mes.</PanelEmptyState>
       ) : (
         <RankingList
-          items={models.map((model) => ({
-            key: model.versionId,
-            name: `${model.brand} ${model.model}`,
-            subtitle: model.version,
-            stat: `${model.units} un.`,
-          }))}
+          items={models.map((model) => {
+            const version = displayVersion(model.version, model.model)
+            return {
+              key: model.versionId,
+              name: `${model.brand} ${model.model}`,
+              ...(version ? { subtitle: version } : {}),
+              stat: `${model.units} un.`,
+            }
+          })}
         />
       )}
     </DashboardPanel>

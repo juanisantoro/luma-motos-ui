@@ -21,6 +21,7 @@ import {
 } from './api'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import type { CatalogOption, VehiclePaymentStatus, VehiclePaymentVehicleType } from './types'
+import { displayVersion } from '../../shared/utils/vehicleVersion'
 
 function today() {
   const now = new Date()
@@ -44,7 +45,7 @@ function operationVehicleLabel(operation: SalesOperation) {
   return [
     operation.vehicle.model.brand.name,
     operation.vehicle.model.name,
-    operation.vehicle.versionName,
+    displayVersion(operation.vehicle.versionName, operation.vehicle.model.name),
   ]
     .filter(Boolean)
     .join(' ')

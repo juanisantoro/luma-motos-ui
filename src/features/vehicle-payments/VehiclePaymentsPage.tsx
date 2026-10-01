@@ -26,6 +26,7 @@ import type {
   VehiclePaymentStatus,
   VehiclePaymentVehicleType,
 } from './types'
+import { displayVersion } from '../../shared/utils/vehicleVersion'
 
 const PAGE_SIZE = 20
 
@@ -354,7 +355,7 @@ export function VehiclePaymentsPage({
                     <td>{payment.concept.name}</td>
                     <td>
                       <strong>{payment.unit.vin}</strong>
-                      <small>{[payment.vehicle.brand, payment.vehicle.model, payment.vehicle.version].filter(Boolean).join(' ')}</small>
+                      <small>{[payment.vehicle.brand, payment.vehicle.model, displayVersion(payment.vehicle.version, payment.vehicle.model)].filter(Boolean).join(' ')}</small>
                     </td>
                     <td>
                       {payment.operation ? (

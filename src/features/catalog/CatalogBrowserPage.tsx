@@ -245,7 +245,9 @@ export function CatalogBrowserPage({ vehicleType }: { vehicleType: VehicleKind }
                 </div>
                 <div className="catalog-browser-card__body">
                   <strong>{row.model.brand} {row.model.model}</strong>
-                  <span className="catalog-browser-card__version">{row.model.version}</span>
+                  {row.model.version && (
+                    <span className="catalog-browser-card__version">{row.model.version}</span>
+                  )}
                   <span className="catalog-browser-card__price">{row.priceLabel}</span>
                   <div className="catalog-browser-card__stock">
                     <span className="status-badge status-badge--success">

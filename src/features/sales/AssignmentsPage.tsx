@@ -37,6 +37,7 @@ import type {
   SalesOperation,
   SalesOperationPage,
 } from './types'
+import { displayVersion } from '../../shared/utils/vehicleVersion'
 
 type TrayFilter = Exclude<SalesFulfillmentStatus, 'ASIGNADA'> | 'SIN_ASIGNAR'
 type Action = 'assign' | 'order' | 'receive'
@@ -418,7 +419,10 @@ export function AssignmentsPage({ vehicleType }: { vehicleType: VehicleKind }) {
               brand: active.operation.vehicle.model.brand.name,
               model: [
                 active.operation.vehicle.model.name,
-                active.operation.vehicle.versionName,
+                displayVersion(
+                  active.operation.vehicle.versionName,
+                  active.operation.vehicle.model.name,
+                ),
               ]
                 .filter(Boolean)
                 .join(' '),

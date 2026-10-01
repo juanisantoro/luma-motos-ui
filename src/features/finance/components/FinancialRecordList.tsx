@@ -13,6 +13,7 @@ import type {
   Income,
   SupplierPurchase,
 } from '../types'
+import { displayVersion } from '../../../shared/utils/vehicleVersion'
 
 type FinancialRecordListProps = {
   kind: FinancialKind
@@ -43,7 +44,7 @@ function recordMeta(kind: FinancialKind, record: FinancialRecord) {
   if (kind === 'purchase') {
     const purchase = record as SupplierPurchase
     const vehicle = purchase.vehicle.unit?.vin
-      ?? purchase.vehicle.version?.name
+      ?? displayVersion(purchase.vehicle.version?.name, purchase.vehicle.version?.model.name)
       ?? purchase.vehicle.version?.model.name
     return [vehicle, purchase.documentNumber].filter(Boolean).join(' · ') || 'Sin referencia'
   }

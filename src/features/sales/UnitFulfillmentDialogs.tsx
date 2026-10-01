@@ -9,6 +9,7 @@ import { AssignUnitModal } from './AssignUnitModal'
 import { operationFulfillment } from './fulfillment'
 import { SupplyOrderModal } from './SupplyOrderModal'
 import type { SalesOperation } from './types'
+import { displayVersion } from '../../shared/utils/vehicleVersion'
 
 // Acciones de la administrativa sobre la unidad de una operación de moto
 // (fase 3), disponibles desde la grilla de operaciones.
@@ -152,7 +153,13 @@ export function UnitFulfillmentDialogs({
         },
         catalogModel: {
           brand: operation.vehicle.model.brand.name,
-          model: [operation.vehicle.model.name, operation.vehicle.versionName]
+          model: [
+            operation.vehicle.model.name,
+            displayVersion(
+              operation.vehicle.versionName,
+              operation.vehicle.model.name,
+            ),
+          ]
             .filter(Boolean)
             .join(' '),
         },
