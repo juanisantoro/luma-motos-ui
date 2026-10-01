@@ -7,7 +7,7 @@ import {
   ShoppingCart,
 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
@@ -41,12 +41,34 @@ type LicensingFilter =
   | 'PAGA_CLIENTE'
   | 'SIN_DEFINIR'
   | 'DEMORADAS'
+  | 'COBRO_PENDIENTE'
+
+const LICENSING_FILTERS: readonly LicensingFilter[] = [
+  'BONIFICADA',
+  'PAGA_CLIENTE',
+  'SIN_DEFINIR',
+  'DEMORADAS',
+  'COBRO_PENDIENTE',
+]
+// Fase 5: el filtro de patentamiento vive en la URL (?patente=...) para que
+// los contadores del inicio de la administrativa abran esta grilla filtrada.
+export const LICENSING_FILTER_PARAM = 'patente'
+
+function parseLicensingFilter(value: string | null): LicensingFilter {
+  return LICENSING_FILTERS.includes(value as LicensingFilter)
+    ? (value as LicensingFilter)
+    : 'TODAS'
+}
 
 function licensingQuery(
   filter: LicensingFilter,
-): Pick<SalesOperationQuery, 'licensingMode' | 'licensingOverdue'> {
+): Pick<
+  SalesOperationQuery,
+  'licensingMode' | 'licensingOverdue' | 'licensingCollectionPending'
+> {
   if (filter === 'TODAS') return {}
   if (filter === 'DEMORADAS') return { licensingOverdue: true }
+  if (filter === 'COBRO_PENDIENTE') return { licensingCollectionPending: true }
   return { licensingMode: filter }
 }
 const PAGE_SIZE = 20
@@ -99,14 +121,34 @@ export function OperationsPage({
   const [operationStatus, setOperationStatus] =
     useState<FilterStatus>('TODOS')
   const [period, setPeriod] = useState('')
-  const [licensingFilter, setLicensingFilter] =
-    useState<LicensingFilter>('TODAS')
   const [licensingOperation, setLicensingOperation] =
     useState<SalesOperation | null>(null)
   // Grilla administrativa: la ve quien no está limitado a "mis operaciones".
   const showLicensing = !effectiveMine
   const showUnitFilter = showLicensing && vehicleType === 'MOTO'
   const [searchParams, setSearchParams] = useSearchParams()
+  const licensingFilter = showLicensing
+    ? parseLicensingFilter(searchParams.get(LICENSING_FILTER_PARAM))
+    : 'TODAS'
+  const setLicensingFilter = (value: LicensingFilter) =>
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (value === 'TODAS') next.delete(LICENSING_FILTER_PARAM)
+        else next.set(LICENSING_FILTER_PARAM, value)
+        return next
+      },
+      { replace: true },
+    )
+  const navigate = useNavigate()
+  // Fase 5: el pago a la gestoría se carga en pagos de vehículo, con el
+  // formulario precargado desde la operación.
+  const canPayLicensing = hasPermission(
+    user?.role.permissions,
+    'pagos_vehiculo.gestionar',
+  )
+  const registerLicensingPayment = (operation: SalesOperation) =>
+    navigate(`/${vehicleType === 'MOTO' ? 'motos' : 'autos'}/pagos-vehiculo?operacion=${operation.id}`)
   const unitFilter = showUnitFilter
     ? parseUnitFilter(searchParams.get(UNIT_FILTER_PARAM))
     : null
@@ -184,7 +226,7 @@ export function OperationsPage({
   // El atajo del menú puede cambiar el filtro estando en otra página.
   useEffect(() => {
     setPage(1)
-  }, [unitFilter])
+  }, [unitFilter, licensingFilter])
 
   const changeUnitFilter = (value: UnitFilter | null) => {
     setPage(1)
@@ -331,6 +373,9 @@ export function OperationsPage({
                   <option value="PAGA_CLIENTE">Patente paga el cliente</option>
                   <option value="SIN_DEFINIR">Patentamiento sin definir</option>
                   <option value="DEMORADAS">Patente demorada</option>
+                  <option value="COBRO_PENDIENTE">
+                    Patente recibida, cobro pendiente
+                  </option>
                 </select>
               </label>
             )}
@@ -423,6 +468,9 @@ export function OperationsPage({
                 }}
                 showLicensing={showLicensing}
                 onManageLicensing={setLicensingOperation}
+                {...(showLicensing && canPayLicensing
+                  ? { onRegisterLicensingPayment: registerLicensingPayment }
+                  : {})}
                 {...(showLicensing
                   ? {
                       unitActions: (operation: SalesOperation) =>
@@ -477,6 +525,9 @@ export function OperationsPage({
           globalAccess={user?.globalAccess ?? false}
           onChanged={() => setRefreshKey((value) => value + 1)}
           onClose={() => setLicensingOperation(null)}
+          {...(canPayLicensing
+            ? { onRegisterPayment: registerLicensingPayment }
+            : {})}
           operation={licensingOperation}
           permissions={user?.role.permissions}
         />

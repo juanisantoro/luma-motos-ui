@@ -27,7 +27,29 @@ export type VehiclePayment = {
     model: string
     version: string
   }
-  operation: { id: string; number: string } | null
+  operation: {
+    id: string
+    number: string
+    // Fase 5: boleto y situación de la patente de la operación.
+    ticketNumber?: string | null
+    licensing?: {
+      mode: 'BONIFICADA' | 'PAGA_CLIENTE' | null
+      estimatedFrom: string | null
+      estimatedTo: string | null
+      overdue: boolean
+      plate: {
+        status:
+          | 'EN_TRAMITE'
+          | 'EN_TRAMITE_VENCIDA'
+          | 'RECIBIDA'
+          | 'RECIBIDA_COBRO_PENDIENTE'
+          | 'RECIBIDA_COBRADA'
+          | 'NO_APLICA'
+        number: string | null
+        receivedAt: string | null
+      }
+    } | null
+  } | null
   createdAt: string
   updatedAt: string
 }

@@ -1,30 +1,30 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../shared/api/client'
 import { LicensingModal } from './LicensingModal'
 import { licensingFixture, operationFixture } from './licensing.fixtures'
+import type { SalesOperation } from './types'
 
 const mocks = vi.hoisted(() => ({
   updateLicensing: vi.fn(),
   collectLicensing: vi.fn(),
+  registerPlate: vi.fn(),
   listCashAccounts: vi.fn(),
-  createVehiclePayment: vi.fn(),
-  listConcepts: vi.fn(),
-  listProviders: vi.fn(),
+  listRecipients: vi.fn(),
 }))
 
 vi.mock('./api', () => ({
   updateSalesLicensing: mocks.updateLicensing,
   collectSalesLicensing: mocks.collectLicensing,
+  registerSalesLicensePlate: mocks.registerPlate,
 }))
 vi.mock('../finance/api', () => ({
   listAllCashAccounts: mocks.listCashAccounts,
 }))
-vi.mock('../vehicle-payments/api', () => ({
-  createVehiclePayment: mocks.createVehiclePayment,
-  listVehiclePaymentConcepts: mocks.listConcepts,
-  listVehiclePaymentProviders: mocks.listProviders,
+vi.mock('./tracking', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./tracking')>()),
+  listHandoverRecipients: mocks.listRecipients,
 }))
 vi.mock('../../shared/alerts', () => ({
   alertSuccess: vi.fn(() => Promise.resolve()),
@@ -40,6 +40,7 @@ const allPermissions = [
 function renderModal(
   operation = operationFixture(),
   permissions: string[] = allPermissions,
+  onRegisterPayment?: (operation: SalesOperation) => void,
 ) {
   const onChanged = vi.fn()
   const onClose = vi.fn()
@@ -49,16 +50,43 @@ function renderModal(
       onClose={onClose}
       operation={operation}
       permissions={permissions}
+      {...(onRegisterPayment ? { onRegisterPayment } : {})}
     />,
   )
   return { onChanged, onClose }
 }
 
+// Patente ya recibida (PAGA_CLIENTE, cobro pendiente).
+function receivedOperation() {
+  return operationFixture({
+    licensing: licensingFixture({
+      plateLoaded: true,
+      plate: {
+        status: 'RECIBIDA_COBRO_PENDIENTE',
+        number: 'A123BCD',
+        receivedAt: '2026-09-17',
+      },
+    }),
+  })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.listConcepts.mockResolvedValue([
-    { id: 'concept-seguro', name: 'Seguro' },
-    { id: 'concept-patente', name: 'Patente' },
+  mocks.listRecipients.mockResolvedValue([
+    {
+      id: 'admin-lucas',
+      fullName: 'Lucas',
+      isCurrentUser: false,
+      pendingCount: 0,
+      pendingAmount: '0.00',
+    },
+    {
+      id: 'admin-juan',
+      fullName: 'Juan',
+      isCurrentUser: false,
+      pendingCount: 0,
+      pendingAmount: '0.00',
+    },
   ])
   const account = (
     id: string,
@@ -83,9 +111,6 @@ beforeEach(() => {
     account('caja-centro', 'CAJA-CENTRO', 'branch-1'),
     account('banco', 'BANCO', null),
   ])
-  mocks.listProviders.mockResolvedValue([
-    { id: 'provider-1', name: 'Gestora Carolina' },
-  ])
 })
 
 describe('Gestión de patentamiento', () => {
@@ -98,9 +123,10 @@ describe('Gestión de patentamiento', () => {
     })
     expect(within(dialog).getByText('Cobro pendiente')).toBeInTheDocument()
     expect(
-      within(dialog).getByText(/Patente estimada entre 11\/09\/2026 y 18\/09\/2026/),
+      within(dialog).getByText(
+        'Patente en trámite, pasó la fecha estimada (estimada entre 11/09/2026 y 18/09/2026)',
+      ),
     ).toBeInTheDocument()
-    expect(within(dialog).getByText(/pasó la fecha estimada/)).toBeInTheDocument()
   })
 
   it('cambia modalidad e importe con expectedVersion', async () => {
@@ -164,6 +190,9 @@ describe('Gestión de patentamiento', () => {
     expect(accountSelect).toHaveValue('banco')
     await user.selectOptions(accountSelect, 'caja-centro')
     expect(within(form).getByLabelText('Importe cobrado *')).toHaveValue(85000)
+    // Efectivo: se rinde a un administrador.
+    await within(form).findByRole('option', { name: 'Lucas' })
+    await user.selectOptions(within(form).getByLabelText('Se rinde a *'), 'admin-lucas')
     await user.click(within(form).getByRole('button', { name: 'Registrar cobro' }))
 
     expect(mocks.collectLicensing).toHaveBeenCalledWith(
@@ -171,14 +200,23 @@ describe('Gestión de patentamiento', () => {
       expect.objectContaining({
         accountId: 'caja-centro',
         amount: '85000.00',
+        paymentMethod: 'EFECTIVO',
+        handoverToId: 'admin-lucas',
         idempotencyKey: expect.any(String) as string,
       }),
     )
-    expect(
-      screen.queryByRole('form', { name: 'Registrar pago de patente' }),
-    ).not.toBeInTheDocument()
     expect(onChanged).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('PAGA_CLIENTE: permite cobrar antes de que llegue la patente', () => {
+    renderModal()
+    expect(
+      screen.getByRole('form', { name: 'Cargar patente' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('form', { name: 'Registrar cobro al cliente' }),
+    ).toBeInTheDocument()
   })
 
   it('reusa la misma clave si el cobro se reintenta', async () => {
@@ -186,9 +224,12 @@ describe('Gestión de patentamiento', () => {
     mocks.collectLicensing
       .mockRejectedValueOnce(new ApiError(503, 'unavailable'))
       .mockResolvedValueOnce(operationFixture())
-    renderModal()
+    const user2 = user
+    renderModal(receivedOperation())
     const form = screen.getByRole('form', { name: 'Registrar cobro al cliente' })
     await within(form).findByRole('option', { name: /CAJA-CENTRO/ })
+    await within(form).findByRole('option', { name: 'Juan' })
+    await user2.selectOptions(within(form).getByLabelText('Se rinde a *'), 'admin-juan')
     const submit = within(form).getByRole('button', { name: 'Registrar cobro' })
     await user.click(submit)
     await user.click(submit)
@@ -200,17 +241,17 @@ describe('Gestión de patentamiento', () => {
   })
 
   it('no ofrece el cobro sin el permiso de cobrar ingresos', () => {
-    renderModal(operationFixture(), ['ventas.patentamiento.gestionar'])
+    renderModal(receivedOperation(), ['ventas.patentamiento.gestionar'])
     expect(
       screen.queryByRole('form', { name: 'Registrar cobro al cliente' }),
     ).not.toBeInTheDocument()
     expect(mocks.listCashAccounts).not.toHaveBeenCalled()
   })
 
-  it('registra el pago de una patente bonificada con el concepto Patente', async () => {
+  it('carga la patente bonificada sólo con número y fecha', async () => {
     const user = userEvent.setup()
-    mocks.createVehiclePayment.mockResolvedValue({ id: 'payment-1' })
-    renderModal(
+    mocks.registerPlate.mockResolvedValue(operationFixture())
+    const { onChanged, onClose } = renderModal(
       operationFixture({
         licensing: licensingFixture({
           mode: 'BONIFICADA',
@@ -219,40 +260,177 @@ describe('Gestión de patentamiento', () => {
         }),
       }),
     )
-    const form = await screen.findByRole('form', {
-      name: 'Registrar pago de patente',
+    const form = screen.getByRole('form', { name: 'Cargar patente' })
+    expect(
+      within(form).queryByLabelText('Cuenta de caja *'),
+    ).not.toBeInTheDocument()
+    await user.type(within(form).getByLabelText('Número de patente *'), 'a123bcd')
+    fireEvent.change(within(form).getByLabelText('Fecha de recepción *'), {
+      target: { value: '2026-09-17' },
     })
-    await within(form).findByRole('option', { name: 'Gestora Carolina' })
-    await user.type(within(form).getByLabelText('Importe *'), '60000')
-    await user.click(within(form).getByRole('button', { name: 'Registrar pago' }))
+    expect(mocks.listCashAccounts).not.toHaveBeenCalled()
+    await user.click(within(form).getByRole('button', { name: 'Cargar patente' }))
 
-    expect(mocks.createVehiclePayment).toHaveBeenCalledWith(
-      expect.objectContaining({
-        conceptId: 'concept-patente',
-        unitId: 'unit-1',
-        operationId: 'operation-1',
-        providerId: 'provider-1',
-        amount: 60000,
-        status: 'PAGADO',
-      }),
+    expect(mocks.registerPlate).toHaveBeenCalledWith('operation-1', {
+      expectedVersion: 4,
+      licensePlate: 'A123BCD',
+      receivedAt: '2026-09-17',
+    })
+    expect(onChanged).toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('PAGA_CLIENTE: carga la patente y registra el cobro en el mismo paso', async () => {
+    const user = userEvent.setup()
+    mocks.registerPlate.mockResolvedValue(operationFixture())
+    renderModal()
+    const form = screen.getByRole('form', { name: 'Cargar patente' })
+    await user.click(
+      within(form).getByLabelText(
+        'Registrar también el cobro de la patente al cliente',
+      ),
     )
+    // Con el cobro en la carga no se duplica el formulario de cobro suelto.
     expect(
       screen.queryByRole('form', { name: 'Registrar cobro al cliente' }),
     ).not.toBeInTheDocument()
+    await within(form).findByRole('option', { name: /CAJA-CENTRO/ })
+    await user.type(within(form).getByLabelText('Número de patente *'), 'A123BCD')
+    await user.selectOptions(
+      within(form).getByLabelText('Medio *'),
+      'TRANSFERENCIA_BANCARIA',
+    )
+    expect(within(form).queryByLabelText('Se rinde a *')).not.toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Cargar patente' }))
+
+    expect(mocks.registerPlate).toHaveBeenCalledWith(
+      'operation-1',
+      expect.objectContaining({
+        licensePlate: 'A123BCD',
+        collection: expect.objectContaining({
+          accountId: 'banco',
+          amount: '85000.00',
+          paymentMethod: 'TRANSFERENCIA_BANCARIA',
+        }) as unknown,
+      }),
+    )
+    const [, payload] = mocks.registerPlate.mock.calls[0] as [
+      string,
+      { collection: object },
+    ]
+    expect(payload.collection).not.toHaveProperty('handoverToId')
   })
 
-  it('no permite registrar el pago si la operación no tiene unidad', async () => {
+  it('PAGA_CLIENTE: puede cargar la patente y dejar el cobro pendiente', async () => {
+    const user = userEvent.setup()
+    mocks.registerPlate.mockResolvedValue(receivedOperation())
+    renderModal()
+    const form = screen.getByRole('form', { name: 'Cargar patente' })
+    expect(within(form).getByText(/pago pendiente hasta/)).toBeInTheDocument()
+    await user.type(within(form).getByLabelText('Número de patente *'), 'A123BCD')
+    await user.click(within(form).getByRole('button', { name: 'Cargar patente' }))
+    const payload = mocks.registerPlate.mock.calls[0]?.[1] as object
+    expect(payload).not.toHaveProperty('collection')
+  })
+
+  it('pide a quién se rinde el efectivo antes de enviar', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    const form = screen.getByRole('form', { name: 'Cargar patente' })
+    await user.click(
+      within(form).getByLabelText(
+        'Registrar también el cobro de la patente al cliente',
+      ),
+    )
+    await within(form).findByRole('option', { name: /CAJA-CENTRO/ })
+    await user.type(within(form).getByLabelText('Número de patente *'), 'A123BCD')
+    fireEvent.submit(form)
+    expect(
+      await screen.findByText('Indicá a quién se rinde el efectivo.'),
+    ).toBeInTheDocument()
+    expect(mocks.registerPlate).not.toHaveBeenCalled()
+  })
+
+  it('valida el número de patente y traduce los errores de la API', async () => {
+    const user = userEvent.setup()
+    mocks.registerPlate.mockRejectedValue(
+      new ApiError(409, 'conflict', {
+        code: 'LICENSE_PLATE_IN_USE',
+        details: { unitId: 'unit-9', vin: 'VIN-009' },
+      }),
+    )
+    renderModal(
+      operationFixture({
+        licensing: licensingFixture({ mode: 'BONIFICADA', amount: null }),
+      }),
+    )
+    const form = screen.getByRole('form', { name: 'Cargar patente' })
+    await user.type(within(form).getByLabelText('Número de patente *'), 'AB1')
+    await user.click(within(form).getByRole('button', { name: 'Cargar patente' }))
+    expect(await screen.findByText(/entre 5 y 10 letras/)).toBeInTheDocument()
+    expect(mocks.registerPlate).not.toHaveBeenCalled()
+
+    await user.type(within(form).getByLabelText('Número de patente *'), '23CD')
+    await user.click(within(form).getByRole('button', { name: 'Cargar patente' }))
+    expect(
+      await screen.findByText('Esa patente ya está cargada en otra unidad (VIN-009).'),
+    ).toBeInTheDocument()
+  })
+
+  it('sin unidad asignada informa la situación y no permite cargar la patente', () => {
     renderModal(
       operationFixture({
         licensing: licensingFixture({ mode: 'BONIFICADA', amount: null }),
         vehicle: { ...operationFixture().vehicle, unit: null },
+        fulfillment: {
+          status: 'PENDIENTE_INGRESO',
+          supplyRequestId: 'supply-1',
+          supplyStatus: 'EN_TRANSITO',
+          supplier: null,
+          requestedAt: null,
+          orderedAt: null,
+          dispatchedAt: null,
+          receivedAt: null,
+        },
       }),
+      allPermissions,
+      vi.fn(),
     )
     expect(
-      await screen.findByText(/todavía no tiene una unidad asignada/),
+      screen.getByText(/pendiente de ingreso del proveedor/),
     ).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Registrar pago' }),
+      screen.queryByRole('form', { name: 'Cargar patente' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Registrar pago de patente' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('abre el pago de patente en pagos de vehículo, sin formulario propio', async () => {
+    const user = userEvent.setup()
+    const onRegisterPayment = vi.fn()
+    const operation = operationFixture({
+      licensing: licensingFixture({ mode: 'BONIFICADA', amount: null }),
+    })
+    renderModal(operation, allPermissions, onRegisterPayment)
+    expect(
+      screen.queryByRole('form', { name: 'Registrar pago de patente' }),
+    ).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: 'Registrar pago de patente' }),
+    )
+    expect(onRegisterPayment).toHaveBeenCalledWith(operation)
+  })
+
+  it('no ofrece el pago de patente sin pagos_vehiculo.gestionar', () => {
+    renderModal(
+      operationFixture(),
+      ['ventas.patentamiento.gestionar'],
+      vi.fn(),
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Registrar pago de patente' }),
     ).not.toBeInTheDocument()
   })
 

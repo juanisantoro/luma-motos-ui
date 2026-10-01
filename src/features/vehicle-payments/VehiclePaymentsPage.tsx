@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, FileCheck2, Filter, Plus, RefreshCw } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../shared/api/client'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { useAuth } from '../auth/AuthContext'
@@ -12,6 +13,10 @@ import {
   updateVehiclePayment,
 } from './api'
 import { alertError, alertSuccess } from '../../shared/alerts'
+import { getSalesOperation } from '../sales/api'
+import { LicensingModal } from '../sales/LicensingModal'
+import { plateStatusClass, plateStatusLabel } from '../sales/licensing'
+import type { SalesOperation } from '../sales/types'
 import { VehiclePaymentForm } from './VehiclePaymentForm'
 import type {
   CatalogOption,
@@ -44,6 +49,10 @@ function errorMessage(error: unknown) {
   return 'No pudimos cargar los pagos. Intentá nuevamente.'
 }
 
+// Fase 5: "Registrar pago de patente" desde la operación llega con
+// ?operacion=<id> y abre el formulario precargado.
+export const OPERATION_PARAM = 'operacion'
+
 export function VehiclePaymentsPage({
   vehicleType,
 }: {
@@ -52,6 +61,20 @@ export function VehiclePaymentsPage({
   const { user } = useAuth()
   const permissions = user?.role.permissions ?? []
   const canManage = hasPermission(permissions, 'pagos_vehiculo.gestionar')
+  // Llegada de la patente también desde acá (fase 5).
+  const canManageLicensing = hasPermission(
+    permissions,
+    'ventas.patentamiento.gestionar',
+  )
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialOperationId = canManage
+    ? (searchParams.get(OPERATION_PARAM) ?? undefined)
+    : undefined
+  const [licensingOperation, setLicensingOperation] =
+    useState<SalesOperation | null>(null)
+  const [licensingLoadingId, setLicensingLoadingId] = useState<string | null>(
+    null,
+  )
 
   const [query, setQuery] = useState<VehiclePaymentQuery>({ page: 1, limit: PAGE_SIZE })
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
@@ -60,6 +83,32 @@ export function VehiclePaymentsPage({
   const [forbidden, setForbidden] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [showForm, setShowForm] = useState(false)
+  const formOpen = showForm || initialOperationId !== undefined
+  const closeForm = () => {
+    setShowForm(false)
+    if (searchParams.has(OPERATION_PARAM))
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          next.delete(OPERATION_PARAM)
+          return next
+        },
+        { replace: true },
+      )
+  }
+
+  const openLicensing = async (operationId: string) => {
+    setLicensingLoadingId(operationId)
+    try {
+      setLicensingOperation(await getSalesOperation(operationId))
+    } catch {
+      const message = 'No pudimos abrir la operación. Intentá nuevamente.'
+      setNotice(message)
+      void alertError(message)
+    } finally {
+      setLicensingLoadingId(null)
+    }
+  }
   const [notice, setNotice] = useState('')
 
   const [concepts, setConcepts] = useState<CatalogOption[]>([])
@@ -173,7 +222,7 @@ export function VehiclePaymentsPage({
             <input
               id="vp-search"
               onChange={(event) => changeDraft('search', event.target.value)}
-              placeholder="VIN, patente, marca, modelo, operación…"
+              placeholder="VIN, patente, boleto, marca, modelo, operación…"
               value={draft.search ?? ''}
             />
           </div>
@@ -295,7 +344,7 @@ export function VehiclePaymentsPage({
                   <th>Proveedor</th>
                   <th>Importe</th>
                   <th>Estado</th>
-                  {canManage && <th />}
+                  {(canManage || canManageLicensing) && <th />}
                 </tr>
               </thead>
               <tbody>
@@ -307,7 +356,29 @@ export function VehiclePaymentsPage({
                       <strong>{payment.unit.vin}</strong>
                       <small>{[payment.vehicle.brand, payment.vehicle.model, payment.vehicle.version].filter(Boolean).join(' ')}</small>
                     </td>
-                    <td>{payment.operation ? `#${payment.operation.number}` : '—'}</td>
+                    <td>
+                      {payment.operation ? (
+                        <>
+                          <strong>#{payment.operation.number}</strong>
+                          {payment.operation.ticketNumber && (
+                            <small>Boleto {payment.operation.ticketNumber}</small>
+                          )}
+                          {payment.operation.licensing &&
+                            payment.operation.licensing.plate.status !== 'NO_APLICA' && (
+                              <small
+                                className={`status-badge ${plateStatusClass(payment.operation.licensing.plate.status)}`}
+                              >
+                                {plateStatusLabel(
+                                  payment.operation.licensing.plate.status,
+                                  payment.operation.licensing,
+                                )}
+                              </small>
+                            )}
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td>{payment.provider.name}</td>
                     <td>{formatMoney(payment.amount.toString())}</td>
                     <td>
@@ -315,15 +386,28 @@ export function VehiclePaymentsPage({
                         {statusLabel(payment.status)}
                       </span>
                     </td>
-                    {canManage && (
+                    {(canManage || canManageLicensing) && (
                       <td className="financial-actions">
-                        <button
-                          className="button button--secondary"
-                          onClick={() => togglePaid(payment)}
-                          type="button"
-                        >
-                          {payment.status === 'PAGADO' ? 'Marcar pendiente' : 'Marcar pagado'}
-                        </button>
+                        {canManage && (
+                          <button
+                            className="button button--secondary"
+                            onClick={() => togglePaid(payment)}
+                            type="button"
+                          >
+                            {payment.status === 'PAGADO' ? 'Marcar pendiente' : 'Marcar pagado'}
+                          </button>
+                        )}
+                        {canManageLicensing && payment.operation && (
+                          <button
+                            aria-label={`Patente de la operación #${payment.operation.number}`}
+                            className="button button--secondary"
+                            disabled={licensingLoadingId === payment.operation.id}
+                            onClick={() => void openLicensing(payment.operation!.id)}
+                            type="button"
+                          >
+                            Patente
+                          </button>
+                        )}
                       </td>
                     )}
                   </tr>
@@ -360,14 +444,24 @@ export function VehiclePaymentsPage({
         )}
       </section>
 
-      {showForm && (
+      {formOpen && (
         <VehiclePaymentForm
+          key={initialOperationId ?? 'nuevo'}
           vehicleType={vehicleType}
-          onClose={() => setShowForm(false)}
+          {...(initialOperationId ? { initialOperationId } : {})}
+          onClose={closeForm}
           onSaved={() => {
-            setShowForm(false)
+            closeForm()
             reload('Pago guardado correctamente.')
           }}
+        />
+      )}
+      {licensingOperation && (
+        <LicensingModal
+          onChanged={() => reload()}
+          onClose={() => setLicensingOperation(null)}
+          operation={licensingOperation}
+          permissions={permissions}
         />
       )}
     </>

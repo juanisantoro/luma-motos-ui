@@ -2,6 +2,14 @@ import { LoaderCircle, Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { listAllSalesOperations } from '../finance/api'
 import type { SalesOperationOption } from '../finance/types'
+import { getSalesOperation, listSalesOperations } from '../sales/api'
+import { fulfillmentLabel, operationFulfillment } from '../sales/fulfillment'
+import {
+  plateStatusClass,
+  plateStatusLabel,
+  plateStatusOf,
+} from '../sales/licensing'
+import type { SalesOperation } from '../sales/types'
 import { listAllPhysicalUnits } from '../stock/api'
 import type { PhysicalUnit } from '../stock/types'
 import {
@@ -27,6 +35,26 @@ function unitLabel(unit: PhysicalUnit) {
   return [unit.catalogModel.brand, unit.catalogModel.model, unit.catalogModel.version]
     .filter(Boolean)
     .join(' ')
+}
+
+// Unidad elegida: por búsqueda de VIN o tomada de la operación del boleto.
+type SelectedUnit = { id: string; vin: string; label: string }
+
+function operationVehicleLabel(operation: SalesOperation) {
+  return [
+    operation.vehicle.model.brand.name,
+    operation.vehicle.model.name,
+    operation.vehicle.versionName,
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+// Concepto que el pago de patente usa por defecto (ya existe en el catálogo).
+const LICENSING_CONCEPT = 'patente'
+
+function isLicensingConcept(option: CatalogOption) {
+  return option.name.trim().toLocaleLowerCase('es-AR') === LICENSING_CONCEPT
 }
 
 function errorMessage(error: unknown) {
@@ -139,10 +167,14 @@ function CatalogSelect({
 
 export function VehiclePaymentForm({
   vehicleType,
+  initialOperationId,
   onClose,
   onSaved,
 }: {
   vehicleType: VehiclePaymentVehicleType
+  // Fase 5: "Registrar pago de patente" desde la operación abre este mismo
+  // formulario precargado con la operación, su unidad y el concepto Patente.
+  initialOperationId?: string
   onClose: () => void
   onSaved: () => void
 }) {
@@ -161,10 +193,21 @@ export function VehiclePaymentForm({
   const [debouncedUnitSearch, setDebouncedUnitSearch] = useState('')
   const [unitOptions, setUnitOptions] = useState<PhysicalUnit[]>([])
   const [unitLoading, setUnitLoading] = useState(false)
-  const [selectedUnit, setSelectedUnit] = useState<PhysicalUnit | null>(null)
+  const [selectedUnit, setSelectedUnit] = useState<SelectedUnit | null>(null)
 
   const [operations, setOperations] = useState<SalesOperationOption[]>([])
   const [operationId, setOperationId] = useState('')
+
+  // Fase 5: búsqueda por número de boleto.
+  const [ticketSearch, setTicketSearch] = useState('')
+  const [debouncedTicketSearch, setDebouncedTicketSearch] = useState('')
+  const [ticketOptions, setTicketOptions] = useState<SalesOperation[]>([])
+  const [ticketLoading, setTicketLoading] = useState(false)
+  const [ticketError, setTicketError] = useState('')
+  const [ticketOperation, setTicketOperation] = useState<SalesOperation | null>(
+    null,
+  )
+  const [initialLoading, setInitialLoading] = useState(Boolean(initialOperationId))
 
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -182,12 +225,120 @@ export function VehiclePaymentForm({
       .then(([conceptRows, providerRows]) => {
         setConcepts(conceptRows)
         setProviders(providerRows)
+        // Desde la operación el pago es de patente.
+        if (initialOperationId) {
+          const patent = conceptRows.find(isLicensingConcept)
+          if (patent) setConceptId((current) => current || patent.id)
+        }
       })
       .catch((catalogError: unknown) => {
         if (!controller.signal.aborted) setError(errorMessage(catalogError))
       })
     return () => controller.abort()
-  }, [])
+  }, [initialOperationId])
+
+  // Elegir una operación (por boleto o desde la grilla) precarga operación y
+  // unidad. Sin unidad todavía no se puede cargar el pago.
+  const applyTicketOperation = (operation: SalesOperation) => {
+    setTicketOperation(operation)
+    setTicketOptions([])
+    setTicketSearch(
+      operation.ticketNumber
+        ? `Boleto ${operation.ticketNumber}`
+        : `Operación #${operation.number}`,
+    )
+    const unit = operation.vehicle.unit
+    if (unit) {
+      setSelectedUnit({
+        id: unit.id,
+        vin: unit.vin,
+        label: operationVehicleLabel(operation),
+      })
+      setUnitSearch(`${unit.vin} · ${operationVehicleLabel(operation)}`)
+      setUnitOptions([])
+    } else {
+      setSelectedUnit(null)
+      setUnitSearch('')
+    }
+    setOperations([
+      {
+        id: operation.id,
+        number: operation.number,
+        operationDate: operation.operationDate,
+        client: operation.client,
+        vehicle: {
+          versionName: operation.vehicle.versionName ?? '',
+          unit: unit
+            ? { id: unit.id, vin: unit.vin, licensePlate: unit.licensePlate }
+            : null,
+        },
+      },
+    ])
+    setOperationId(operation.id)
+  }
+
+  useEffect(() => {
+    if (!initialOperationId) return
+    const controller = new AbortController()
+    setInitialLoading(true)
+    getSalesOperation(initialOperationId, controller.signal)
+      .then((operation) => {
+        if (controller.signal.aborted) return
+        applyTicketOperation(operation)
+        setInitialLoading(false)
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return
+        setInitialLoading(false)
+        setError(errorMessage(loadError))
+      })
+    return () => controller.abort()
+    // applyTicketOperation sólo actualiza estado: no hace falta como dependencia.
+  }, [initialOperationId])
+
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedTicketSearch(ticketSearch.trim()),
+      350,
+    )
+    return () => clearTimeout(timeout)
+  }, [ticketSearch])
+
+  useEffect(() => {
+    if (ticketOperation || debouncedTicketSearch.length < 2) {
+      setTicketOptions([])
+      setTicketLoading(false)
+      return
+    }
+    const controller = new AbortController()
+    setTicketLoading(true)
+    setTicketError('')
+    listSalesOperations(
+      { vehicleType, search: debouncedTicketSearch, page: 1, limit: 10 },
+      controller.signal,
+    )
+      .then((page) => {
+        if (controller.signal.aborted) return
+        const needle = debouncedTicketSearch.toLocaleLowerCase('es-AR')
+        // La búsqueda de operaciones también encuentra por cliente o VIN;
+        // acá se muestran primero las que coinciden por boleto.
+        const byTicket = (operation: SalesOperation) =>
+          operation.ticketNumber?.toLocaleLowerCase('es-AR').includes(needle)
+            ? 0
+            : 1
+        setTicketOptions(
+          [...page.items].sort((left, right) => byTicket(left) - byTicket(right)),
+        )
+        setTicketLoading(false)
+      })
+      .catch((searchError: unknown) => {
+        if (controller.signal.aborted) return
+        setTicketOptions([])
+        setTicketLoading(false)
+        setTicketError(errorMessage(searchError))
+      })
+    return () => controller.abort()
+  }, [debouncedTicketSearch, ticketOperation, vehicleType])
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedUnitSearch(unitSearch.trim()), 350)
@@ -218,6 +369,8 @@ export function VehiclePaymentForm({
   }, [debouncedUnitSearch, vehicleType])
 
   useEffect(() => {
+    // Con una operación elegida por boleto, la operación ya está resuelta.
+    if (ticketOperation) return
     if (!selectedUnit) {
       setOperations([])
       setOperationId('')
@@ -237,18 +390,36 @@ export function VehiclePaymentForm({
         if (!controller.signal.aborted) setOperations([])
       })
     return () => controller.abort()
-  }, [selectedUnit, vehicleType])
+  }, [selectedUnit, ticketOperation, vehicleType])
 
   const selectUnit = (unit: PhysicalUnit) => {
-    setSelectedUnit(unit)
+    setSelectedUnit({ id: unit.id, vin: unit.vin, label: unitLabel(unit) })
     setUnitSearch(`${unit.vin} · ${unitLabel(unit)}`)
     setUnitOptions([])
   }
 
+  const clearTicket = () => {
+    setTicketOperation(null)
+    setTicketSearch('')
+    setSelectedUnit(null)
+    setUnitSearch('')
+    setOperations([])
+    setOperationId('')
+  }
+
+  const ticketPlateStatus = ticketOperation
+    ? plateStatusOf(ticketOperation.licensing)
+    : null
+  const ticketWithoutUnit = ticketOperation !== null && !ticketOperation.vehicle.unit
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (ticketWithoutUnit) {
+      setError('La operación del boleto todavía no tiene unidad asignada.')
+      return
+    }
     if (!selectedUnit) {
-      setError('Elegí un vehículo por VIN/chasis.')
+      setError('Elegí un vehículo por VIN/chasis o buscá el boleto.')
       return
     }
     setError('')
@@ -303,7 +474,109 @@ export function VehiclePaymentForm({
         </header>
         {error && <div className="form-alert form-alert--error" role="alert">{error}</div>}
         <form onSubmit={submit}>
+          {initialLoading && (
+            <div className="vehicle-payment-unit-status">
+              <LoaderCircle className="spin" size={16} aria-hidden="true" /> Cargando la operación…
+            </div>
+          )}
           <div className="financial-form-grid">
+            <div className="field field--wide">
+              <label htmlFor="vehicle-payment-ticket">Buscar por boleto</label>
+              <div className="vehicle-payment-inline-add">
+                <input
+                  autoComplete="off"
+                  id="vehicle-payment-ticket"
+                  onChange={(event) => {
+                    setTicketSearch(event.target.value)
+                    if (ticketOperation) {
+                      setTicketOperation(null)
+                      setSelectedUnit(null)
+                      setUnitSearch('')
+                    }
+                  }}
+                  placeholder="Número de boleto u operación"
+                  value={ticketSearch}
+                />
+                {ticketOperation && (
+                  <button
+                    className="icon-button"
+                    aria-label="Quitar boleto"
+                    onClick={clearTicket}
+                    type="button"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+              <small>
+                Al elegir el boleto se precargan la operación y la unidad (por
+                ejemplo, para el pago de patente).
+              </small>
+              {ticketLoading && (
+                <div className="vehicle-payment-unit-status">
+                  <LoaderCircle className="spin" size={16} aria-hidden="true" /> Buscando…
+                </div>
+              )}
+              {ticketError && <small className="field-error">{ticketError}</small>}
+              {!ticketLoading && ticketOptions.length > 0 && (
+                <div
+                  aria-label="Operaciones encontradas"
+                  className="vehicle-payment-unit-results"
+                  role="listbox"
+                >
+                  {ticketOptions.map((operation) => (
+                    <button
+                      className="vehicle-payment-unit-option"
+                      key={operation.id}
+                      onClick={() => applyTicketOperation(operation)}
+                      role="option"
+                      type="button"
+                    >
+                      <strong>
+                        {operation.ticketNumber
+                          ? `Boleto ${operation.ticketNumber}`
+                          : 'Sin boleto'}{' '}
+                        · #{operation.number}
+                      </strong>
+                      <span>
+                        {operation.client.fullName} · {operationVehicleLabel(operation)} ·{' '}
+                        {operation.vehicle.unit
+                          ? operation.vehicle.unit.vin
+                          : fulfillmentLabel(operationFulfillment(operation))}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!ticketLoading &&
+                !ticketOperation &&
+                debouncedTicketSearch.length >= 2 &&
+                ticketOptions.length === 0 &&
+                !ticketError && <small>No encontramos operaciones con ese boleto.</small>}
+              {ticketOperation && (
+                <div className="vehicle-payment-ticket" role="status">
+                  <strong>
+                    Operación #{ticketOperation.number} · {ticketOperation.client.fullName}
+                  </strong>
+                  {ticketWithoutUnit ? (
+                    <span className="status-badge status-badge--warning">
+                      {fulfillmentLabel(operationFulfillment(ticketOperation))}: todavía
+                      no tiene unidad para asignar el pago
+                    </span>
+                  ) : (
+                    ticketPlateStatus &&
+                    ticketPlateStatus !== 'NO_APLICA' && (
+                      <span
+                        className={`status-badge ${plateStatusClass(ticketPlateStatus)}`}
+                      >
+                        {plateStatusLabel(ticketPlateStatus, ticketOperation.licensing)}
+                      </span>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+
             <label className="field">
               <span>Fecha *</span>
               <input
@@ -330,13 +603,14 @@ export function VehiclePaymentForm({
               <span>VIN / Chasis *</span>
               <input
                 autoComplete="off"
+                disabled={ticketOperation !== null}
                 onChange={(event) => {
                   setUnitSearch(event.target.value)
                   setSelectedUnit(null)
                 }}
                 placeholder="Buscá por chasis, patente, marca, modelo o versión"
                 value={unitSearch}
-                required
+                required={!ticketOperation}
               />
               <small>Ingresá al menos 3 letras para buscar.</small>
               {unitLoading && (
@@ -429,7 +703,7 @@ export function VehiclePaymentForm({
             </button>
             <button
               className="button button--primary"
-              disabled={submitting}
+              disabled={submitting || initialLoading || ticketWithoutUnit}
               type="submit"
             >
               {submitting && <LoaderCircle className="spin" size={17} />}

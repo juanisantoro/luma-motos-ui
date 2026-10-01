@@ -12,6 +12,7 @@ import type {
   SalesOperation,
   SalesOperationPage,
   SalesOperationQuery,
+  RegisterSalesLicensePlateInput,
   RegisterSalesLicensingCollectionInput,
   ReplaceSalesPaymentPlanInput,
   RequestSalesSupplyInput,
@@ -313,6 +314,17 @@ export function collectSalesLicensing(
     `/sales/operations/${id}/licensing/collections`,
     { method: 'POST', body: input },
   )
+}
+
+// Fase 5: llegada de la patente.
+export function registerSalesLicensePlate(
+  id: string,
+  input: RegisterSalesLicensePlateInput,
+) {
+  return request<SalesOperation>(`/sales/operations/${id}/licensing/plate`, {
+    method: 'POST',
+    body: input,
+  })
 }
 
 export function reserveSalesUnit(

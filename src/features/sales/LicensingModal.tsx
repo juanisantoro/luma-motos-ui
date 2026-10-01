@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { LoaderCircle, X } from 'lucide-react'
+import { FileText, LoaderCircle, X } from 'lucide-react'
 import { ApiError } from '../../shared/api/client'
 import { alertSuccess } from '../../shared/alerts'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
@@ -9,27 +9,41 @@ import { listAllCashAccounts } from '../finance/api'
 import { newIdempotencyKey } from '../finance/format'
 import type { CashAccount } from '../finance/types'
 import {
-  createVehiclePayment,
-  listVehiclePaymentConcepts,
-  listVehiclePaymentProviders,
-} from '../vehicle-payments/api'
-import type { CatalogOption } from '../vehicle-payments/types'
-import { collectSalesLicensing, updateSalesLicensing } from './api'
+  collectSalesLicensing,
+  registerSalesLicensePlate,
+  updateSalesLicensing,
+} from './api'
 import { salesErrorMessage } from './errors'
+import { fulfillmentLabel, operationFulfillment } from './fulfillment'
 import {
+  canRegisterPlate,
+  formatIsoDate,
+  isValidPlate,
   licensingModeDescriptions,
   licensingModeLabels,
   licensingStatusClass,
   licensingStatusLabels,
-  licensingWindowLabel,
+  plateStatusClass,
+  plateStatusLabel,
+  plateStatusOf,
 } from './licensing'
 import { formatMoney } from './presentation'
-import type { SalesLicensingMode, SalesOperation } from './types'
+import {
+  cashCollectionErrorMessage,
+  listHandoverRecipients,
+  paymentMethodLabels,
+  type HandoverRecipient,
+  type PaymentMethod,
+} from './tracking'
+import type {
+  RegisterSalesLicensingCollectionInput,
+  SalesLicensingMode,
+  SalesOperation,
+} from './types'
 
-// Tipo de ingreso y concepto de pago que ya existen en los catálogos.
-const LICENSING_CATALOG_NAME = 'patente'
-
-function licensingErrorMessage(error: unknown) {
+export function licensingErrorMessage(error: unknown) {
+  const shared = cashCollectionErrorMessage(error)
+  if (shared) return shared
   if (error instanceof ApiError) {
     const code = error.details?.code
     if (code === 'LICENSING_COLLECTION_REGISTERED') {
@@ -44,11 +58,27 @@ function licensingErrorMessage(error: unknown) {
     if (code === 'LICENSING_COLLECTION_NOT_ALLOWED') {
       return 'Sólo se registra cobro cuando el cliente paga la patente.'
     }
-    if (code === 'CURRENCY_MISMATCH') {
-      return 'La cuenta elegida tiene otra moneda que la operación.'
+    if (code === 'INVALID_LICENSE_PLATE') {
+      return 'Revisá la patente: debe tener entre 5 y 10 letras o números.'
     }
-    if (code === 'IDEMPOTENCY_CONFLICT') {
-      return 'Ese cobro ya se envió con otros datos. Cerrá y volvé a abrir la gestión.'
+    if (code === 'LICENSE_PLATE_IN_USE') {
+      const vin = error.details?.details?.vin
+      return `Esa patente ya está cargada en otra unidad${typeof vin === 'string' ? ` (${vin})` : ''}.`
+    }
+    if (code === 'LICENSE_PLATE_RECEIVED_IN_FUTURE') {
+      return 'La fecha de recepción no puede ser futura.'
+    }
+    if (code === 'LICENSE_PLATE_RECEIVED_BEFORE_OPERATION') {
+      return 'La fecha de recepción no puede ser anterior a la operación.'
+    }
+    if (code === 'LICENSE_PLATE_NOT_ALLOWED') {
+      return 'La patente se carga en operaciones enviadas, aprobadas o cerradas.'
+    }
+    if (code === 'LICENSING_MODE_REQUIRED') {
+      return 'Definí primero si la patente es bonificada o la paga el cliente.'
+    }
+    if (code === 'OPERATION_UNIT_REQUIRED') {
+      return 'La operación todavía no tiene una unidad asignada.'
     }
   }
   return salesErrorMessage(error)
@@ -72,18 +102,131 @@ const paymentLabels = {
   PAGADO: 'Pagado',
 } as const
 
+const METHODS = Object.keys(paymentMethodLabels) as PaymentMethod[]
+
+type CollectionDraft = {
+  accountId: string
+  date: string
+  amount: string
+  method: PaymentMethod
+  handoverToId: string
+}
+
+// Cobro de patente al cliente: medio, cuenta y, si es efectivo, a quién se
+// rinde (circuito de la fase 4). Lo registra quien carga el cobro.
+function CollectionFields({
+  draft,
+  onChange,
+  accounts,
+  accountsError,
+  recipients,
+}: {
+  draft: CollectionDraft
+  onChange: (next: Partial<CollectionDraft>) => void
+  accounts: CashAccount[]
+  accountsError: string
+  recipients: HandoverRecipient[]
+}) {
+  return (
+    <>
+      {accountsError && <p className="field-error">{accountsError}</p>}
+      <div className="client-form-grid">
+        <label className="field">
+          <span>Importe cobrado *</span>
+          <input
+            min="0.01"
+            onChange={(event) => onChange({ amount: event.target.value })}
+            required
+            step="0.01"
+            type="number"
+            value={draft.amount}
+          />
+        </label>
+        <label className="field">
+          <span>Fecha del cobro *</span>
+          <input
+            onChange={(event) => onChange({ date: event.target.value })}
+            required
+            type="date"
+            value={draft.date}
+          />
+        </label>
+        <label className="field">
+          <span>Medio *</span>
+          <select
+            onChange={(event) =>
+              onChange({ method: event.target.value as PaymentMethod })
+            }
+            required
+            value={draft.method}
+          >
+            {METHODS.map((item) => (
+              <option key={item} value={item}>
+                {paymentMethodLabels[item]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Cuenta de caja *</span>
+          <select
+            onChange={(event) => onChange({ accountId: event.target.value })}
+            required
+            value={draft.accountId}
+          >
+            <option value="">Seleccionar cuenta</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.code} · {account.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {draft.method === 'EFECTIVO' && (
+          <label className="field field--wide">
+            <span>Se rinde a *</span>
+            <select
+              onChange={(event) => onChange({ handoverToId: event.target.value })}
+              required
+              value={draft.handoverToId}
+            >
+              <option value="">Seleccionar quién recibe el efectivo</option>
+              {recipients.map((recipient) => (
+                <option key={recipient.id} value={recipient.id}>
+                  {recipient.fullName}
+                  {recipient.isCurrentUser ? ' (vos)' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      <small>
+        Crea el ingreso de tipo Patente vinculado a la operación, el cliente y
+        el boleto, y lo acredita en la cuenta elegida. Queda registrado que lo
+        recibiste vos.
+      </small>
+    </>
+  )
+}
+
 export function LicensingModal({
   operation: initialOperation,
   permissions,
-  globalAccess = false,
   onClose,
   onChanged,
+  onRegisterPayment,
 }: {
   operation: SalesOperation
   permissions: readonly string[] | undefined
+  // Kept for callers that pass it; the payment to the gestoría is no longer
+  // registered from here (it lives in vehicle payments).
   globalAccess?: boolean
   onClose: () => void
   onChanged: () => void
+  // Fase 5: abre el formulario de pagos de vehículo precargado. Sin callback
+  // (por ejemplo, abierto desde pagos de vehículo) no se ofrece.
+  onRegisterPayment?: (operation: SalesOperation) => void
 }) {
   const [operation, setOperation] = useState(initialOperation)
   const licensing = operation.licensing
@@ -95,72 +238,55 @@ export function LicensingModal({
 
   const [mode, setMode] = useState<SalesLicensingMode | ''>(licensing.mode ?? '')
   const [amount, setAmount] = useState(licensing.amount ?? '')
-  const [busy, setBusy] = useState<'mode' | 'collection' | 'payment' | null>(
+  const [busy, setBusy] = useState<'mode' | 'collection' | 'plate' | null>(
     null,
   )
   const [error, setError] = useState('')
 
-  const [collectionDate, setCollectionDate] = useState(localIsoDate())
-  const [collectionAmount, setCollectionAmount] = useState(
-    licensing.amount ?? '',
+  const effectiveMode = licensing.mode
+  const unit = operation.vehicle.unit
+  const plateStatus = plateStatusOf(licensing)
+  const plateReceived =
+    plateStatus === 'RECIBIDA' ||
+    plateStatus === 'RECIBIDA_COBRO_PENDIENTE' ||
+    plateStatus === 'RECIBIDA_COBRADA'
+  const collectionCovered = licensing.status === 'COBRADO'
+  const paysClient = effectiveMode === 'PAGA_CLIENTE'
+  const needsCollection = paysClient && canCollect && !collectionCovered
+
+  const [plateNumber, setPlateNumber] = useState(
+    licensing.plate?.number ?? unit?.licensePlate ?? '',
   )
-  const [collectionAccountId, setCollectionAccountId] = useState('')
-  const [collectionAccounts, setCollectionAccounts] = useState<CashAccount[]>(
-    [],
+  const [plateReceivedAt, setPlateReceivedAt] = useState(
+    licensing.plate?.receivedAt ?? localIsoDate(),
   )
+  // PAGA_CLIENTE: el cobro puede registrarse antes de que llegue la patente,
+  // en el mismo paso que la carga o después.
+  const [collectWithPlate, setCollectWithPlate] = useState(false)
+  const [collection, setCollection] = useState<CollectionDraft>({
+    accountId: '',
+    date: localIsoDate(),
+    amount: licensing.amount ?? '',
+    method: 'EFECTIVO',
+    handoverToId: '',
+  })
+  const changeCollection = (next: Partial<CollectionDraft>) =>
+    setCollection((current) => ({ ...current, ...next }))
+  const [accounts, setAccounts] = useState<CashAccount[]>([])
   const [accountsError, setAccountsError] = useState('')
+  const [recipients, setRecipients] = useState<HandoverRecipient[]>([])
   // Una clave por apertura del modal: un reintento no duplica el cobro.
   const [collectionKey] = useState(newIdempotencyKey)
 
-  const [paymentDate, setPaymentDate] = useState(localIsoDate())
-  const [paymentAmount, setPaymentAmount] = useState('')
-  const [paymentStatus, setPaymentStatus] = useState<'PAGADO' | 'PENDIENTE'>(
-    'PAGADO',
-  )
-  const [providerId, setProviderId] = useState('')
-  const [providers, setProviders] = useState<CatalogOption[]>([])
-  const [concept, setConcept] = useState<CatalogOption | null>(null)
-  const [catalogError, setCatalogError] = useState('')
-
   const dialogRef = useDialogFocus(onClose, busy !== null)
-  const effectiveMode = licensing.mode
-  const unit = operation.vehicle.unit
 
   useEffect(() => {
-    if (effectiveMode !== 'BONIFICADA' || !canPay) return
-    const controller = new AbortController()
-    setCatalogError('')
-    Promise.all([
-      listVehiclePaymentConcepts(controller.signal),
-      listVehiclePaymentProviders(controller.signal),
-    ])
-      .then(([concepts, providerOptions]) => {
-        const patent = concepts.find(
-          (item) =>
-            item.name.trim().toLocaleLowerCase('es-AR') ===
-            LICENSING_CATALOG_NAME,
-        )
-        setConcept(patent ?? null)
-        setProviders(providerOptions)
-        setProviderId((current) => current || providerOptions[0]?.id || '')
-        if (!patent) {
-          setCatalogError('No existe el concepto de pago "Patente".')
-        }
-      })
-      .catch((loadError: unknown) => {
-        if (controller.signal.aborted) return
-        setCatalogError(salesErrorMessage(loadError))
-      })
-    return () => controller.abort()
-  }, [canPay, effectiveMode])
-
-  useEffect(() => {
-    if (effectiveMode !== 'PAGA_CLIENTE' || !canCollect) return
+    if (!needsCollection) return
     const controller = new AbortController()
     setAccountsError('')
     listAllCashAccounts(controller.signal)
-      .then((accounts) => {
-        const usable = accounts
+      .then((items) => {
+        const usable = items
           .filter(
             (account) =>
               account.active &&
@@ -175,8 +301,11 @@ export function LicensingModal({
                 Number(right.code.startsWith('HIST-')) ||
               left.name.localeCompare(right.name, 'es-AR'),
           )
-        setCollectionAccounts(usable)
-        setCollectionAccountId((current) => current || usable[0]?.id || '')
+        setAccounts(usable)
+        setCollection((current) => ({
+          ...current,
+          accountId: current.accountId || usable[0]?.id || '',
+        }))
         if (!usable.length) {
           setAccountsError(
             'No hay cuentas de caja activas para la sucursal de la operación.',
@@ -187,16 +316,39 @@ export function LicensingModal({
         if (controller.signal.aborted) return
         setAccountsError(salesErrorMessage(loadError))
       })
+    listHandoverRecipients(controller.signal)
+      .then((items) => {
+        setRecipients(items)
+        setCollection((current) => ({
+          ...current,
+          handoverToId:
+            current.handoverToId ||
+            (items.length === 1 ? (items[0]?.id ?? '') : ''),
+        }))
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setRecipients([])
+      })
     return () => controller.abort()
-  }, [
-    canCollect,
-    effectiveMode,
-    operation.branch.id,
-    operation.currency,
-  ])
+  }, [needsCollection, operation.branch.id, operation.currency])
 
-  const organizationScope =
-    globalAccess ? { organizationId: operation.organizationId } : {}
+  const collectionInput = (): RegisterSalesLicensingCollectionInput | string => {
+    const value = positiveAmount(collection.amount)
+    if (value === null) return 'Ingresá el importe cobrado al cliente.'
+    if (!collection.accountId)
+      return 'Elegí la cuenta de caja donde ingresa el dinero.'
+    const cash = collection.method === 'EFECTIVO'
+    if (cash && !collection.handoverToId)
+      return 'Indicá a quién se rinde el efectivo.'
+    return {
+      idempotencyKey: collectionKey,
+      accountId: collection.accountId,
+      amount: value.toFixed(2),
+      collectionDate: collection.date,
+      paymentMethod: collection.method,
+      ...(cash ? { handoverToId: collection.handoverToId } : {}),
+    }
+  }
 
   const saveMode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -218,7 +370,7 @@ export function LicensingModal({
       })
       setOperation(updated)
       setAmount(updated.licensing.amount ?? '')
-      setCollectionAmount(updated.licensing.amount ?? '')
+      changeCollection({ amount: updated.licensing.amount ?? '' })
       onChanged()
       void alertSuccess('Se actualizó el patentamiento de la operación.')
     } catch (saveError) {
@@ -228,29 +380,36 @@ export function LicensingModal({
     }
   }
 
-  const registerCollection = async (event: FormEvent<HTMLFormElement>) => {
+  const registerPlate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const value = positiveAmount(collectionAmount)
-    if (value === null) {
-      setError('Ingresá el importe cobrado al cliente.')
+    if (!isValidPlate(plateNumber)) {
+      setError('Ingresá la patente: entre 5 y 10 letras o números.')
       return
     }
-    if (!collectionAccountId) {
-      setError('Elegí la cuenta de caja donde ingresa el dinero.')
+    const withCollection = needsCollection && !plateReceived && collectWithPlate
+    const payload = withCollection ? collectionInput() : undefined
+    if (typeof payload === 'string') {
+      setError(payload)
       return
     }
-    setBusy('collection')
+    setBusy('plate')
     setError('')
     try {
-      const updated = await collectSalesLicensing(operation.id, {
-        idempotencyKey: collectionKey,
-        accountId: collectionAccountId,
-        amount: value.toFixed(2),
-        collectionDate,
+      const updated = await registerSalesLicensePlate(operation.id, {
+        expectedVersion: operation.rowVersion,
+        licensePlate: plateNumber.trim(),
+        receivedAt: plateReceivedAt,
+        ...(payload ? { collection: payload } : {}),
       })
       setOperation(updated)
       onChanged()
-      void alertSuccess('Se registró el cobro de patente y se acreditó en caja.')
+      void alertSuccess(
+        payload
+          ? 'Se cargó la patente y se registró el cobro al cliente.'
+          : effectiveMode === 'PAGA_CLIENTE'
+            ? 'Se cargó la patente. El cobro al cliente queda pendiente.'
+            : 'Se cargó la patente.',
+      )
       onClose()
     } catch (saveError) {
       setError(licensingErrorMessage(saveError))
@@ -259,36 +418,24 @@ export function LicensingModal({
     }
   }
 
-  const registerPayment = async (event: FormEvent<HTMLFormElement>) => {
+  const registerCollection = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const value = positiveAmount(paymentAmount)
-    if (!unit || !concept) return
-    if (!providerId) {
-      setError('Elegí el proveedor o gestoría.')
+    const payload = collectionInput()
+    if (typeof payload === 'string') {
+      setError(payload)
       return
     }
-    if (value === null) {
-      setError('Ingresá el importe pagado.')
-      return
-    }
-    setBusy('payment')
+    setBusy('collection')
     setError('')
     try {
-      await createVehiclePayment({
-        ...organizationScope,
-        conceptId: concept.id,
-        unitId: unit.id,
-        operationId: operation.id,
-        providerId,
-        amount: value,
-        paymentDate,
-        status: paymentStatus,
-        ...(operation.ticketNumber
-          ? { notes: `Boleto ${operation.ticketNumber}` }
-          : {}),
-      })
+      const updated = await collectSalesLicensing(operation.id, payload)
+      setOperation(updated)
       onChanged()
-      void alertSuccess('Se registró el pago de la patente.')
+      void alertSuccess(
+        payload.paymentMethod === 'EFECTIVO'
+          ? 'Se registró el cobro de patente. El efectivo queda pendiente de rendición.'
+          : 'Se registró el cobro de patente y se acreditó en caja.',
+      )
       onClose()
     } catch (saveError) {
       setError(licensingErrorMessage(saveError))
@@ -296,6 +443,8 @@ export function LicensingModal({
       setBusy(null)
     }
   }
+
+  const fulfillment = operationFulfillment(operation)
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -337,19 +486,20 @@ export function LicensingModal({
             </dd>
           </div>
           <div className="confirm-preview__row">
-            <dt>Llegada</dt>
+            <dt>Patente</dt>
             <dd>
-              {licensing.plateLoaded
-                ? `Patente cargada${unit?.licensePlate ? ` (${unit.licensePlate})` : ''}`
-                : licensingWindowLabel(
-                    licensing.estimatedFrom,
-                    licensing.estimatedTo,
-                  )}
-              {licensing.overdue && (
-                <span className="licensing-overdue">
-                  {' '}
-                  · pasó la fecha estimada
+              {plateStatus ? (
+                <span className={`status-badge ${plateStatusClass(plateStatus)}`}>
+                  {plateStatusLabel(plateStatus, licensing)}
                 </span>
+              ) : (
+                '—'
+              )}
+              {plateReceived && (licensing.plate?.number ?? unit?.licensePlate) && (
+                <> · {licensing.plate?.number ?? unit?.licensePlate}</>
+              )}
+              {licensing.plate?.receivedAt && (
+                <> · recibida el {formatIsoDate(licensing.plate.receivedAt)}</>
               )}
             </dd>
           </div>
@@ -362,7 +512,7 @@ export function LicensingModal({
             </dd>
           </div>
           <div className="confirm-preview__row">
-            <dt>Pago de patente</dt>
+            <dt>Pago a la gestoría</dt>
             <dd>
               {paymentLabels[licensing.payment.status]}
               {licensing.payment.status !== 'SIN_REGISTRAR' &&
@@ -429,60 +579,112 @@ export function LicensingModal({
           </form>
         )}
 
-        {effectiveMode === 'PAGA_CLIENTE' && canCollect && (
+        {canManage && effectiveMode && operation.status !== 'CANCELADA' && (
+          <section
+            aria-label="Llegada de la patente"
+            className="licensing-modal__section"
+          >
+            <h3>{plateReceived ? 'Corregir patente' : 'Llegada de la patente'}</h3>
+            {!canRegisterPlate(operation) ? (
+              <p className="modal-description">
+                {!unit
+                  ? `La operación todavía no tiene unidad (${fulfillmentLabel(fulfillment).toLocaleLowerCase('es-AR')}). La patente se carga cuando la unidad está asignada.`
+                  : 'La patente se carga en operaciones enviadas, aprobadas o cerradas.'}
+              </p>
+            ) : (
+              <form aria-label="Cargar patente" onSubmit={registerPlate}>
+                <div className="client-form-grid">
+                  <label className="field">
+                    <span>Número de patente *</span>
+                    <input
+                      autoComplete="off"
+                      maxLength={20}
+                      onChange={(event) =>
+                        setPlateNumber(event.target.value.toUpperCase())
+                      }
+                      placeholder="A123BCD"
+                      required
+                      value={plateNumber}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Fecha de recepción *</span>
+                    <input
+                      max={localIsoDate()}
+                      onChange={(event) => setPlateReceivedAt(event.target.value)}
+                      required
+                      type="date"
+                      value={plateReceivedAt}
+                    />
+                  </label>
+                </div>
+                {effectiveMode === 'BONIFICADA' && !plateReceived && (
+                  <small>Bonificada: sólo se carga el número, no se cobra nada.</small>
+                )}
+                {needsCollection && !plateReceived && (
+                  <>
+                    <label className="operation-check">
+                      <input
+                        checked={collectWithPlate}
+                        onChange={(event) =>
+                          setCollectWithPlate(event.target.checked)
+                        }
+                        type="checkbox"
+                      />
+                      <span>Registrar también el cobro de la patente al cliente</span>
+                    </label>
+                    {collectWithPlate ? (
+                      <CollectionFields
+                        accounts={accounts}
+                        accountsError={accountsError}
+                        draft={collection}
+                        onChange={changeCollection}
+                        recipients={recipients}
+                      />
+                    ) : (
+                      <small>
+                        Si el cliente todavía no pagó, la patente queda
+                        recibida con el pago pendiente hasta que registres el
+                        cobro.
+                      </small>
+                    )}
+                  </>
+                )}
+                <div className="client-modal__actions">
+                  <button
+                    className="button button--primary"
+                    disabled={busy !== null}
+                    type="submit"
+                  >
+                    {busy === 'plate' && <LoaderCircle className="spin" size={17} />}
+                    {plateReceived ? 'Guardar patente' : 'Cargar patente'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+        )}
+
+        {/* El cobro se puede registrar en cualquier momento: antes de que
+            llegue la patente, junto con la carga (checkbox) o después. */}
+        {needsCollection && !(collectWithPlate && !plateReceived && canRegisterPlate(operation)) && (
           <form
             aria-label="Registrar cobro al cliente"
             className="licensing-modal__section"
             onSubmit={registerCollection}
           >
             <h3>Registrar cobro al cliente</h3>
-            {accountsError && <p className="field-error">{accountsError}</p>}
-            <div className="client-form-grid">
-              <label className="field field--wide">
-                <span>Cuenta de caja *</span>
-                <select
-                  onChange={(event) => setCollectionAccountId(event.target.value)}
-                  required
-                  value={collectionAccountId}
-                >
-                  <option value="">Seleccionar cuenta</option>
-                  {collectionAccounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.code} · {account.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Fecha *</span>
-                <input
-                  onChange={(event) => setCollectionDate(event.target.value)}
-                  required
-                  type="date"
-                  value={collectionDate}
-                />
-              </label>
-              <label className="field">
-                <span>Importe cobrado *</span>
-                <input
-                  min="0.01"
-                  onChange={(event) => setCollectionAmount(event.target.value)}
-                  required
-                  step="0.01"
-                  type="number"
-                  value={collectionAmount}
-                />
-              </label>
-            </div>
-            <small>
-              Crea el ingreso de tipo Patente vinculado a la operación y lo
-              acredita en la cuenta elegida: queda cobrado sin pasar por
-              Ingresos.
-            </small>
+            <CollectionFields
+              accounts={accounts}
+              accountsError={accountsError}
+              draft={collection}
+              onChange={changeCollection}
+              recipients={recipients}
+            />
             <div className="client-modal__actions">
               <button
                 className="button button--primary"
-                disabled={busy !== null || !collectionAccountId}
+                disabled={busy !== null || !collection.accountId}
                 type="submit"
               >
                 {busy === 'collection' && (
@@ -494,87 +696,37 @@ export function LicensingModal({
           </form>
         )}
 
-        {effectiveMode === 'BONIFICADA' && canPay && (
-          <form
-            aria-label="Registrar pago de patente"
+        {canPay && onRegisterPayment && (
+          <section
+            aria-label="Pago de patente a la gestoría"
             className="licensing-modal__section"
-            onSubmit={registerPayment}
           >
-            <h3>Registrar pago de patente</h3>
+            <h3>Pago de patente a la gestoría</h3>
             {!unit ? (
               <p className="modal-description">
                 La operación todavía no tiene una unidad asignada. El pago se
                 registra cuando se recibe la unidad.
               </p>
-            ) : catalogError ? (
-              <p className="field-error">{catalogError}</p>
             ) : (
               <>
-                <div className="client-form-grid">
-                  <label className="field">
-                    <span>Proveedor / gestoría *</span>
-                    <select
-                      onChange={(event) => setProviderId(event.target.value)}
-                      value={providerId}
-                    >
-                      <option value="">Seleccionar</option>
-                      {providers.map((provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Importe *</span>
-                    <input
-                      min="0.01"
-                      onChange={(event) => setPaymentAmount(event.target.value)}
-                      required
-                      step="0.01"
-                      type="number"
-                      value={paymentAmount}
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Fecha *</span>
-                    <input
-                      onChange={(event) => setPaymentDate(event.target.value)}
-                      required
-                      type="date"
-                      value={paymentDate}
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Estado</span>
-                    <select
-                      onChange={(event) =>
-                        setPaymentStatus(
-                          event.target.value as 'PAGADO' | 'PENDIENTE',
-                        )
-                      }
-                      value={paymentStatus}
-                    >
-                      <option value="PAGADO">Pagado</option>
-                      <option value="PENDIENTE">Pendiente</option>
-                    </select>
-                  </label>
-                </div>
+                <p className="modal-description">
+                  Se registra en pagos de vehículo, con el formulario precargado
+                  con esta operación.
+                </p>
                 <div className="client-modal__actions">
                   <button
-                    className="button button--primary"
-                    disabled={busy !== null || !concept}
-                    type="submit"
+                    className="button button--secondary"
+                    disabled={busy !== null}
+                    onClick={() => onRegisterPayment(operation)}
+                    type="button"
                   >
-                    {busy === 'payment' && (
-                      <LoaderCircle className="spin" size={17} />
-                    )}
-                    Registrar pago
+                    <FileText size={16} />
+                    Registrar pago de patente
                   </button>
                 </div>
               </>
             )}
-          </form>
+          </section>
         )}
       </div>
     </div>

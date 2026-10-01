@@ -1,5 +1,6 @@
 import {
   FileBadge,
+  FileText,
   PackageCheck,
   Store,
   Unlock,
@@ -16,7 +17,9 @@ import {
   licensingModeLabels,
   licensingStatusClass,
   licensingStatusLabels,
-  licensingWindowLabel,
+  plateStatusClass,
+  plateStatusLabel,
+  plateStatusOf,
 } from './licensing'
 import {
   formatMoney,
@@ -176,12 +179,16 @@ function rowClass(operation: SalesOperation, showLicensing: boolean) {
 function LicensingSummary({
   operation,
   onManage,
+  onRegisterPayment,
 }: {
   operation: SalesOperation
   onManage?: ((operation: SalesOperation) => void) | undefined
+  onRegisterPayment?: ((operation: SalesOperation) => void) | undefined
 }) {
   const licensing = operation.licensing
   if (!licensing) return <span>—</span>
+  const plateStatus = plateStatusOf(licensing)
+  const plateNumber = licensing.plate?.number ?? operation.vehicle.unit?.licensePlate
   return (
     <div className="licensing-cell">
       <strong>
@@ -190,13 +197,19 @@ function LicensingSummary({
       <span className={`status-badge ${licensingStatusClass(licensing.status)}`}>
         {licensingStatusLabels[licensing.status]}
       </span>
-      <small>
-        {licensing.plateLoaded
-          ? 'Patente cargada'
-          : licensingWindowLabel(licensing.estimatedFrom, licensing.estimatedTo)}
-      </small>
-      {licensing.overdue && (
-        <small className="licensing-overdue">Pasó la fecha estimada sin patente</small>
+      {plateStatus === 'EN_TRAMITE' && (
+        <small>{plateStatusLabel(plateStatus, licensing)}</small>
+      )}
+      {plateStatus === 'EN_TRAMITE_VENCIDA' && (
+        <small className="licensing-overdue">
+          {plateStatusLabel(plateStatus, licensing)}
+        </small>
+      )}
+      {plateStatus?.startsWith('RECIBIDA') && (
+        <span className={`status-badge ${plateStatusClass(plateStatus)}`}>
+          {plateStatusLabel(plateStatus, licensing)}
+          {plateNumber ? ` · ${plateNumber}` : ''}
+        </span>
       )}
       {onManage && operation.status !== 'CANCELADA' && (
         <button
@@ -209,6 +222,20 @@ function LicensingSummary({
           Gestionar
         </button>
       )}
+      {onRegisterPayment &&
+        operation.vehicle.unit &&
+        operation.status !== 'CANCELADA' &&
+        operation.status !== 'RECHAZADA' && (
+          <button
+            aria-label={`Registrar pago de patente de la operación #${operation.number}`}
+            className="button button--secondary button--compact"
+            onClick={() => onRegisterPayment(operation)}
+            type="button"
+          >
+            <FileText size={15} />
+            Pago de patente
+          </button>
+        )}
     </div>
   )
 }
@@ -249,6 +276,7 @@ export function SalesOperationList({
   onRelease,
   showLicensing = false,
   onManageLicensing,
+  onRegisterLicensingPayment,
   unitActions,
   onUnitAction,
 }: {
@@ -259,6 +287,8 @@ export function SalesOperationList({
   // Columna de patentamiento de la grilla administrativa.
   showLicensing?: boolean
   onManageLicensing?: (operation: SalesOperation) => void
+  // Fase 5: abre pagos de vehículo con el pago de patente precargado.
+  onRegisterLicensingPayment?: (operation: SalesOperation) => void
   // Fase 3 (motos): acciones de unidad disponibles por fila.
   unitActions?: (operation: SalesOperation) => UnitAction[]
   onUnitAction?: (operation: SalesOperation, action: UnitAction) => void
@@ -354,6 +384,7 @@ export function SalesOperationList({
                     <LicensingSummary
                       operation={operation}
                       onManage={onManageLicensing}
+                      onRegisterPayment={onRegisterLicensingPayment}
                     />
                   </dd>
                 </div>
@@ -457,6 +488,7 @@ export function SalesOperationList({
                   <LicensingSummary
                     operation={operation}
                     onManage={onManageLicensing}
+                    onRegisterPayment={onRegisterLicensingPayment}
                   />
                 </td>
               )}

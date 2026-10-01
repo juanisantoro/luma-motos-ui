@@ -6556,6 +6556,22 @@ a {
   box-shadow: inset 3px 0 0 var(--red);
 }
 
+/* Fase 5: operación elegida por boleto en pagos de vehículo. */
+.vehicle-payment-ticket {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--background);
+}
+
+.financial-table td .status-badge {
+  margin-top: 4px;
+}
+
 .licensing-modal {
   width: min(620px, 100%);
 }

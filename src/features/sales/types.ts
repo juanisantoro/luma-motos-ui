@@ -54,6 +54,21 @@ export type SalesLicensingStatus =
   | 'PAGO_PENDIENTE'
   | 'PAGADO'
 
+// Fase 5: situación de la patente en sí.
+export type SalesLicensingPlateStatus =
+  | 'EN_TRAMITE'
+  | 'EN_TRAMITE_VENCIDA'
+  | 'RECIBIDA'
+  | 'RECIBIDA_COBRO_PENDIENTE'
+  | 'RECIBIDA_COBRADA'
+  | 'NO_APLICA'
+
+export type SalesLicensingPlate = {
+  status: SalesLicensingPlateStatus
+  number: string | null
+  receivedAt: string | null
+}
+
 export type SalesLicensing = {
   mode: SalesLicensingMode | null
   amount: string | null
@@ -62,6 +77,7 @@ export type SalesLicensing = {
   estimatedTo: string | null
   plateLoaded: boolean
   overdue: boolean
+  plate?: SalesLicensingPlate
   collection: {
     status: 'SIN_REGISTRAR' | 'PENDIENTE' | 'PAGO_PARCIAL' | 'PAGADO'
     amount: string
@@ -243,6 +259,7 @@ export type SalesOperationQuery = {
   search?: string
   licensingMode?: SalesLicensingMode | 'SIN_DEFINIR'
   licensingOverdue?: boolean
+  licensingCollectionPending?: boolean
   fulfillmentStatus?: SalesFulfillmentStatus | 'SIN_ASIGNAR'
   from?: string
   to?: string
@@ -415,6 +432,23 @@ export type RegisterSalesLicensingCollectionInput = {
   collectionDate?: string
   reference?: string
   notes?: string
+  paymentMethod?:
+    | 'EFECTIVO'
+    | 'TRANSFERENCIA_BANCARIA'
+    | 'TARJETA'
+    | 'DESEMBOLSO_FINANCIERA'
+    | 'PAGARE'
+    | 'OTRO'
+  collectedById?: string
+  handoverToId?: string
+}
+
+// Fase 5: llegada de la patente (y, con PAGA_CLIENTE, el cobro opcional).
+export type RegisterSalesLicensePlateInput = {
+  expectedVersion: number
+  licensePlate: string
+  receivedAt?: string
+  collection?: RegisterSalesLicensingCollectionInput
 }
 
 export type UpdateSalesLicensingInput = {

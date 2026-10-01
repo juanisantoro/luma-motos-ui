@@ -67,6 +67,7 @@ import {
   licensingModeDescriptions,
   licensingModeLabels,
   licensingWindowLabel,
+  useLicensingHolidays,
 } from './licensing'
 import { formatMoney } from './presentation'
 import { localIsoDate } from '../../shared/utils/date'
@@ -261,6 +262,8 @@ export function NewOperationPage({
 }) {
   const { user } = useAuth()
   const permissions = useMemo(() => user?.role.permissions ?? [], [user])
+  // Fase 5: feriados nacionales para previsualizar la misma ventana que la API.
+  const licensingHolidays = useLicensingHolidays()
   const canViewAvailability = hasPermission(
     permissions,
     'proveedores.consultar',
@@ -1120,7 +1123,7 @@ export function NewOperationPage({
       TOMA_PARTE_PAGO: 'Toma en parte de pago',
       OTRO: 'Otro',
     }
-    const estimate = licensingEstimate(operationDate)
+    const estimate = licensingEstimate(operationDate, licensingHolidays)
     const vehicleName = catalogModel
       ? [catalogModel.brand, catalogModel.model, catalogModel.version]
           .filter(Boolean)
@@ -2136,13 +2139,13 @@ export function NewOperationPage({
                 <span>Llegada estimada de la patente</span>
                 <div className="operation-readonly">
                   {(() => {
-                    const estimate = licensingEstimate(operationDate)
+                    const estimate = licensingEstimate(operationDate, licensingHolidays)
                     return estimate
                       ? licensingWindowLabel(estimate.from, estimate.to)
                       : 'Elegí la fecha de la operación'
                   })()}
                 </div>
-                <small>Informativa: 10 a 15 días hábiles desde la operación.</small>
+                <small>Informativa: 10 a 15 días hábiles (sin fines de semana ni feriados nacionales) desde la operación.</small>
               </div>
               <label className="operation-check">
                 <input

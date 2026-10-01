@@ -123,6 +123,10 @@ export type AdministrativeHome = {
   collectionsToday: CollectionToday[] | null
   recentInquiries: RecentInquiry[] | null
   managementAlerts: ManagementAlerts | null
+  // Fase 5: patentes vencidas sin cargar y PAGA_CLIENTE recibidas con el
+  // cobro pendiente (null sin ventas.patentamiento.gestionar; ausente en
+  // respuestas anteriores).
+  licensingAlerts?: { overdue: number; receivedPendingCollection: number } | null
   topModels: TopModel[] | null
 }
 

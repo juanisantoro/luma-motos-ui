@@ -3,6 +3,7 @@ import {
   Banknote,
   CalendarClock,
   CheckCircle2,
+  FileBadge,
   FileWarning,
   Receipt,
   ShieldCheck,
@@ -24,9 +25,14 @@ const RESULT_TONE: Record<string, string> = {
   RECHAZADA: 'status-badge--danger',
 }
 
+// Los contadores de patentes abren la grilla de operaciones ya filtrada.
+const LICENSING_OVERDUE_PATH = '/motos/operaciones?patente=DEMORADAS'
+const LICENSING_COLLECTION_PATH = '/motos/operaciones?patente=COBRO_PENDIENTE'
+
 export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) {
   const { greeting } = home
   const alerts = home.managementAlerts
+  const licensing = home.licensingAlerts ?? null
 
   return (
     <>
@@ -79,6 +85,24 @@ export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) 
                 : undefined
             }
             metaTone={home.unconfirmedVehiclePayments.staleCount > 0 ? 'negative' : 'neutral'}
+          />
+        )}
+        {licensing && (
+          <KpiCard
+            icon={FileBadge}
+            label="Patentes vencidas sin cargar"
+            value={String(licensing.overdue)}
+            meta={<Link to={LICENSING_OVERDUE_PATH}>Ver operaciones</Link>}
+            metaTone={licensing.overdue > 0 ? 'negative' : 'neutral'}
+          />
+        )}
+        {licensing && (
+          <KpiCard
+            icon={FileBadge}
+            label="Patentes recibidas con pago pendiente"
+            value={String(licensing.receivedPendingCollection)}
+            meta={<Link to={LICENSING_COLLECTION_PATH}>Ver operaciones</Link>}
+            metaTone={licensing.receivedPendingCollection > 0 ? 'negative' : 'neutral'}
           />
         )}
         {home.payableExpensesThisWeek && (
@@ -234,6 +258,7 @@ export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) 
         home.dueThisWeek === null &&
         home.unconfirmedVehiclePayments === null &&
         home.payableExpensesThisWeek === null &&
+        !licensing &&
         !home.collectionsToday &&
         !home.recentInquiries &&
         !alerts &&
