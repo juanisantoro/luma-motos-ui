@@ -109,10 +109,28 @@ export type Income = FinancialBase & {
   vehicle: {
     unit: (MinimalUnit & { licensePlate: string | null }) | null
   } | null
-  operation: { id: string; number: string } | null
+  operation: { id: string; number: string; ticketNumber?: string | null } | null
   collector?: MinimalPersonnel | null
   account?: MinimalAccount | null
+  // Medio, quién recibió la plata y rendición del efectivo.
+  paymentMethod?: IncomePaymentMethod | null
+  collectedBy?: MinimalPersonnel | null
+  handover?: {
+    status: 'PENDIENTE_RENDICION' | 'RENDIDO'
+    recipient: MinimalPersonnel | null
+    confirmedAt: string | null
+    confirmedBy: MinimalPersonnel | null
+  } | null
+  rowVersion?: number
 }
+
+export type IncomePaymentMethod =
+  | 'EFECTIVO'
+  | 'TRANSFERENCIA_BANCARIA'
+  | 'TARJETA'
+  | 'DESEMBOLSO_FINANCIERA'
+  | 'PAGARE'
+  | 'OTRO'
 
 export type Expense = FinancialBase & {
   expenseDate: string
@@ -184,6 +202,9 @@ export type CreateIncomeInput = {
   totalAmount: DecimalString
   currency?: string
   notes?: string
+  paymentMethod?: IncomePaymentMethod
+  collectedById?: string
+  handoverToId?: string
 }
 
 export type CreateExpenseInput = {
@@ -241,6 +262,19 @@ export type CashAccount = {
   currency: string
   active: boolean
   balance: DecimalString
+  branch?: MinimalBranch | null
+  responsiblePersonnel?: MinimalPersonnel | null
+  // Cuentas creadas por la importación del Excel histórico.
+  imported?: boolean
+  importedLabel?: string | null
+}
+
+export type CashAccountInput = {
+  name: string
+  type: CashAccountType
+  branchId?: string | null
+  responsiblePersonnelId?: string | null
+  active?: boolean
 }
 
 export type CashAccountListQuery = {

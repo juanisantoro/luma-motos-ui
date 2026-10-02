@@ -10,6 +10,11 @@ import { ApiError } from '../../shared/api/client'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
+import { alertError, alertSuccess } from '../../shared/alerts'
+import {
+  confirmCashHandover,
+  listHandoverRecipients,
+} from '../sales/tracking'
 import { listFinancialRecords } from './api'
 import { FinancialDetailsModal } from './components/FinancialDetailsModal'
 import { FinancialFilters } from './components/FinancialFilters'
@@ -27,6 +32,7 @@ import type {
   FinancialListQuery,
   FinancialRecord,
   FinancialVehicleType,
+  Income,
   PageResponse,
   SupplierPurchase,
 } from './types'
@@ -85,6 +91,39 @@ export function FinancialModulePage({
   const [settlement, setSettlement] = useState<{ record: FinancialRecord; recovery: boolean } | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
+  // Ingresos: quien recibe rendiciones confirma el efectivo desde la lista.
+  const canConfirmHandover =
+    kind === 'income' && hasPermission(permissions, 'caja.recibir_rendicion')
+  const [currentRecipientId, setCurrentRecipientId] = useState<string | null>(
+    null,
+  )
+  useEffect(() => {
+    if (!canConfirmHandover) return
+    const controller = new AbortController()
+    listHandoverRecipients(controller.signal)
+      .then((items) =>
+        setCurrentRecipientId(
+          items.find((item) => item.isCurrentUser)?.id ?? null,
+        ),
+      )
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [canConfirmHandover])
+
+  const confirmHandover = async (income: Income) => {
+    try {
+      await confirmCashHandover(income.id, income.rowVersion ?? 0)
+      void alertSuccess('Confirmaste la recepción del efectivo.')
+    } catch (error) {
+      void alertError(
+        error instanceof ApiError && error.details?.code === 'VERSION_CONFLICT'
+          ? 'El ingreso cambió mientras lo mirabas. Se actualizó la lista.'
+          : financialErrorMessage(error),
+      )
+    }
+    setRefreshKey((current) => current + 1)
+  }
+
   const effectiveQuery = useMemo(
     () => (vehicleType ? { ...query, vehicleType } : query),
     [query, vehicleType],
@@ -229,6 +268,13 @@ export function FinancialModulePage({
             canViewCosts={canViewCosts}
             onSettle={(record, recovery = false) => setSettlement({ record, recovery })}
             onDetails={(record) => setDetailId(record.id)}
+            {...(canConfirmHandover
+              ? {
+                  currentRecipientId,
+                  onConfirmHandover: (income: Income) =>
+                    void confirmHandover(income),
+                }
+              : {})}
           />
         )}
         {status === 'success' && result && result.total > 0 && (

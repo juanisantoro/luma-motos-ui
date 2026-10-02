@@ -1,6 +1,7 @@
 import { LoaderCircle, RotateCcw, X } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { getFinancialRecord, reverseMovement } from '../api'
+import { cashAccountLabel } from '../cashAccounts'
 import { alertError, alertSuccess } from '../../../shared/alerts'
 import {
   financialErrorMessage,
@@ -106,7 +107,7 @@ export function FinancialDetailsModal({
                   <span className="status-badge">{movement.reversed ? 'Reversado' : movement.direction}</span>
                 </header>
                 <dl>
-                  <div><dt>Cuenta</dt><dd>{movement.account.code} · {movement.account.name}</dd></div>
+                  <div><dt>Cuenta</dt><dd>{cashAccountLabel(movement.account)}</dd></div>
                   {movement.amount !== undefined && (
                     <div><dt>Importe</dt><dd>{formatMoney(movement.amount, record.currency)}</dd></div>
                   )}

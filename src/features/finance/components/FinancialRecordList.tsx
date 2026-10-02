@@ -1,4 +1,4 @@
-import { Banknote, History } from 'lucide-react'
+import { Banknote, HandCoins, History } from 'lucide-react'
 import { useMediaQuery } from '../../../shared/hooks/useMediaQuery'
 import {
   formatDate,
@@ -6,6 +6,11 @@ import {
   statusLabel,
   statusTone,
 } from '../format'
+import { cashAccountLabel } from '../cashAccounts'
+import {
+  handoverStatusLabels,
+  paymentMethodLabels,
+} from '../../sales/tracking'
 import type {
   Expense,
   FinancialKind,
@@ -23,6 +28,9 @@ type FinancialRecordListProps = {
   canViewCosts: boolean
   onSettle: (record: FinancialRecord, recovery?: boolean) => void
   onDetails: (record: FinancialRecord) => void
+  // Ingresos: el destinatario de la rendición confirma que recibió el efectivo.
+  currentRecipientId?: string | null
+  onConfirmHandover?: (income: Income) => void
 }
 
 function recordDate(kind: FinancialKind, record: FinancialRecord) {
@@ -72,12 +80,35 @@ function recordAmount(
   return formatMoney((record as Income | Expense).totalAmount, record.currency)
 }
 
+// Ingreso: dónde entró la plata, por qué medio, quién la recibió y a quién
+// se rinde el efectivo.
+export function incomeCollectionLines(income: Income) {
+  const lines: string[] = []
+  lines.push(
+    income.account ? cashAccountLabel(income.account) : 'Sin cobro registrado',
+  )
+  const received = income.collectedBy?.fullName
+  const method = income.paymentMethod
+    ? paymentMethodLabels[income.paymentMethod]
+    : null
+  if (method || received)
+    lines.push(
+      [method, received ? `cobró ${received}` : null]
+        .filter(Boolean)
+        .join(' · '),
+    )
+  if (income.handover)
+    lines.push(
+      income.handover.status === 'RENDIDO'
+        ? `Rendido a ${income.handover.recipient?.fullName ?? '—'}`
+        : `${handoverStatusLabels.PENDIENTE_RENDICION}: rinde a ${income.handover.recipient?.fullName ?? '—'}`,
+    )
+  return lines
+}
+
 function settlementMeta(kind: FinancialKind, record: FinancialRecord) {
   if (kind === 'income') {
-    const income = record as Income
-    return [income.account?.name, income.collector?.fullName]
-      .filter(Boolean)
-      .join(' · ') || 'Sin movimientos'
+    return incomeCollectionLines(record as Income).join(' · ')
   }
   if (kind === 'expense') {
     const expense = record as Expense
@@ -102,12 +133,31 @@ function RecordActions({
   canRecover,
   onSettle,
   onDetails,
+  currentRecipientId,
+  onConfirmHandover,
 }: Omit<FinancialRecordListProps, 'records' | 'canViewCosts'> & {
   record: FinancialRecord
 }) {
   const expense = kind === 'expense' ? (record as Expense) : null
+  const income = kind === 'income' ? (record as Income) : null
+  const canConfirmHandover =
+    income?.handover?.status === 'PENDIENTE_RENDICION' &&
+    Boolean(currentRecipientId) &&
+    income.handover.recipient?.id === currentRecipientId &&
+    Number(income.paidAmount) > 0
   return (
     <div className="financial-actions">
+      {income && canConfirmHandover && onConfirmHandover && (
+        <button
+          aria-label={`Confirmar recepción del efectivo de ${income.description}`}
+          className="button button--secondary button--compact"
+          type="button"
+          onClick={() => onConfirmHandover(income)}
+        >
+          <HandCoins size={16} />
+          Confirmar recepción
+        </button>
+      )}
       {canSettle && record.paymentStatus !== 'PAGADO' && (
         <button
           className="button button--secondary button--compact"
@@ -203,7 +253,7 @@ export function FinancialRecordList(props: FinancialRecordListProps) {
               )}
               {kind !== 'purchase' && (
                 <div>
-                  <dt>Cuenta / responsable</dt>
+                  <dt>{kind === 'income' ? 'Cuenta / cobro' : 'Cuenta / responsable'}</dt>
                   <dd>{settlementMeta(kind, record)}</dd>
                 </div>
               )}
@@ -245,7 +295,7 @@ export function FinancialRecordList(props: FinancialRecordListProps) {
             <th>Referencia / unidad</th>
             <th>Sucursal</th>
             {kind !== 'purchase' || canViewCosts ? <th>Total</th> : null}
-            {kind !== 'purchase' && <th>Cuenta / responsable</th>}
+            {kind === 'income' && <th>Cuenta / cobro</th>}
             <th>Estado</th>
             <th><span className="sr-only">Acciones</span></th>
           </tr>
@@ -283,7 +333,17 @@ export function FinancialRecordList(props: FinancialRecordListProps) {
               {kind !== 'purchase' || canViewCosts ? (
                 <td>{recordAmount(kind, record, canViewCosts)}</td>
               ) : null}
-              {kind !== 'purchase' && <td>{settlementMeta(kind, record)}</td>}
+              {kind === 'income' && (
+                <td>
+                  {incomeCollectionLines(record as Income).map((line, index) =>
+                    index === 0 ? (
+                      <strong key={line}>{line}</strong>
+                    ) : (
+                      <small key={line}>{line}</small>
+                    ),
+                  )}
+                </td>
+              )}
               <td>
                 <span className={`status-badge${statusTone(record.paymentStatus)}`}>
                   {statusLabel(record.paymentStatus)}

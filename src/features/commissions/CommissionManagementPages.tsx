@@ -13,6 +13,7 @@ import { StatePanel } from '../../shared/components/StatePanel'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
+import { cashAccountLabel } from '../finance/cashAccounts'
 import {
   AgreementModal,
   CommissionLoadState,
@@ -313,7 +314,7 @@ function PaymentModal({
           <label className="field"><span>Cuenta / caja *</span>
             <select name="accountId" required>
               <option value="">Seleccionar cuenta</option>
-              {options.accounts.map((account) => <option key={account.id} value={account.id}>{account.code} · {account.name}</option>)}
+              {options.accounts.map((account) => <option key={account.id} value={account.id}>{cashAccountLabel(account)}</option>)}
             </select>
           </label>
           <label className="field"><span>Fecha de pago *</span><input name="paidAt" type="date" defaultValue={localIsoDate()} required /></label>

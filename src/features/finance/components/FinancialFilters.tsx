@@ -6,6 +6,7 @@ import {
   listInventoryBranches,
 } from '../api'
 import { financialErrorMessage } from '../format'
+import { cashAccountLabel } from '../cashAccounts'
 import { useAuth } from '../../auth/AuthContext'
 import {
   branchScopeKey,
@@ -191,7 +192,7 @@ export function FinancialFilters({
             >
               <option value="">Todas</option>
               {accounts.map((account) => (
-                <option key={account.id} value={account.id}>{account.code} · {account.name}</option>
+                <option key={account.id} value={account.id}>{cashAccountLabel(account)}</option>
               ))}
             </select>
           </label>

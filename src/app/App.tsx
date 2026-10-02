@@ -26,6 +26,7 @@ import {
 import { BcraCheckPage } from '../features/bcra'
 import { CreditInstallmentsPage } from '../features/credit-plans/CreditInstallmentsPage'
 import { CreditPlansPage } from '../features/credit-plans/CreditPlansPage'
+import { CashAccountsPage } from '../features/finance/CashAccountsPage'
 import { ExpensesPage } from '../features/finance/ExpensesPage'
 import { IncomesPage } from '../features/finance/IncomesPage'
 import { VehiclePaymentsPage } from '../features/vehicle-payments/VehiclePaymentsPage'
@@ -256,6 +257,11 @@ export function App() {
                 element={<PermissionRoute permission="gastos.consultar" />}
               >
                 <Route path="gastos" element={<ExpensesPage />} />
+              </Route>
+              <Route
+                element={<PermissionRoute permission="caja.cuentas.gestionar" />}
+              >
+                <Route path="caja/cuentas" element={<CashAccountsPage />} />
               </Route>
               <Route
                 element={<PermissionRoute permission="creditos.gestionar" />}

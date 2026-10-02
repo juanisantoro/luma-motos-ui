@@ -6,6 +6,7 @@ import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { localIsoDate } from '../../shared/utils/date'
 import { hasPermission } from '../auth/PermissionRoute'
 import { listAllCashAccounts } from '../finance/api'
+import { cashAccountLabel, usableCashAccounts } from '../finance/cashAccounts'
 import { newIdempotencyKey } from '../finance/format'
 import type { CashAccount } from '../finance/types'
 import {
@@ -177,7 +178,7 @@ function CollectionFields({
             <option value="">Seleccionar cuenta</option>
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>
-                {account.code} · {account.name}
+                {cashAccountLabel(account)}
               </option>
             ))}
           </select>
@@ -286,21 +287,11 @@ export function LicensingModal({
     setAccountsError('')
     listAllCashAccounts(controller.signal)
       .then((items) => {
-        const usable = items
-          .filter(
-            (account) =>
-              account.active &&
-              account.currency === operation.currency &&
-              (account.branchId === null ||
-                account.branchId === operation.branch.id),
-          )
-          // Las cuentas históricas importadas quedan al final.
-          .sort(
-            (left, right) =>
-              Number(left.code.startsWith('HIST-')) -
-                Number(right.code.startsWith('HIST-')) ||
-              left.name.localeCompare(right.name, 'es-AR'),
-          )
+        // Las cuentas históricas importadas quedan al final.
+        const usable = usableCashAccounts(items, {
+          currency: operation.currency,
+          branchId: operation.branch.id,
+        })
         setAccounts(usable)
         setCollection((current) => ({
           ...current,

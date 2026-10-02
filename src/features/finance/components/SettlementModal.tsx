@@ -1,6 +1,11 @@
 import { LoaderCircle, X } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { addSettlement, listAllCashAccounts } from '../api'
+import {
+  accountForRecipient,
+  cashAccountLabel,
+  usableCashAccounts,
+} from '../cashAccounts'
 import { alertError, alertSuccess } from '../../../shared/alerts'
 import {
   financialErrorMessage,
@@ -11,6 +16,7 @@ import type {
   CashAccount,
   FinancialKind,
   FinancialRecord,
+  Income,
 } from '../types'
 
 type SettlementModalProps = {
@@ -29,6 +35,9 @@ export function SettlementModal({
   onSaved,
 }: SettlementModalProps) {
   const [accounts, setAccounts] = useState<CashAccount[]>([])
+  const [accountId, setAccountId] = useState('')
+  // Efectivo que se rinde: entra a la caja del destinatario, no se elige.
+  const [lockedToRecipient, setLockedToRecipient] = useState(false)
   const [loadingAccounts, setLoadingAccounts] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -38,11 +47,29 @@ export function SettlementModal({
   useEffect(() => {
     const controller = new AbortController()
     void listAllCashAccounts(controller.signal)
-      .then(setAccounts)
+      .then((items) => {
+        // Sólo las cuentas de la sucursal del registro y las compartidas.
+        const usable = usableCashAccounts(items, {
+          branchId: record.branch?.id ?? null,
+        })
+        setAccounts(usable)
+        // Efectivo que se rinde a alguien: se propone la caja de esa persona.
+        const recipientId =
+          kind === 'income' && !recovery
+            ? (record as Income).handover?.recipient?.id
+            : undefined
+        const proposed = recipientId
+          ? accountForRecipient(usable, recipientId)
+          : null
+        if (proposed) {
+          setAccountId(proposed.id)
+          setLockedToRecipient(true)
+        }
+      })
       .catch((loadError: unknown) => setError(financialErrorMessage(loadError)))
       .finally(() => setLoadingAccounts(false))
     return () => controller.abort()
-  }, [])
+  }, [kind, record, recovery])
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -91,14 +118,26 @@ export function SettlementModal({
         <form onSubmit={submit}>
           <label className="field">
             <span>Cuenta *</span>
-            <select name="accountId" required disabled={loadingAccounts}>
+            <select
+              {...(lockedToRecipient ? {} : { name: 'accountId' })}
+              required
+              disabled={loadingAccounts || lockedToRecipient}
+              value={accountId}
+              onChange={(event) => setAccountId(event.target.value)}
+            >
               <option value="">{loadingAccounts ? 'Cargando cuentas…' : 'Seleccionar cuenta'}</option>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
-                  {account.code} · {account.name}
+                  {cashAccountLabel(account)}
                 </option>
               ))}
             </select>
+            {lockedToRecipient && (
+              <>
+                <input type="hidden" name="accountId" value={accountId} />
+                <small>Es la caja de quien recibe el efectivo.</small>
+              </>
+            )}
           </label>
           <label className="field">
             <span>Importe *</span>

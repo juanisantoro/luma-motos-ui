@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { localIsoDate } from '../../shared/utils/date'
 import { listAllCashAccounts } from '../finance/api'
+import { cashAccountLabel, usableCashAccounts } from '../finance/cashAccounts'
 import { newIdempotencyKey } from '../finance/format'
 import type { CashAccount } from '../finance/types'
 import {
@@ -56,14 +57,7 @@ export function PayCreditInstallmentModal({
       listHandoverRecipients(controller.signal),
     ])
       .then(([accountItems, recipientItems]) => {
-        const usable = accountItems
-          .filter((account) => account.active && account.currency === 'ARS')
-          .sort(
-            (left, right) =>
-              Number(left.code.startsWith('HIST-')) -
-                Number(right.code.startsWith('HIST-')) ||
-              left.name.localeCompare(right.name, 'es-AR'),
-          )
+        const usable = usableCashAccounts(accountItems, { currency: 'ARS' })
         setAccounts(usable)
         setAccountId((current) => current || usable[0]?.id || '')
         setRecipients(recipientItems)
@@ -201,7 +195,7 @@ export function PayCreditInstallmentModal({
                 <option value="">Seleccionar cuenta</option>
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
-                    {account.code} · {account.name}
+                    {cashAccountLabel(account)}
                   </option>
                 ))}
               </select>

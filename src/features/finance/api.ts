@@ -1,6 +1,8 @@
 import { AUTH_TOKEN_KEY, apiRequest } from '../../shared/api/client'
+import { sortCashAccounts } from './cashAccounts'
 import type {
   CashAccount,
+  CashAccountInput,
   CashAccountListQuery,
   Expense,
   FinancialCreateInput,
@@ -122,6 +124,24 @@ export function listCashAccounts(
   })
 }
 
+export function createCashAccount(input: CashAccountInput) {
+  return apiRequest<CashAccount>('/cash/accounts', {
+    method: 'POST',
+    token: authToken(),
+    body: Object.fromEntries(
+      Object.entries(input).filter(([, value]) => value != null),
+    ),
+  })
+}
+
+export function updateCashAccount(id: string, input: Partial<CashAccountInput>) {
+  return apiRequest<CashAccount>(`/cash/accounts/${id}`, {
+    method: 'PATCH',
+    token: authToken(),
+    body: input,
+  })
+}
+
 export function listSuppliers(signal?: AbortSignal) {
   return apiRequest<PageResponse<SupplierOption>>(
     '/suppliers?active=true&page=1&limit=100',
@@ -144,11 +164,16 @@ async function collectAllPages<T>(
   return [first, ...remaining].flatMap((response) => response.items)
 }
 
-export async function listAllCashAccounts(signal?: AbortSignal) {
-  const first = await listCashAccounts({ active: true, page: 1, limit: 100 }, signal)
-  return collectAllPages(first, (page) =>
-    listCashAccounts({ active: true, page, limit: 100 }, signal),
+export async function listAllCashAccounts(
+  signal?: AbortSignal,
+  includeInactive = false,
+) {
+  const filter = includeInactive ? {} : { active: true }
+  const first = await listCashAccounts({ ...filter, page: 1, limit: 100 }, signal)
+  const items = await collectAllPages(first, (page) =>
+    listCashAccounts({ ...filter, page, limit: 100 }, signal),
   )
+  return sortCashAccounts(items)
 }
 
 export async function listAllSuppliers(signal?: AbortSignal) {
