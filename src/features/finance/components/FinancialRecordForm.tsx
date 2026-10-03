@@ -84,8 +84,13 @@ const INCOME_METHODS = Object.keys(paymentMethodLabels) as IncomePaymentMethod[]
 // El pago de la venta (total o parcial) usa el mismo circuito que
 // Seguimiento de cobros → Cobrar: baja el saldo de la operación.
 const OPERATION_PAYMENT_TYPE = 'Cobro de operación'
-// Tipos que no se cargan a mano: las cuotas se cobran en Cobranza de cuotas.
-const HIDDEN_INCOME_TYPES = new Set(['Cuota crédito', 'Pago total de la moto'])
+// Tipos que no se cargan a mano: las cuotas se cobran en Cobranza de cuotas
+// y la patente del cliente en Operaciones → Patentamiento → Gestionar.
+const HIDDEN_INCOME_TYPES = new Set([
+  'Cuota crédito',
+  'Pago total de la moto',
+  'Patente',
+])
 
 function operationPaymentLabel(vehicleType?: FinancialVehicleType) {
   return vehicleType === 'AUTO'

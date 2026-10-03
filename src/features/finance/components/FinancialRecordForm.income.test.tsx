@@ -46,6 +46,7 @@ vi.mock('../api', () => ({
       { id: 'type-1', name: 'Seña' },
       { id: 'type-2', name: 'Cobro de operación' },
       { id: 'type-3', name: 'Cuota crédito' },
+      { id: 'type-4', name: 'Patente' },
     ]),
   listInventoryBranches: vi.fn().mockResolvedValue([
     { id: 'branch-1', code: 'SM', name: 'San Miguel', organizationId: 'org-1' },
@@ -341,6 +342,7 @@ describe('Pago de la moto (venta) desde Ingresos', () => {
     expect(type).toHaveTextContent('Pago de la moto (venta)')
     expect(type).not.toHaveTextContent('Cobro de operación')
     expect(type).not.toHaveTextContent('Cuota crédito')
+    expect(type).not.toHaveTextContent('Patente')
   })
 
   it('sin permiso de cobro no ofrece el pago de la venta', async () => {
