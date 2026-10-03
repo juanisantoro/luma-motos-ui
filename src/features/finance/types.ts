@@ -198,6 +198,8 @@ export type CreateIncomeInput = {
   reference?: string
   unitId?: string
   operationId?: string
+  /** Circuito donde se carga: ubica en la grilla al ingreso sin unidad ni operación. */
+  vehicleType?: FinancialVehicleType
   description: string
   totalAmount: DecimalString
   currency?: string

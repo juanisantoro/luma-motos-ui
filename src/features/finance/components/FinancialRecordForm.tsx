@@ -536,6 +536,8 @@ export function FinancialRecordForm({
         currency: text(data, 'currency'),
         ...(unitId ? { unitId } : {}),
         ...(operationId ? { operationId } : {}),
+        // Sin unidad ni operación, la grilla lo ubica por este circuito.
+        ...(vehicleType ? { vehicleType } : {}),
         ...(reference ? { reference } : {}),
         ...(notes ? { notes } : {}),
         // Quién cobró no se envía: siempre es quien carga el ingreso.

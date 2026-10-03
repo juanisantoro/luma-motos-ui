@@ -31,6 +31,7 @@ import { ExpensesPage } from '../features/finance/ExpensesPage'
 import { IncomesPage } from '../features/finance/IncomesPage'
 import { VehiclePaymentsPage } from '../features/vehicle-payments/VehiclePaymentsPage'
 import { PurchasesPage } from '../features/finance/PurchasesPage'
+import { ManualPage } from '../features/manual/ManualPage'
 import { ModulePlaceholder } from '../features/placeholders/ModulePlaceholder'
 import { ApprovalsPage } from '../features/sales/ApprovalsPage'
 import { OperationsPage } from '../features/sales/OperationsPage'
@@ -59,6 +60,7 @@ export function App() {
             <Route element={<AppLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="sin-permiso" element={<ForbiddenPage />} />
+              <Route path="manual" element={<ManualPage />} />
               <Route
                 element={<PermissionRoute permission="clientes.consultar" />}
               >

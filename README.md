@@ -20,6 +20,15 @@ descarta al cerrarla.
 - `npm test`: pruebas focalizadas.
 - `npm run build`: build de producción.
 
+## Manual de uso por perfil
+
+La pantalla `/manual` ("Manual de uso", al final del menú) muestra el manual
+del rol del usuario. Cada manual es un HTML autónomo en
+`src/features/manual/content/<rol>.html`, registrado por código de rol en
+`src/features/manual/manuals.ts`; se carga bajo demanda y sólo con sesión
+iniciada. Un rol sin manual ve un aviso. Al cambiar una pantalla, actualizá el
+manual de los perfiles que la usan en el mismo cambio.
+
 ## API
 
 `VITE_API_URL` debe apuntar al prefijo completo de la API, por ejemplo

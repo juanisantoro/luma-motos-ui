@@ -226,6 +226,8 @@ describe('Alta de ingreso con medio, cobrador y rendición', () => {
         'income',
         expect.objectContaining({
           branchId: 'branch-1',
+          // Se guarda el circuito: sin unidad ni operación igual aparece en la grilla.
+          vehicleType: 'MOTO',
           totalAmount: '150000.00',
           paymentMethod: 'EFECTIVO',
           handoverToId: 'p-lucas',

@@ -3,6 +3,7 @@ import {
   PackageSearch,
   Bike,
   BadgeDollarSign,
+  BookOpen,
   CarFront,
   CheckCheck,
   ChevronDown,
@@ -74,6 +75,14 @@ const homeItem: NavItem = {
   description: 'Resumen general',
   to: '/',
   icon: LayoutDashboard,
+}
+
+// Manual de uso del perfil: lo ven todos, sin permiso asociado.
+const manualItem: NavItem = {
+  label: 'Manual de uso',
+  description: 'Guía paso a paso de tu perfil',
+  to: '/manual',
+  icon: BookOpen,
 }
 
 const navigationGroups: NavGroup[] = [
@@ -491,6 +500,7 @@ export function AppLayout() {
     .filter((group) => group.items.length > 0)
   const navigationItems = [
     homeItem,
+    manualItem,
     ...visibleGroups.flatMap((group) =>
       group.items.flatMap((entry) =>
         isNavSubGroup(entry) ? entry.items : [entry],
@@ -741,6 +751,22 @@ export function AppLayout() {
               )
             })}
           </div>
+          <NavLink
+            className={() =>
+              `nav-item nav-item--root ${isItemActive(manualItem) ? 'nav-item--active' : ''}`
+            }
+            title={sidebarCompact ? manualItem.label : undefined}
+            to={manualItem.to}
+            onClick={() => setDrawerOpen(false)}
+          >
+            <BookOpen className="nav-item__icon" size={20} aria-hidden="true" />
+            {!sidebarCompact && (
+              <span>
+                <strong>{manualItem.label}</strong>
+                <small>{manualItem.description}</small>
+              </span>
+            )}
+          </NavLink>
         </nav>
         <div className="sidebar__account">
           <span className="avatar" aria-hidden="true">

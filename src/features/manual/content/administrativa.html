@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>html{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Manual de la Administrativa</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,500;0,700;0,800;1,800&family=Public+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: portada roja, índice, y capítulos en una columna de lectura; cada tarea = pasos numerados + una "pantalla de ejemplo" dibujada. */
+:root{
+  --red:#e32636; --red-dark:#bd1927; --red-soft:#fff0f2; --on-red:#ffffff;
+  --bg:#ffffff; --surface:#fbf7f7; --ink:#1d1416; --muted:#6b5b5e; --line:#ecdfe1;
+  --ok:#17794a; --ok-soft:#e5f5ec; --warn:#8a5a00; --warn-soft:#fdf1d6; --off:#5d5759; --off-soft:#efebec;
+  --display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --red:#ff5562; --red-dark:#e32636; --red-soft:#34171b; --on-red:#ffffff;
+    --bg:#171113; --surface:#211719; --ink:#f6eced; --muted:#bca9ac; --line:#3a2a2d;
+    --ok:#6fd6a0; --ok-soft:#173326; --warn:#f0c26a; --warn-soft:#3a2c10; --off:#c9bfc1; --off-soft:#2e2628; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --red:#ff5562; --red-dark:#e32636; --red-soft:#34171b; --on-red:#ffffff;
+  --bg:#171113; --surface:#211719; --ink:#f6eced; --muted:#bca9ac; --line:#3a2a2d;
+  --ok:#6fd6a0; --ok-soft:#173326; --warn:#f0c26a; --warn-soft:#3a2c10; --off:#c9bfc1; --off-soft:#2e2628; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.cover{background:var(--red-dark);color:var(--on-red);padding-block:36px 40px;padding-inline:16px}
+.wrap{max-width:820px;margin-inline:auto}
+.brand{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:800;letter-spacing:.14em;font-size:14px}
+.brand i{display:grid;place-items:center;width:40px;height:40px;border-radius:10px;background:#ffffff;color:#bd1927;font-style:italic;font-size:16px;letter-spacing:0}
+.cover h1{font-family:var(--display);font-weight:800;font-style:italic;font-size:clamp(34px,7vw,56px);line-height:1.02;margin:28px 0 12px;text-wrap:balance}
+.cover p{margin:0;max-width:58ch;font-size:17px}
+.cover .meta{margin-top:20px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+main{padding-block:32px 56px;padding-inline:16px}
+main>.wrap{display:grid;gap:56px}
+.chapter{display:grid;gap:28px;min-width:0}
+.chapter>header{border-top:4px solid var(--red);padding-top:14px;display:grid;gap:6px}
+.chapter>header span{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red)}
+h2{font-family:var(--display);font-weight:800;font-style:italic;font-size:clamp(28px,5vw,38px);line-height:1.08;margin:0;text-wrap:balance}
+.chapter>header p{margin:0;color:var(--muted);max-width:65ch}
+section{display:grid;gap:14px;min-width:0}
+h3{font-family:var(--display);font-weight:800;font-size:22px;line-height:1.2;margin:0;text-wrap:balance}
+h4{font-family:var(--display);font-weight:700;font-size:16px;margin:6px 0 0}
+section>p,section>ul{margin:0;max-width:68ch}
+section>ul{padding-left:20px;display:grid;gap:6px}
+.where{font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--red)}
+ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:10px;counter-reset:s}
+ol.steps>li{counter-increment:s;display:grid;grid-template-columns:30px 1fr;gap:12px;align-items:start}
+ol.steps>li::before{content:counter(s);display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--red);color:var(--on-red);font-family:var(--display);font-weight:700;font-size:14px}
+ol.steps>li>span{padding-top:2px;min-width:0}
+strong{font-weight:700}
+.note,.warn{border-radius:10px;padding:14px 16px;max-width:none}
+.note{background:var(--red-soft)}
+.warn{background:var(--warn-soft);color:var(--ink)}
+.warn::before{content:"Ojo";display:inline-block;font-family:var(--display);font-weight:800;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);margin-right:8px}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th{font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;text-align:left;background:var(--red);color:var(--on-red);padding:10px 14px}
+td{padding:10px 14px;border-top:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even) td{background:var(--surface)}
+td:first-child{font-weight:600}
+/* Índice */
+.toc{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));padding:0;margin:0;list-style:none}
+.toc a{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:10px;color:var(--ink);text-decoration:none;font-weight:600}
+.toc a:hover,.toc a:focus-visible{border-color:var(--red);outline:none}
+.toc b{font-family:var(--display);font-style:italic;font-size:22px;color:var(--red)}
+/* Pantallas de ejemplo */
+.mock{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
+.mock>figcaption{display:flex;gap:10px;align-items:center;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.mock>figcaption b{font-family:var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--red);font-size:11px}
+figure{margin:0;min-width:0}
+main>.wrap,.chapter,section,.mock .in{grid-template-columns:minmax(0,1fr)}
+main>.wrap>*,.mock,.mock .in>*,.tablebox,.two>*,.fgrid>*{min-width:0}
+.mock .in{padding:16px;display:grid;gap:12px;font-size:14px}
+.mock .scroll{overflow-x:auto}
+.mock table{font-size:13px;min-width:560px}
+.mock th{background:var(--surface);color:var(--muted);border-bottom:1px solid var(--line)}
+.mock td{background:var(--bg)!important}
+.mock td small,.mini{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red)}
+.mtitle{font-family:var(--display);font-weight:800;font-size:19px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.f{display:grid;gap:4px;min-width:0}
+.f>span{font-size:12px;font-weight:700}
+.f>div{border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:36px;background:var(--bg);overflow-wrap:anywhere}
+.f.ro>div{background:var(--surface);font-weight:600}
+.f.wide{grid-column:1/-1}
+.f small{color:var(--muted);font-size:12px}
+.b{display:inline-block;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px;background:var(--bg);white-space:nowrap}
+.b.p{background:var(--red);border-color:var(--red);color:var(--on-red)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;background:var(--off-soft);color:var(--off);white-space:nowrap}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.wa{background:var(--warn-soft);color:var(--warn)}
+.badge.re{background:var(--red-soft);color:var(--red)}
+.callout{font-size:13px;color:var(--muted)}
+.callout b{color:var(--red)}
+/* Circuito */
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;counter-reset:f}
+.flow>div{counter-increment:f;border:1px solid var(--line);border-top:4px solid var(--red);border-radius:10px;padding:12px;display:grid;gap:4px;align-content:start}
+.flow>div::before{content:counter(f);font-family:var(--display);font-style:italic;font-weight:800;font-size:22px;color:var(--red)}
+.flow strong{font-family:var(--display)}
+.flow small{color:var(--muted)}
+.menu{display:grid;gap:2px;max-width:320px;background:#16181d;color:#e9e6e7;border-radius:10px;padding:12px;font-size:13px}
+.menu b{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#a79c9f;margin-top:10px}
+.menu span{padding:5px 10px;border-radius:6px}
+.menu span.on{background:#e32636;color:#fff;font-weight:700}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:start}
+footer{border-top:1px solid var(--line);padding-top:16px;font-size:13px;color:var(--muted)}
+a{color:var(--red)}
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="wrap">
+    <div class="brand"><i>LM</i>LUMA MOTOS</div>
+    <h1>Manual de la Administrativa</h1>
+    <p>Todo lo que podés hacer en el sistema con tu usuario, pantalla por pantalla y paso a paso. Pensado para quien viene de trabajar con planillas de Excel.</p>
+    <div class="meta">Octubre 2026 · Manual completo del rol</div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+<section>
+  <h3>Cómo usar este manual</h3>
+  <p>Cada capítulo es una parte del menú. Adentro, cada tarea tiene los pasos numerados y una <strong>pantalla de ejemplo</strong> dibujada, con datos inventados, para que reconozcas lo que vas a ver. Los textos entre comillas o en negrita son los que aparecen escritos en el sistema.</p>
+  <ul class="toc">
+    <li><a href="#entrar"><b>1</b>Entrar al sistema</a></li>
+    <li><a href="#pantalla"><b>2</b>La pantalla y el menú</a></li>
+    <li><a href="#inicio"><b>3</b>Inicio</a></li>
+    <li><a href="#ventas"><b>4</b>Ventas</a></li>
+    <li><a href="#clientes"><b>5</b>Clientes</a></li>
+    <li><a href="#stock"><b>6</b>Stock y catálogo</a></li>
+    <li><a href="#finanzas"><b>7</b>Administración financiera</a></li>
+    <li><a href="#creditos"><b>8</b>Créditos personales</a></li>
+    <li><a href="#limites"><b>9</b>Lo que no podés hacer</a></li>
+    <li><a href="#ayuda"><b>10</b>Si algo no sale</a></li>
+  </ul>
+</section>
+
+<section>
+  <h3>Del Excel al sistema: qué cambia</h3>
+  <div class="tablebox"><table>
+    <thead><tr><th>En el Excel</th><th>En el sistema</th></tr></thead>
+    <tbody>
+      <tr><td>Escribías en cualquier celda</td><td>Cada dato se carga en un formulario. Los campos con asterisco (*) son obligatorios.</td></tr>
+      <tr><td>Borrabas o corregías una fila</td><td>Casi nada se borra ni se edita. Revisá antes de guardar; si te equivocaste, avisá a un Administrador.</td></tr>
+      <tr><td>Los totales los calculabas vos</td><td>Saldos, estados y totales los calcula el sistema. No se cambian a mano.</td></tr>
+      <tr><td>Cada sucursal tenía su planilla</td><td>Entrás con tu usuario y ves sólo tu sucursal.</td></tr>
+      <tr><td>Filtrabas con el embudo</td><td>Cada pantalla tiene buscador y filtros. En varias hay que tocar <strong>Buscar</strong> o <strong>Aplicar filtros</strong> para que se apliquen.</td></tr>
+      <tr><td>Anotabas el estado ("pagó", "falta")</td><td>El estado aparece solo, como una etiqueta de color: Pendiente, Parcial, Pagado, Aprobada, etc.</td></tr>
+      <tr><td>Guardabas el archivo</td><td>Se guarda al tocar el botón del formulario. Aparece un cartel "Listo" con el botón <strong>Aceptar</strong>.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ 1 ============ -->
+<div class="chapter" id="entrar">
+  <header><span>Capítulo 1</span><h2>Entrar al sistema</h2><p>Entrás con tu correo y tu contraseña. La primera vez vas a tener que elegir una contraseña propia.</p></header>
+
+  <section>
+    <h3>Ingresar</h3>
+    <ol class="steps">
+      <li><span>Abrí la dirección del sistema. Aparece la pantalla <strong>Ingresá a tu cuenta</strong>.</span></li>
+      <li><span>Escribí tu <strong>Correo electrónico</strong> y tu <strong>Contraseña</strong>.</span></li>
+      <li><span>Tocá <strong>Ingresar al sistema</strong>. Entrás a la pantalla Inicio.</span></li>
+    </ol>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Pantalla de ingreso</figcaption>
+      <div class="in" style="max-width:380px">
+        <div class="eyebrow">LM · LUMA MOTOS</div>
+        <div class="mtitle">Ingresá a tu cuenta</div>
+        <div class="f"><span>Correo electrónico</span><div>nombre@lumamotos.com.ar</div></div>
+        <div class="f"><span>Contraseña</span><div>••••••••••••</div></div>
+        <div class="row"><span class="b p">Ingresar al sistema</span></div>
+        <div class="callout">¿Olvidaste tu contraseña?</div>
+      </div>
+    </figure>
+  </section>
+
+  <section>
+    <h3>La primera vez (contraseña temporal)</h3>
+    <p>Te llega un mail con una contraseña temporal. Sirve por tiempo limitado; si venció, pedile a un Administrador que reenvíe la invitación.</p>
+    <ol class="steps">
+      <li><span>Ingresá con tu correo y la contraseña temporal del mail.</span></li>
+      <li><span>El sistema te lleva a <strong>Configurá tu contraseña</strong>.</span></li>
+      <li><span>Escribí una contraseña nueva que cumpla las cinco reglas: 12 caracteres como mínimo, una mayúscula, una minúscula, un número y un carácter especial (por ejemplo # o !).</span></li>
+      <li><span>Repetila en <strong>Confirmar nueva contraseña</strong> y tocá <strong>Configurar contraseña</strong>.</span></li>
+      <li><span>Volvés a la pantalla de ingreso. Entrá de nuevo, ahora con tu contraseña nueva.</span></li>
+    </ol>
+  </section>
+
+  <section>
+    <h3>Si te olvidaste la contraseña</h3>
+    <ol class="steps">
+      <li><span>En la pantalla de ingreso tocá <strong>¿Olvidaste tu contraseña?</strong></span></li>
+      <li><span>Escribí tu correo y tocá <strong>Enviar contraseña temporal</strong>.</span></li>
+      <li><span>Abrí el mail, ingresá con esa contraseña temporal y elegí una nueva, igual que la primera vez.</span></li>
+    </ol>
+    <p class="warn">No hay una pantalla para cambiar la contraseña estando adentro: se cambia sólo por este camino. Si el mail no llega, avisá a un Administrador.</p>
+  </section>
+
+  <section>
+    <h3>La sesión</h3>
+    <ul>
+      <li>Si pasás un rato largo sin usar el sistema, la sesión se cierra sola y vuelve a pedirte la contraseña. Lo que estabas cargando sin guardar se pierde.</li>
+      <li>Si cerrás la pestaña o abrís el sistema en otra pestaña, también te pide ingresar de nuevo.</li>
+      <li>Si probás más de 5 veces en un minuto, hay que esperar cinco minutos.</li>
+      <li>Para salir, usá el botón <strong>Cerrar sesión</strong>, abajo en el menú, al lado de tu nombre.</li>
+    </ul>
+  </section>
+</div>
+
+<!-- ============ 2 ============ -->
+<div class="chapter" id="pantalla">
+  <header><span>Capítulo 2</span><h2>La pantalla y el menú</h2><p>A la izquierda está el menú. Arriba, el nombre de la pantalla en la que estás y tu sucursal.</p></header>
+
+  <section>
+    <div class="two">
+      <figure class="mock"><figcaption><b>Ejemplo</b>Tu menú completo</figcaption>
+        <div class="in">
+          <div class="menu">
+            <span class="on">Inicio</span>
+            <b>Ventas · Operaciones moto</b><span>Mis operaciones</span><span>Operaciones</span><span>A asignar</span>
+            <b>Ventas · Operaciones auto</b><span>Mis operaciones</span><span>Operaciones</span>
+            <b>Clientes</b><span>Clientes</span><span>Clientes en rojo</span>
+            <b>Stock y abastecimiento</b><span>Stock de motos</span><span>Stock de autos</span>
+            <b>Catálogo</b><span>Catálogo de motos</span><span>Catálogo de autos</span>
+            <b>Administración financiera</b><span>Compras de motos / autos</span><span>Ingresos de motos / autos</span><span>Gastos generales</span><span>Patentes/seguros de motos / autos</span>
+            <b>Créditos personales</b><span>Cobranza de cuotas</span><span>Consulta BCRA</span>
+          </div>
+        </div>
+      </figure>
+      <div style="display:grid;gap:14px">
+        <p style="margin:0">Los títulos en gris son grupos: tocalos para abrirlos o cerrarlos. Este manual explica las pantallas de motos. Las de <strong>autos</strong> son parecidas, con una diferencia: en autos la unidad se elige al cargar la venta, no hay "A asignar", y el pedido se sigue desde Stock de autos → Abastecimientos.</p>
+        <p style="margin:0">Arriba de todo ves el nombre de la pantalla y, debajo, <strong>organización · sucursal</strong>. Esa es tu sucursal: sólo ves y cargás datos de ella, y los selectores de sucursal aparecen fijos.</p>
+        <p style="margin:0">En el celular el menú está escondido: se abre con el botón de arriba a la izquierda y se cierra solo al elegir una opción.</p>
+        <p class="note" style="margin:0">Si alguna opción de este dibujo no te aparece, o te aparece el cartel "No tenés permiso para ingresar", avisá a un Administrador: los permisos los maneja él.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Cosas que se repiten en todas las pantallas</h3>
+    <div class="tablebox"><table>
+      <thead><tr><th>Qué ves</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td>Asterisco (*) al lado de un campo</td><td>Es obligatorio. Sin eso no guarda.</td></tr>
+        <tr><td>Campo gris que no deja escribir</td><td>Lo completa el sistema (tu sucursal, quién cobró, el mes).</td></tr>
+        <tr><td>Cartel "Listo" con botón Aceptar</td><td>Se guardó bien.</td></tr>
+        <tr><td>Cartel "Ocurrió un error"</td><td>No se guardó. Leé el mensaje, corregí y volvé a intentar.</td></tr>
+        <tr><td>Etiqueta de color en una fila</td><td>El estado de ese registro. Verde: listo. Amarillo: a medias. Rojo: requiere atención.</td></tr>
+        <tr><td>"Página 1 de 5" con flechas</td><td>Las listas muestran 20 filas por página. Usá las flechas o el buscador.</td></tr>
+        <tr><td>Buscadores "Ingresá al menos 3 letras"</td><td>Escribí parte del nombre, chasis o número y elegí de la lista que aparece debajo.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</div>
+
+<!-- ============ 3 ============ -->
+<div class="chapter" id="inicio">
+  <header><span>Capítulo 3</span><h2>Inicio</h2><p>Es el tablero del día: te muestra qué hay para cobrar, qué está demorado y qué falta resolver en tu sucursal.</p></header>
+
+  <section>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Inicio</figcaption>
+      <div class="in">
+        <div class="eyebrow">LUMA MOTOS</div>
+        <div class="mtitle">Buen día, Carla</div>
+        <div class="note" style="font-size:13px"><strong>$ 185.000</strong> a cobrar hoy de <strong>2</strong> clientes con cuota vencida hoy. <span class="b">Ir a cobranza</span></div>
+        <div class="fgrid">
+          <div class="f ro"><span>Saldo de caja hoy</span><div>$ 1.240.000</div></div>
+          <div class="f ro"><span>Cuotas a cobrar esta semana</span><div>$ 610.000 · 7 cuotas</div></div>
+          <div class="f ro"><span>Pagos de vehículo sin confirmar</span><div>4 · 1 con más de 5 días</div></div>
+          <div class="f ro"><span>Patentes vencidas sin cargar</span><div>3 · Ver operaciones</div></div>
+          <div class="f ro"><span>Patentes recibidas con pago pendiente</span><div>2 · Ver operaciones</div></div>
+          <div class="f ro"><span>Gastos a pagar esta semana</span><div>$ 0</div></div>
+        </div>
+      </div>
+    </figure>
+    <div class="tablebox"><table>
+      <thead><tr><th>Tarjeta</th><th>Qué te dice</th><th>Qué hacer</th></tr></thead>
+      <tbody>
+        <tr><td>Franja roja "a cobrar hoy"</td><td>Cuotas de crédito propio que vencen hoy.</td><td>Tocá <strong>Ir a cobranza</strong> (capítulo 8).</td></tr>
+        <tr><td>Saldo de caja hoy</td><td>La plata que hay en las cuentas de tu sucursal.</td><td>Sólo para consultar.</td></tr>
+        <tr><td>Cuotas a cobrar esta semana</td><td>Cuotas que vencen de hoy a 6 días.</td><td>Preparar la cobranza.</td></tr>
+        <tr><td>Pagos de vehículo sin confirmar</td><td>Patentes o seguros cargados como Pendiente.</td><td>Marcarlos pagados cuando corresponda (capítulo 7).</td></tr>
+        <tr><td>Patentes vencidas sin cargar</td><td>Ventas donde pasó la fecha estimada y no se cargó la patente.</td><td><strong>Ver operaciones</strong> y reclamar o cargar la patente.</td></tr>
+        <tr><td>Patentes recibidas con pago pendiente</td><td>La patente llegó y el cliente todavía no la pagó.</td><td><strong>Ver operaciones</strong> y registrar el cobro.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Más abajo hay cuatro cuadros: <strong>Cobranza de hoy</strong>, <strong>Consultas crediticias recientes</strong>, <strong>Alertas de gestión</strong> y <strong>Modelos más vendidos</strong>. Son de consulta.</p>
+    <p class="warn">La tarjeta "Gastos a pagar esta semana" cuenta gastos con fecha de vencimiento, y el formulario de gastos no tiene ese dato. Por eso suele quedar en cero aunque haya gastos pendientes: miralos en Gastos generales.</p>
+  </section>
+</div>
+
+<!-- ============ 4 ============ -->
+<div class="chapter" id="ventas">
+  <header><span>Capítulo 4</span><h2>Ventas</h2><p>Una venta en el sistema se llama <strong>operación</strong>. Acá se carga, se le consigue la moto, se cobra y se tramita la patente.</p></header>
+
+  <section>
+    <h3>El recorrido de una venta</h3>
+    <div class="flow">
+      <div><strong>Se carga</strong><small>Nueva operación: cliente, moto, precio y forma de pago.</small></div>
+      <div><strong>Se aprueba</strong><small>Sola si va a precio de lista. Si va por debajo, la aprueba un Gerente o Administrador.</small></div>
+      <div><strong>Se consigue la moto</strong><small>Asignar de stock o pedir a proveedor y registrar la llegada.</small></div>
+      <div><strong>Se cobra</strong><small>Pago de la moto, total o en partes. Cuotas si hay crédito propio.</small></div>
+      <div><strong>Se patenta</strong><small>Se carga la patente cuando llega y, si la paga el cliente, se le cobra.</small></div>
+    </div>
+    <p>Los pasos 3, 4 y 5 no tienen un orden fijo: se pueden ir haciendo a medida que pasan.</p>
+  </section>
+
+  <section>
+    <h3>Dónde veo las operaciones</h3>
+    <div class="tablebox"><table>
+      <thead><tr><th>Opción del menú</th><th>Qué muestra</th><th>Para qué la usás</th></tr></thead>
+      <tbody>
+        <tr><td>Operaciones</td><td>Todas las ventas de tu sucursal.</td><td>Es tu pantalla de trabajo: unidad, patentamiento y cobros.</td></tr>
+        <tr><td>A asignar</td><td>La misma lista, ya filtrada por las ventas que todavía no tienen moto.</td><td>Asignar de stock o pedir a proveedor.</td></tr>
+        <tr><td>Mis operaciones</td><td>Sólo las ventas donde vos figurás como vendedora.</td><td>Acá está el botón <strong>Nueva operación</strong>.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="warn">El botón "Nueva operación" está sólo en <strong>Mis operaciones</strong>. Y una venta que cargás a nombre de otro vendedor no aparece ahí: buscala en <strong>Operaciones</strong>.</p>
+  </section>
+
+  <section>
+    <h3>La lista de Operaciones</h3>
+    <span class="where">Ventas → Operaciones moto → Operaciones</span>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Operaciones de motos</figcaption>
+      <div class="in">
+        <div class="row"><span class="b p">Operaciones</span><span class="b">Seguimiento de cobros</span></div>
+        <div class="fgrid">
+          <div class="f"><span>Buscar</span><div class="mini">Operación, cliente, VIN, patente o boleto</div></div>
+          <div class="f"><span>Estado</span><div>Todos los estados</div></div>
+          <div class="f"><span>Patentamiento</span><div>Todo patentamiento</div></div>
+          <div class="f"><span>Unidad</span><div>Toda situación de unidad</div></div>
+        </div>
+        <div class="scroll"><table>
+          <thead><tr><th>Operación</th><th>Cliente</th><th>Vehículo / chasis</th><th>Estado operación</th><th>Unidad</th><th>Patentamiento</th></tr></thead>
+          <tbody>
+            <tr><td>#1053<small>Boleto SM-0421</small></td><td>Pérez, Ana<small>DNI 30111222</small></td><td>Honda Wave 110<small>Moto · Nuevo · Sin chasis asignado</small></td><td><span class="badge ok">Aprobada</span></td><td><span class="badge re">Pendiente de asignar unidad</span><br><span class="b">Asignar de stock</span> <span class="b">Pedir a proveedor</span></td><td>Bonificada <span class="badge">Pago pendiente</span><br><span class="b">Gestionar</span></td></tr>
+            <tr><td>#1048<small>Boleto SM-0417</small></td><td>Gómez, Luis<small>DNI 28999111</small></td><td>Honda XR 150<small>Moto · Nuevo · 8CH…4471</small></td><td><span class="badge ok">Aprobada</span></td><td><span class="badge ok">Recibida / asignada</span></td><td>Paga el cliente <span class="badge wa">Cobro pendiente</span><br><span class="b">Gestionar</span> <span class="b">Pago de patente</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <p>La lista tiene además las columnas Fecha, Origen / destino, Precio, Vendedor y Observación. Arriba hay dos solapas: <strong>Operaciones</strong> (esta) y <strong>Seguimiento de cobros</strong>.</p>
+    <h4>Filtros</h4>
+    <ul>
+      <li><strong>Buscador</strong>: escribí número de operación, cliente, chasis, patente o boleto y tocá <strong>Buscar</strong> (o Enter).</li>
+      <li><strong>Estado</strong>, <strong>Patentamiento</strong>, <strong>Situación de unidad</strong> y <strong>Período</strong> (mes): se aplican solos al elegir.</li>
+      <li>En Patentamiento podés elegir "Patente demorada" o "Patente recibida, cobro pendiente" para ver sólo esas.</li>
+    </ul>
+    <h4>Estados de una operación</h4>
+    <div class="tablebox"><table>
+      <thead><tr><th>Etiqueta</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge">Borrador</span></td><td>Está guardada pero no se envió. Todavía no se le puede asignar moto.</td></tr>
+        <tr><td><span class="badge wa">Pendiente</span></td><td>Se envió con precio por debajo de lista. Espera que la apruebe un Gerente o Administrador.</td></tr>
+        <tr><td><span class="badge ok">Aprobada</span></td><td>Va a precio de lista o más (queda aprobada sola), o ya la aprobaron.</td></tr>
+        <tr><td><span class="badge re">Rechazada</span></td><td>No la aprobaron. Si tenía una moto reservada, se libera.</td></tr>
+        <tr><td><span class="badge">Cancelada</span></td><td>Se dio de baja, con un motivo.</td></tr>
+        <tr><td><span class="badge ok">Cerrada</span></td><td>Venta terminada: la moto queda como vendida. Hoy sólo se llega acá en ventas de motos usadas (ver "Cargar una venta nueva").</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h3>Cargar una venta nueva</h3>
+    <span class="where">Ventas → Operaciones moto → Mis operaciones → Nueva operación</span>
+    <p>Es un solo formulario largo con cuatro partes numeradas. Completalas de arriba hacia abajo.</p>
+
+    <h4>1 · Cliente y consulta crediticia</h4>
+    <ol class="steps">
+      <li><span>Escribí el <strong>DNI / CI</strong> y elegí el <strong>Tipo</strong>. El sistema revisa solo si esa persona tiene un rechazo crediticio anterior y te lo avisa. El aviso es informativo: no impide la venta.</span></li>
+      <li><span>Completá <strong>Nombre</strong>, <strong>Apellido</strong> y <strong>Teléfono</strong>. No hace falta crear el cliente antes: se crea al guardar la venta.</span></li>
+    </ol>
+
+    <h4>2 · Vehículo y precio</h4>
+    <ol class="steps">
+      <li><span>Elegí la <strong>Condición</strong>: "0 km (catálogo)" o "Usada (stock)".</span></li>
+      <li><span>En <strong>Buscar vehículo</strong> escribí al menos 3 letras de la marca, modelo o chasis y elegí de la lista. En 0 km te dice "Hay stock" o "A pedir".</span></li>
+      <li><span>Si querés, elegí el <strong>Color deseado</strong>. Sirve después para elegir la unidad o pedirla.</span></li>
+      <li><span>El <strong>Precio de lista</strong> aparece solo. En <strong>Precio de cierre</strong> dejá ese valor o escribí el precio acordado.</span></li>
+    </ol>
+    <p class="warn">Si el precio de cierre es menor al de lista aparece el aviso "Precio por debajo de lista": la venta va a quedar <strong>Pendiente</strong> hasta que la apruebe un Gerente o Administrador.</p>
+    <p>Si el modelo no tiene precio cargado, el sistema no deja seguir. Tocá <strong>Configurar precio</strong> y cargalo (capítulo 6, "Actualizar precios").</p>
+
+    <h4>3 · Condiciones comerciales</h4>
+    <ol class="steps">
+      <li><span>Revisá la <strong>Fecha de operación</strong> y elegí <strong>Quién hizo la venta</strong>. <strong>Quién fue el contacto</strong> es opcional.</span></li>
+      <li><span>Elegí la <strong>Plataforma de pago</strong>: Efectivo, Crédito, Efectivo + crédito, Moto + efectivo, Moto + crédito, o Moto + efectivo + crédito.</span></li>
+      <li><span>Si incluye <strong>crédito</strong>: completá <strong>Monto del crédito</strong> y <strong>Financiera</strong>. <strong>Respaldo / garante</strong> es opcional.</span></li>
+      <li><span>Si incluye <strong>moto</strong> (toma en parte de pago): describí la <strong>Unidad recibida como parte de pago</strong> y el <strong>Valor aceptado</strong>.</span></li>
+      <li><span>Si la casa le da un crédito propio en cuotas, elegí el plan en <strong>Crédito personal (opcional)</strong> y completá <strong>Primer vencimiento</strong> y <strong>Monto a financiar</strong>. Te muestra la cuota y el total.</span></li>
+    </ol>
+    <p class="note">Con esto el sistema arma solo el <strong>plan de pago</strong>: la toma, la financiación y el resto como efectivo. Si después el cliente paga por transferencia o tarjeta, eso se indica al cobrar.</p>
+
+    <h4>4 · Entrega y documentación</h4>
+    <ol class="steps">
+      <li><span><strong>Debe</strong>: indicá si queda algo pendiente (Reserva, Cuota inicial, Papeles, Accesorios, Otro) o dejá "No".</span></li>
+      <li><span><strong>Número de boleto</strong>: es opcional, pero conviene cargarlo porque después se busca por boleto.</span></li>
+      <li><span><strong>Patentamiento</strong> (obligatorio): <strong>Bonificada</strong> si no se le cobra al cliente, o <strong>Paga el cliente</strong>. En ese caso podés anotar el <strong>Importe de patente</strong>.</span></li>
+      <li><span>Tildá <strong>Casco de regalo</strong> y <strong>Papeles entregados</strong> si corresponde, y escribí <strong>Observaciones</strong> si hace falta.</span></li>
+      <li><span>Tocá <strong>Guardar y enviar operación</strong>. Revisá el resumen y tocá <strong>Confirmar y enviar</strong>.</span></li>
+    </ol>
+    <p>"Guardar borrador" guarda la venta sin enviarla. Los campos grises del formulario (Sucursal de la operación, Usuario que carga, Estado de entrega, Mes, Chasis de la operación) los completa el sistema.</p>
+
+    <figure class="mock"><figcaption><b>Ejemplo</b>Lo que ves después de guardar</figcaption>
+      <div class="in">
+        <div class="mtitle">Operación #1053</div>
+        <div>Estado: <span class="badge ok">Aprobada</span></div>
+        <div class="callout">La operación y el cliente quedaron registrados y se enviaron al circuito comercial.</div>
+        <div class="row"><span class="b">Cancelar operación</span><span class="b">Ver mis operaciones</span><span class="b">Cargar otra</span></div>
+      </div>
+    </figure>
+    <p class="warn">Los botones <strong>Enviar operación</strong>, <strong>Cerrar operación</strong> y <strong>Cancelar operación</strong> sólo existen en esta pantalla, la que aparece justo después de guardar. Cuando salís de acá, ya no hay desde dónde hacerlo, con ningún usuario. Si más adelante hace falta enviar un borrador, cerrar o cancelar una venta, avisá a un Administrador para que lo gestione con soporte.</p>
+    <ul>
+      <li><strong>Cancelar operación</strong> pide un motivo y libera la moto y el pedido al proveedor.</li>
+      <li><strong>Cerrar operación</strong> sólo aparece si la venta es de una moto usada elegida del stock y quedó Aprobada. Marca la moto como vendida. En las ventas 0 km no aparece, porque la moto se asigna después.</li>
+      <li><strong>Cargar otra</strong> abre un formulario nuevo: después de tocarlo ya no volvés a esta pantalla.</li>
+      <li>Una venta ya cargada <strong>no se puede editar</strong>: ni cliente, ni precio, ni plan de pago. Revisá el resumen antes de confirmar.</li>
+      <li>Si aparece el mensaje de que la operación "quedó guardada como borrador, pero no se completaron todos sus datos", <strong>no la cargues de nuevo</strong>: anotá el número y avisá.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>Conseguir la moto para una venta</h3>
+    <span class="where">Ventas → Operaciones moto → A asignar</span>
+    <p>Una venta de 0 km nace sin moto: dice <span class="badge re">Pendiente de asignar unidad</span>. Los botones aparecen sólo en ventas en estado Pendiente o Aprobada.</p>
+
+    <h4>Si la moto está en el salón: Asignar de stock</h4>
+    <ol class="steps">
+      <li><span>En la fila de la venta tocá <strong>Asignar de stock</strong>.</span></li>
+      <li><span>Elegí la unidad de la lista. Aparecen primero las del color deseado.</span></li>
+      <li><span>Controlá el <strong>Chasis (VIN)</strong> y cargá el <strong>Número de motor</strong> mirando la moto.</span></li>
+      <li><span>Tocá <strong>Asignar unidad</strong>. La moto queda reservada para esa venta y la fila pasa a <span class="badge ok">Recibida / asignada</span>.</span></li>
+    </ol>
+    <p>Si dice "No hay unidades en stock de esta versión…", hay que pedirla.</p>
+
+    <h4>Si no hay: Pedir a proveedor</h4>
+    <ol class="steps">
+      <li><span>En la fila tocá <strong>Pedir a proveedor</strong>.</span></li>
+      <li><span>Elegí el <strong>Proveedor</strong>. Si alguno informó que tiene ese modelo, aparece arriba como sugerencia: tocá su nombre.</span></li>
+      <li><span>Completá <strong>Color</strong> y, si los tenés, <strong>Costo estimado</strong>, <strong>Referencia del proveedor</strong> y <strong>Notas</strong>.</span></li>
+      <li><span>Tocá <strong>Realizar pedido</strong>. La fila pasa a "Pedida a (proveedor) (fecha)".</span></li>
+    </ol>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Pedir a proveedor</figcaption>
+      <div class="in">
+        <div class="eyebrow">Pedir a proveedor</div>
+        <div class="mtitle">Operación #1053</div>
+        <div class="callout">Honda Wave 110 · Nuevo · llega a San Miguel</div>
+        <div class="callout">Proveedores que informan disponibilidad (sugerencia): <span class="b">Motos del Sur (3)</span></div>
+        <div class="fgrid">
+          <div class="f"><span>Proveedor *</span><div>Motos del Sur</div></div>
+          <div class="f"><span>Color</span><div>Rojo</div></div>
+          <div class="f"><span>Costo estimado</span><div></div></div>
+          <div class="f"><span>Referencia del proveedor</span><div>Pedido 5521</div></div>
+        </div>
+        <div class="row"><span class="b">Cancelar</span><span class="b p">Realizar pedido</span></div>
+      </div>
+    </figure>
+
+    <h4>Cuando llega la moto: Registrar llegada</h4>
+    <ol class="steps">
+      <li><span>En la fila de la venta tocá <strong>Registrar llegada</strong>.</span></li>
+      <li><span>Cargá el <strong>VIN / chasis real</strong> y el <strong>Número de motor</strong> mirando la moto. Revisá <strong>Fecha de recepción</strong>, <strong>Año</strong> y <strong>Color</strong>. <strong>Costo</strong> es opcional.</span></li>
+      <li><span>Tocá <strong>Recibir y crear unidad</strong>. La moto entra al stock y queda asignada a esa venta.</span></li>
+    </ol>
+    <p class="warn">Mientras una venta tiene un pedido sin recibir no se le puede asignar una moto de stock. Y un pedido no se puede cancelar desde la pantalla: se cancela solo si se cancela la venta.</p>
+
+    <h4>Liberar reserva</h4>
+    <p>En una venta en Borrador que tiene una moto reservada aparece <strong>Liberar reserva</strong>. Pide el <strong>Motivo de la liberación</strong> y devuelve la moto al stock.</p>
+  </section>
+
+  <section>
+    <h3>Patentamiento</h3>
+    <span class="where">Ventas → Operaciones → columna Patentamiento → Gestionar</span>
+    <p>Cada venta tiene una modalidad: <strong>Bonificada</strong> (la paga la agencia) o <strong>Paga el cliente</strong>. La fecha estimada de llegada es entre 10 y 15 días hábiles desde la venta; es sólo informativa.</p>
+    <div class="tablebox"><table>
+      <thead><tr><th>Lo que ves en la columna</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td>Patente en trámite (estimada entre…)</td><td>Todavía no llegó y está en fecha.</td></tr>
+        <tr><td>Patente en trámite, pasó la fecha estimada</td><td>Está demorada. La fila se resalta. Conviene reclamar.</td></tr>
+        <tr><td>Patente recibida · AB123CD</td><td>Llegó. En bonificada no hay nada que cobrar.</td></tr>
+        <tr><td>Patente recibida, pago pendiente</td><td>Llegó y el cliente todavía no la pagó.</td></tr>
+        <tr><td>Patente recibida y paga</td><td>Llegó y está cobrada.</td></tr>
+        <tr><td>Etiqueta Cobro pendiente / Cobrado</td><td>Paga el cliente: si ya se le cobró.</td></tr>
+        <tr><td>Etiqueta Pago pendiente / Pagado</td><td>Bonificada: si la agencia ya le pagó a la gestoría.</td></tr>
+      </tbody>
+    </table></div>
+
+    <figure class="mock"><figcaption><b>Ejemplo</b>Ventana de patentamiento</figcaption>
+      <div class="in">
+        <div class="eyebrow">Patentamiento</div>
+        <div class="mtitle">Operación #1048 · boleto SM-0417</div>
+        <div class="fgrid">
+          <div class="f ro"><span>Estado</span><div><span class="badge wa">Cobro pendiente</span></div></div>
+          <div class="f ro"><span>Patente</span><div>Patente en trámite (estimada entre 08/10/2026 y 15/10/2026)</div></div>
+          <div class="f ro"><span>Cobro al cliente</span><div>Sin registrar</div></div>
+          <div class="f ro"><span>Pago a la gestoría</span><div>Sin registrar</div></div>
+        </div>
+        <strong>Modalidad</strong>
+        <div class="fgrid">
+          <div class="f"><span>Patentamiento *</span><div>Paga el cliente</div></div>
+          <div class="f"><span>Importe de patente</span><div>85000</div></div>
+        </div>
+        <div class="row"><span class="b">Guardar modalidad</span></div>
+        <strong>Llegada de la patente</strong>
+        <div class="fgrid">
+          <div class="f"><span>Número de patente *</span><div>A123BCD</div></div>
+          <div class="f"><span>Fecha de recepción *</span><div>02/10/2026</div></div>
+        </div>
+        <div class="callout">☐ Registrar también el cobro de la patente al cliente</div>
+        <div class="row"><span class="b p">Cargar patente</span></div>
+      </div>
+    </figure>
+
+    <h4>Cuando llega la patente</h4>
+    <ol class="steps">
+      <li><span>En la fila tocá <strong>Gestionar</strong>.</span></li>
+      <li><span>En <strong>Llegada de la patente</strong> escribí el <strong>Número de patente</strong> y la <strong>Fecha de recepción</strong>.</span></li>
+      <li><span><strong>Si es bonificada</strong>: tocá <strong>Cargar patente</strong> y listo. No se cobra nada; queda "Patente recibida".</span></li>
+      <li><span><strong>Si la paga el cliente y está pagando ahora</strong>: tildá <strong>Registrar también el cobro de la patente al cliente</strong>, completá el cobro (paso siguiente) y tocá <strong>Cargar patente</strong>.</span></li>
+      <li><span><strong>Si la paga el cliente y todavía no pagó</strong>: no tildes nada y tocá <strong>Cargar patente</strong>. Queda "Patente recibida, pago pendiente" hasta que registres el cobro.</span></li>
+    </ol>
+    <p>Para cargar la patente la venta tiene que tener la moto asignada y estar Pendiente, Aprobada o Cerrada. Si cargaste mal el número, volvé a entrar a Gestionar: el bloque pasa a llamarse <strong>Corregir patente</strong>, con el botón <strong>Guardar patente</strong>.</p>
+
+    <h4>Cobrarle la patente al cliente</h4>
+    <ol class="steps">
+      <li><span><strong>Gestionar</strong> → bloque <strong>Registrar cobro al cliente</strong>.</span></li>
+      <li><span>Completá <strong>Importe cobrado</strong>, <strong>Fecha del cobro</strong>, <strong>Medio</strong> y <strong>Cuenta de caja</strong>. Si es efectivo, elegí <strong>Se rinde a</strong>.</span></li>
+      <li><span>Tocá <strong>Registrar cobro</strong>. Se crea solo un ingreso de tipo Patente: no lo cargues de nuevo en Ingresos.</span></li>
+    </ol>
+    <p>El cobro se puede registrar antes de que llegue la patente, junto con la llegada o después.</p>
+    <p class="warn">En esta ventana, cuando el medio es efectivo, la <strong>Cuenta de caja</strong> se elige a mano: elegí la caja de la persona que pusiste en "Se rinde a".</p>
+
+    <h4>Cambiar la modalidad</h4>
+    <p>En el bloque <strong>Modalidad</strong> elegí Bonificada o Paga el cliente y tocá <strong>Guardar modalidad</strong>. No deja pasar a bonificada si ya hay un cobro de patente registrado.</p>
+
+    <h4>Lo que la agencia le paga a la gestoría</h4>
+    <p>Tocá <strong>Pago de patente</strong> en la fila, o <strong>Registrar pago de patente</strong> dentro de Gestionar. Abre el formulario de Patentes/seguros ya completo con la venta (capítulo 7). En una venta bonificada, la etiqueta pasa de "Pago pendiente" a "Pagado" cuando ese pago queda marcado como pagado.</p>
+  </section>
+
+  <section>
+    <h3>Seguimiento de cobros</h3>
+    <span class="where">Ventas → Operaciones → solapa Seguimiento de cobros</span>
+    <p>Muestra cuánta plata se acordó, cuánta entró y cuánta falta en cada venta.</p>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Seguimiento de cobros</figcaption>
+      <div class="in">
+        <div class="callout">☑ Con saldo (lo tildás vos) &nbsp; ☐ Con efectivo sin rendir &nbsp; ☐ Financiera pendiente de pago &nbsp; <span class="b">Buscar</span></div>
+        <div class="scroll"><table>
+          <thead><tr><th>Operación</th><th>Boleto</th><th>Cliente</th><th>Acordado</th><th>Cobrado</th><th>Saldo</th><th>Efectivo sin rendir</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>#1053<small>01/10/2026 · Aprobada</small></td><td>SM-0421</td><td>Pérez, Ana</td><td>$ 2.500.000</td><td>$ 500.000</td><td><strong>$ 2.000.000</strong></td><td>$ 500.000</td><td><span class="b">Ingresos (1)</span> <span class="b p">Cobrar</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <ul>
+      <li>Filtros: buscador (operación, boleto o cliente), Estado, Desde, Hasta y las tres casillas. Acá <strong>todos</strong> se aplican recién al tocar <strong>Buscar</strong>.</li>
+      <li>La tabla tiene además las columnas Vendedor, Sucursal, Crédito propio, Unidad y Patentamiento.</li>
+      <li><strong>Ingresos (n)</strong> despliega el plan de pago de la venta y cada cobro: fecha, medio, importe, quién lo recibió, a quién se rinde y si ya fue rendido.</li>
+      <li>"Cobrado" no incluye la patente ni las cuotas de crédito propio: van aparte.</li>
+    </ul>
+
+    <h4>Cobrar desde acá</h4>
+    <ol class="steps">
+      <li><span>Tocá <strong>Cobrar</strong> en la fila.</span></li>
+      <li><span>Elegí el <strong>Componente del plan</strong> (qué parte se está cobrando). El <strong>Importe cobrado</strong> viene con lo que falta; bajalo si es parcial.</span></li>
+      <li><span>Elegí <strong>Medio</strong> y <strong>Cuenta de caja</strong>. Si es efectivo, <strong>Se rinde a</strong>; la cuenta se elige a mano: tiene que ser la caja de esa persona.</span></li>
+      <li><span>Tocá <strong>Registrar cobro</strong>.</span></li>
+    </ol>
+    <p class="note">Es lo mismo que cargar un <strong>Pago de la moto (venta)</strong> desde Ingresos (capítulo 7). Usá el camino que te quede más cómodo, pero nunca los dos para el mismo pago.</p>
+
+    <h4>Cuando paga la financiera</h4>
+    <ol class="steps">
+      <li><span>Tocá <strong>Ingresos (n)</strong> y, en la fila de la financiación, <strong>Financiera pagó</strong>.</span></li>
+      <li><span>Escribí una <strong>Observación</strong> si querés (por ejemplo "liquidación semanal 12") y tocá <strong>Confirmar que pagó</strong>. Esa parte deja de contar en el saldo.</span></li>
+      <li><span>La plata que depositó la financiera se registra aparte, con <strong>Cobrar</strong>.</span></li>
+    </ol>
+    <p>Si te equivocaste, <strong>Deshacer</strong> la vuelve a dejar pendiente; pide un motivo.</p>
+  </section>
+</div>
+
+<!-- ============ 5 ============ -->
+<div class="chapter" id="clientes">
+  <header><span>Capítulo 5</span><h2>Clientes</h2><p>La cartera de clientes y la lista de personas con un crédito rechazado. Las dos son de toda la empresa, no sólo de tu sucursal.</p></header>
+
+  <section>
+    <h3>Clientes</h3>
+    <span class="where">Clientes → Clientes</span>
+    <p>La lista muestra Cliente, Documento, Contacto, Organización, Estado y Actualizado. Para buscar, escribí nombre, documento o mail y tocá <strong>Buscar</strong>. No busca por teléfono. El filtro de estado (Todos los estados, Activos, Inactivos) se aplica solo.</p>
+    <h4>Crear un cliente</h4>
+    <ol class="steps">
+      <li><span>Tocá <strong>Nuevo cliente</strong>.</span></li>
+      <li><span>Completá <strong>Nombre completo</strong> (obligatorio). Si cargás documento, completá <strong>Tipo de documento</strong> y <strong>Número de documento</strong> juntos.</span></li>
+      <li><span>Teléfono, correo, domicilio y notas son opcionales.</span></li>
+      <li><span>Tocá <strong>Guardar cliente</strong>.</span></li>
+    </ol>
+    <h4>Editar o desactivar</h4>
+    <ul>
+      <li>El <strong>lápiz</strong> de la fila abre los datos para corregirlos.</li>
+      <li>El ícono de <strong>persona</strong> desactiva o activa al cliente <strong>al instante, sin preguntar</strong>. Si lo tocaste sin querer, tocalo de nuevo.</li>
+      <li>No se puede borrar un cliente.</li>
+    </ul>
+    <p class="warn">No hace falta crear el cliente antes de una venta: se crea solo al guardar la operación. Dos documentos iguales no se pueden cargar ("12.345.678" y "12345678" son el mismo). Si abrís un cliente y no cambiás nada, salí con Cancelar: Guardar sin cambios da error.</p>
+  </section>
+
+  <section>
+    <h3>Clientes en rojo</h3>
+    <span class="where">Clientes → Clientes en rojo</span>
+    <p>Es la lista propia de la agencia de personas a las que una financiera les rechazó un crédito. Cuando alguien carga ese documento en una venta nueva, el sistema muestra el aviso.</p>
+    <h4>Registrar un rechazo</h4>
+    <ol class="steps">
+      <li><span>Tocá <strong>Registrar rechazo</strong>.</span></li>
+      <li><span>Completá <strong>Tipo de documento</strong>, <strong>Documento</strong> y <strong>Nombre y apellido</strong>.</span></li>
+      <li><span>Elegí la <strong>Financiera</strong>, la <strong>Fecha del rechazo</strong> y el <strong>Vendedor que lo registró</strong>.</span></li>
+      <li><span>Escribí el <strong>Motivo informado</strong> y tocá <strong>Registrar rechazo</strong>.</span></li>
+    </ol>
+    <p>La flecha al final de cada fila muestra el historial de intentos de esa persona. Los filtros (documento, financiera, fechas, sucursal, vendedor) se aplican con <strong>Aplicar filtros</strong>.</p>
+    <p class="warn">Un rechazo cargado no se puede corregir ni borrar: revisá antes de guardar. Si la financiera que necesitás no está en la lista, avisá a un Administrador: no hay pantalla para agregarla.</p>
+  </section>
+</div>
+
+<!-- ============ 6 ============ -->
+<div class="chapter" id="stock">
+  <header><span>Capítulo 6</span><h2>Stock y catálogo</h2><p>Las motos que hay físicamente en la sucursal, lo que informan los proveedores, los pedidos en camino y los precios.</p></header>
+
+  <section>
+    <h3>Stock de motos</h3>
+    <span class="where">Stock y abastecimiento → Stock de motos</span>
+    <p>Arriba hay tarjetas con la cantidad de motos disponibles, reservadas y modelos en proveedores. Debajo, cuatro pestañas:</p>
+    <div class="tablebox"><table>
+      <thead><tr><th>Pestaña</th><th>Qué muestra</th><th>Qué podés hacer</th></tr></thead>
+      <tbody>
+        <tr><td>Unidades físicas</td><td>Cada moto que está en la sucursal, con su chasis y estado.</td><td>Buscar, cambiar color y acabado, imprimir etiquetas.</td></tr>
+        <tr><td>Disponibilidad de proveedores</td><td>Cuántas motos de cada modelo dice tener cada proveedor. No son motos tuyas todavía.</td><td>Informar o actualizar la cantidad.</td></tr>
+        <tr><td>Abastecimientos</td><td>Los pedidos a proveedores y en qué estado están.</td><td>Avanzar el pedido y registrar la recepción.</td></tr>
+        <tr><td>Catálogo de modelos</td><td>Los modelos con sus precios.</td><td>Editar la versión y actualizar precios.</td></tr>
+      </tbody>
+    </table></div>
+    <p>El buscador filtra a medida que escribís. Los filtros de Condición, Sucursal, Origen y Estado quedan puestos aunque cambies de pestaña.</p>
+  </section>
+
+  <section>
+    <h3>Buscar una moto</h3>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Unidades físicas</figcaption>
+      <div class="in">
+        <div class="row"><span class="b p">Unidades físicas</span><span class="b">Disponibilidad de proveedores</span><span class="b">Abastecimientos</span><span class="b">Catálogo de modelos</span></div>
+        <div class="scroll"><table>
+          <thead><tr><th>Marca / modelo</th><th>Condición</th><th>VIN / chasis</th><th>Sucursal</th><th>Año / km</th><th>Color / acabado</th><th>Estado</th></tr></thead>
+          <tbody>
+            <tr><td>Honda Wave 110</td><td>Nuevo / 0 km</td><td>8CHJA3710SP004471</td><td>San Miguel</td><td>2026 · 0 km</td><td>Rojo · Brillante ✎</td><td><span class="badge ok">En stock</span></td></tr>
+            <tr><td>Honda XR 150</td><td>Nuevo / 0 km</td><td>8CHKD0810SP001209</td><td>San Miguel</td><td>2026 · 0 km</td><td>Sin color ✎</td><td><span class="badge">Reservado</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <ol class="steps">
+      <li><span>Pestaña <strong>Unidades físicas</strong>.</span></li>
+      <li><span>Escribí el chasis, la marca, el modelo o la patente en el buscador.</span></li>
+      <li><span>Mirá la columna <strong>Estado</strong>.</span></li>
+    </ol>
+    <div class="tablebox"><table>
+      <thead><tr><th>Estado de la moto</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge ok">En stock</span></td><td>Está en la sucursal y libre para vender.</td></tr>
+        <tr><td><span class="badge">Reservado</span></td><td>Está asignada a una venta. La reserva dura 30 días si la moto se asignó desde la venta o llegó por un pedido; si es una usada elegida al cargar la venta, 48 horas.</td></tr>
+        <tr><td><span class="badge">Vendido</span></td><td>La venta se cerró (hoy sólo pasa con motos usadas).</td></tr>
+      </tbody>
+    </table></div>
+    <p>El lápiz en <strong>Color / acabado</strong> permite cambiar el color y el acabado (Brillante, Mate, Metalizado, Perlado, Flúor). Para imprimir etiquetas, tildá las motos y tocá <strong>Etiquetas (N)</strong>.</p>
+    <p class="warn">En esta pantalla no se ve el número de motor ni la patente, no se reserva ni libera una moto (eso se hace desde la venta) y no hay traslado entre sucursales.</p>
+  </section>
+
+  <section>
+    <h3>Ingresar una moto a mano</h3>
+    <span class="where">Stock de motos → + Ingresar motos</span>
+    <p>Para motos que están en la sucursal y no llegaron por un pedido cargado en el sistema.</p>
+    <ol class="steps">
+      <li><span>Elegí <strong>0 km / Nuevo</strong> o <strong>Usado</strong>.</span></li>
+      <li><span>En <strong>Marca y modelo</strong> elegí el modelo del catálogo. Si elegiste Usado, la casilla "La marca o modelo no existe" viene tildada y la lista no aparece: destildala para poder elegir el modelo.</span></li>
+      <li><span>Por cada moto completá <strong>Chasis / VIN</strong> (único, sin repetir), <strong>Sucursal</strong>, <strong>Fecha de ingreso</strong>, <strong>Año</strong> y, si querés, <strong>Color</strong> y <strong>Acabado</strong>.</span></li>
+      <li><span>Para cargar varias 0 km del mismo modelo, tocá <strong>Agregar unidad</strong>. Los usados se cargan de a uno.</span></li>
+      <li><span>Tocá <strong>Ingresar N unidades</strong>.</span></li>
+    </ol>
+    <p class="warn">Dejá tildada la casilla "La marca o modelo no existe" sólo si la marca y el modelo ya están cargados en el sistema y falta la versión: pide Marca, Modelo, Precio sugerido y Precio mínimo, y crea la versión con su precio. Una marca o un modelo totalmente nuevos los tiene que crear un Administrador; si lo intentás vos, dice "No tenés permiso para realizar esta acción".</p>
+  </section>
+
+  <section>
+    <h3>Disponibilidad de proveedores</h3>
+    <span class="where">Stock de motos → + Motos de proveedor</span>
+    <p>Sirve para anotar que un proveedor tiene cierto modelo. No son motos en stock: no tienen chasis hasta que llegan. Al pedir una moto para una venta, estos proveedores aparecen como sugerencia.</p>
+    <ol class="steps">
+      <li><span>Tocá <strong>+ Motos de proveedor</strong>.</span></li>
+      <li><span>Elegí <strong>Marca y modelo</strong> y <strong>Proveedor</strong>, y escribí la <strong>Cantidad informada</strong>.</span></li>
+      <li><span>Tocá <strong>Guardar disponibilidad</strong>.</span></li>
+    </ol>
+    <p>Para corregir la cantidad más adelante, usá <strong>Actualizar cantidad</strong> en la fila.</p>
+    <p class="warn">No hay pantalla para crear o editar proveedores. Si falta uno en la lista, avisá a un Administrador.</p>
+  </section>
+
+  <section>
+    <h3>Abastecimientos: seguir un pedido</h3>
+    <span class="where">Stock de motos → pestaña Abastecimientos</span>
+    <p>El pedido de una moto se crea desde la venta, con <strong>Pedir a proveedor</strong> (capítulo 4). Acá lo seguís.</p>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Un pedido</figcaption>
+      <div class="in">
+        <div class="mtitle">1053</div>
+        <div class="callout">Honda Wave 110 · Pérez, Ana · 30111222</div>
+        <div class="fgrid">
+          <div class="f ro"><span>Estado operación</span><div>APROBADA</div></div>
+          <div class="f ro"><span>Abastecimiento</span><div>Pedido</div></div>
+          <div class="f ro"><span>Chasis</span><div>Sin asignar</div></div>
+          <div class="f ro"><span>Proveedor / destino</span><div>Motos del Sur · San Miguel</div></div>
+        </div>
+        <div class="row"><span class="b">Marcar en tránsito</span><span class="b p">Registrar recepción</span></div>
+      </div>
+    </figure>
+    <div class="tablebox"><table>
+      <thead><tr><th>Estado del pedido</th><th>Botón que aparece</th></tr></thead>
+      <tbody>
+        <tr><td>Pendiente de aprobación</td><td>Ninguno. Hay que esperar que aprueben la venta (pasa con autos).</td></tr>
+        <tr><td>Pendiente de confirmación</td><td><strong>Confirmar disponibilidad</strong></td></tr>
+        <tr><td>Confirmado</td><td><strong>Realizar pedido</strong></td></tr>
+        <tr><td>Pedido</td><td><strong>Marcar en tránsito</strong> (opcional) y <strong>Registrar recepción</strong></td></tr>
+        <tr><td>En tránsito</td><td><strong>Registrar recepción</strong></td></tr>
+        <tr><td>Recibido / Recibida y reservada</td><td>Ninguno: ya llegó.</td></tr>
+        <tr><td>Cancelada</td><td>Ninguno.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Los pedidos de motos nacen directamente en "Pedido". <strong>Registrar recepción</strong> abre la misma ventana que "Registrar llegada" en la venta: cargás chasis y número de motor y la moto entra al stock.</p>
+  </section>
+
+  <section>
+    <h3>Precios y modelos</h3>
+    <span class="where">Stock de motos → pestaña Catálogo de modelos</span>
+    <h4>Actualizar precios</h4>
+    <ol class="steps">
+      <li><span>Buscá el modelo y tocá <strong>Actualizar precios</strong>.</span></li>
+      <li><span>Elegí el <strong>Alcance</strong>: "Organización" (vale para todas las sucursales) o "Sucursal" (sólo esa).</span></li>
+      <li><span>Completá <strong>Precio de lista</strong> y <strong>Precio mínimo</strong>. El mínimo no puede ser mayor al de lista.</span></li>
+      <li><span>Revisá <strong>Moneda</strong> (ARS) y <strong>Vigente desde</strong> (hoy). <strong>Vigente hasta</strong> es opcional. Tocá <strong>Crear nueva vigencia</strong>.</span></li>
+    </ol>
+    <p class="warn">Un precio con alcance "Organización" cambia el precio en <strong>todas</strong> las sucursales. El precio nuevo no modifica las ventas ya cargadas. En la tabla se llama "Precio sugerido" y en la ventana "Precio de lista": es el mismo dato.</p>
+    <h4>Editar modelo</h4>
+    <p><strong>Editar modelo</strong> permite cambiar el nombre de la <strong>Versión</strong> y subir una foto (JPEG, PNG o WEBP de hasta 5 MB). Marca y Modelo aparecen bloqueados.</p>
+    <p class="warn">No destildes "Versión activa": el modelo desaparece de las listas y no hay pantalla para volver a activarlo.</p>
+  </section>
+
+  <section>
+    <h3>Catálogo de motos</h3>
+    <span class="where">Catálogo → Catálogo de motos</span>
+    <p>Es sólo para consultar: una tarjeta por modelo con foto, precio, cuántas hay en stock por sucursal y qué proveedor lo tiene. Sirve para responderle rápido a un cliente. No se puede modificar nada desde acá.</p>
+  </section>
+</div>
+
+<!-- ============ 7 ============ -->
+<div class="chapter" id="finanzas">
+  <header><span>Capítulo 7</span><h2>Administración financiera</h2><p>La plata que entra (ingresos), la que sale (gastos y compras) y los pagos de patentes y seguros.</p></header>
+
+  <section>
+    <h3>Cómo funcionan estas pantallas</h3>
+    <p>Esto vale para Ingresos, Gastos y Compras. Patentes/seguros es distinta: su botón de filtros se llama <strong>Aplicar</strong> y no tiene total ni reloj de movimientos.</p>
+    <ul>
+      <li>Arriba está el panel <strong>Filtros</strong>. Nada se filtra hasta tocar <strong>Aplicar filtros</strong>. <strong>Limpiar</strong> los borra.</li>
+      <li>"Total visible en esta página" suma sólo las 20 filas que estás viendo, no todo el resultado.</li>
+      <li>El reloj al final de cada fila (<strong>Ver movimientos</strong>) muestra los cobros o pagos de ese registro: cuenta, importe, quién lo registró.</li>
+    </ul>
+    <div class="tablebox"><table>
+      <thead><tr><th>Estado</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge">Pendiente</span></td><td>Todavía no se cobró o pagó nada.</td></tr>
+        <tr><td><span class="badge wa">Parcial</span></td><td>Se cobró o pagó una parte.</td></tr>
+        <tr><td><span class="badge ok">Pagado</span></td><td>Está completo. En los ingresos también dice "Pagado" (quiere decir cobrado).</td></tr>
+      </tbody>
+    </table></div>
+    <p>El estado lo calcula el sistema según los cobros o pagos cargados. No se cambia a mano.</p>
+  </section>
+
+  <section>
+    <h3>Efectivo y rendición: lo que tenés que saber</h3>
+    <ul>
+      <li>Cada vez que cobrás en <strong>efectivo</strong>, el sistema pregunta <strong>Se rinde a</strong>: la persona a la que le entregás esa plata.</li>
+      <li>El cobro queda como <strong>Pendiente de rendición</strong> hasta que esa persona lo confirma desde su usuario. Vos no confirmás rendiciones.</li>
+      <li><strong>Quién cobró</strong> siempre sos vos: es el usuario con el que estás cargando.</li>
+      <li>Con transferencia, tarjeta u otro medio no hay rendición: elegís la <strong>cuenta</strong> donde entró la plata.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>Ingresos: cargar un ingreso</h3>
+    <span class="where">Administración financiera → Ingresos de motos → Nuevo ingreso</span>
+    <p>Para lo que no sea el pago de la moto: señas, seguros, pagarés, otros.</p>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Nuevo ingreso en efectivo</figcaption>
+      <div class="in">
+        <div class="eyebrow">Tesorería</div>
+        <div class="mtitle">Nuevo ingreso de moto</div>
+        <div class="fgrid">
+          <div class="f"><span>Fecha *</span><div>02/10/2026</div></div>
+          <div class="f ro"><span>Sucursal *</span><div>SM · San Miguel</div></div>
+          <div class="f"><span>Tipo *</span><div>Seña</div></div>
+          <div class="f"><span>Importe total *</span><div>150000</div></div>
+          <div class="f wide"><span>Unidad / VIN</span><div>8CHJA3710SP004471 · Wave 110</div></div>
+          <div class="f wide"><span>Descripción *</span><div>Seña moto Wave 110</div></div>
+          <div class="f"><span>Medio *</span><div>Efectivo</div></div>
+          <div class="f ro"><span>Quién cobró</span><div>Carla</div></div>
+          <div class="f"><span>Se rinde a *</span><div>Lucas</div></div>
+          <div class="f"><span>Estado del cobro *</span><div>Cobrado (entra a caja ahora)</div></div>
+          <div class="f ro wide"><span>Caja donde entra</span><div>Caja Lucas · Caja de socio</div><small>Es la caja de quien recibe el efectivo; no se elige.</small></div>
+        </div>
+        <div class="row"><span class="b">Cancelar</span><span class="b p">Guardar ingreso</span></div>
+      </div>
+    </figure>
+    <ol class="steps">
+      <li><span>Tocá <strong>Nuevo ingreso</strong> y elegí el <strong>Tipo</strong>.</span></li>
+      <li><span>Buscá la <strong>Unidad / VIN</strong> o la <strong>Operación</strong> a la que corresponde (escribí 3 letras y elegí).</span></li>
+      <li><span>Completá <strong>Descripción</strong> e <strong>Importe total</strong>. <strong>TT / referencia</strong> es opcional (número de boleto o comprobante).</span></li>
+      <li><span>Elegí el <strong>Medio</strong>.</span></li>
+      <li><span>Si es <strong>Efectivo</strong>: elegí <strong>Se rinde a</strong>. La <strong>Caja donde entra</strong> se completa sola.</span></li>
+      <li><span>Si es otro medio: elegí la <strong>Cuenta donde entró</strong>.</span></li>
+      <li><span>En <strong>Estado del cobro</strong>, dejá "Cobrado (entra a caja ahora)" si ya tenés la plata, o elegí "Pendiente de cobro".</span></li>
+      <li><span>Tocá <strong>Guardar ingreso</strong>.</span></li>
+    </ol>
+    <p class="note">Unidad y Operación son opcionales, pero conviene vincular el ingreso a una de las dos cuando corresponde: así queda asociado a la moto o a la venta. Un ingreso sin ninguna aparece igual en la lista de Ingresos de motos.</p>
+    <ul>
+      <li>"Cobrado" cobra el importe completo. Para cobrar una parte, guardalo como "Pendiente de cobro" y después usá <strong>Cobrar</strong> en la lista con el importe parcial.</li>
+      <li>En efectivo hay que indicar "Se rinde a" incluso si lo guardás como pendiente.</li>
+      <li>En la lista, la columna <strong>Cuenta / cobro</strong> muestra en qué cuenta entró, el medio, quién cobró y a quién se rinde.</li>
+    </ul>
+
+    <h4>Cobrar más tarde un ingreso pendiente</h4>
+    <ol class="steps">
+      <li><span>En la lista, tocá <strong>Cobrar</strong> en la fila.</span></li>
+      <li><span>Elegí la <strong>Cuenta</strong> (si era efectivo ya viene puesta la caja de quien recibe) y escribí el <strong>Importe</strong>. Ojo: el importe viene vacío, no se completa solo.</span></li>
+      <li><span>Tocá <strong>Registrar cobro</strong>.</span></li>
+    </ol>
+  </section>
+
+  <section>
+    <h3>Ingresos: cobrar el pago de una moto</h3>
+    <span class="where">Ingresos de motos → Nuevo ingreso → Tipo "Pago de la moto (venta)"</span>
+    <p>Cuando el cliente paga la moto, total o en parte. Cargado así, baja el saldo de esa venta. Al elegir este tipo el formulario cambia.</p>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Pago de la moto</figcaption>
+      <div class="in">
+        <div class="fgrid">
+          <div class="f"><span>Tipo *</span><div>Pago de la moto (venta)</div></div>
+          <div class="f ro"><span>Sucursal</span><div>SM · San Miguel</div></div>
+          <div class="f wide"><span>Operación que se paga *</span><div>#1048 · boleto SM-0417 · Gómez, Luis</div></div>
+          <div class="f ro wide"><span>Resumen de la operación</span><div>Gómez, Luis · boleto SM-0417 · Honda XR 150<br>Acordado $ 4.200.000 · Cobrado $ 0 · <strong>Saldo $ 4.200.000</strong></div></div>
+          <div class="f wide"><span>¿Qué se está cobrando del plan? *</span><div>Lo pactado en efectivo: faltan $ 1.200.000</div></div>
+          <div class="f"><span>Importe a cobrar *</span><div>1200000</div><small>Faltan $ 1.200.000. Bajalo si es un pago parcial.</small></div>
+          <div class="f"><span>TT / referencia</span><div>SM-0417</div></div>
+          <div class="f"><span>Medio con el que pagó *</span><div>Efectivo</div><small>Cambialo sólo si pagó de otra forma a la pactada.</small></div>
+          <div class="f"><span>Se rinde a *</span><div>Lucas</div></div>
+        </div>
+        <div class="row"><span class="b">Cancelar</span><span class="b p">Registrar pago</span></div>
+      </div>
+    </figure>
+    <ol class="steps">
+      <li><span>En <strong>Operación que se paga</strong>, buscá por boleto, cliente, chasis o número de operación y elegila.</span></li>
+      <li><span>Revisá el <strong>Resumen</strong>: acordado, cobrado y saldo.</span></li>
+      <li><span>Si aparece <strong>¿Qué se está cobrando del plan?</strong>, elegí la parte. Aparece sólo cuando la venta tiene más de una parte para cobrar.</span></li>
+      <li><span><strong>Importe a cobrar</strong> viene con lo que falta. Bajalo si es un pago parcial; no deja cargar más que el saldo.</span></li>
+      <li><span><strong>Medio con el que pagó</strong> viene con lo pactado. Cambialo sólo si pagó de otra forma.</span></li>
+      <li><span>Efectivo: elegí <strong>Se rinde a</strong>. Otro medio: elegí la <strong>Cuenta donde entró</strong>.</span></li>
+      <li><span>Tocá <strong>Registrar pago</strong>.</span></li>
+    </ol>
+    <p class="note">Si el cliente paga una parte en efectivo y otra por transferencia, cargá dos pagos: uno por cada parte. Las cuotas de crédito propio no se cobran acá, sino en Cobranza de cuotas (capítulo 8).</p>
+  </section>
+
+  <section>
+    <h3>Gastos generales</h3>
+    <span class="where">Administración financiera → Gastos generales</span>
+    <ol class="steps">
+      <li><span>Tocá <strong>Nuevo gasto</strong>.</span></li>
+      <li><span>Completá <strong>Fecha</strong>, <strong>Motivo / categoría</strong>, <strong>TT / referencia</strong>, <strong>Detalle / descripción</strong> e <strong>Importe</strong>. Todos son obligatorios.</span></li>
+      <li><span><strong>Pagado por</strong> viene con tu nombre; cambialo si lo pagó otra persona.</span></li>
+      <li><span>Tocá <strong>Guardar gasto</strong>. Queda en estado <strong>Pendiente</strong>.</span></li>
+      <li><span>Para registrar la salida de plata: en la lista tocá <strong>Pagar</strong>, elegí la <strong>Cuenta</strong> de donde sale, escribí el <strong>Importe</strong> y tocá <strong>Registrar pago</strong>.</span></li>
+    </ol>
+    <p>Si pagás menos que el total queda <strong>Parcial</strong>; podés volver a tocar Pagar por el resto.</p>
+    <p class="warn">El campo "Recuperada" (Sí / No) sólo deja anotado si ese gasto ya se recuperó. El botón "Recuperar" de la lista no aparece en los gastos cargados desde este formulario.</p>
+  </section>
+
+  <section>
+    <h3>Compras de motos</h3>
+    <span class="where">Administración financiera → Compras de motos</span>
+    <p>Ves la lista de compras a proveedores: fecha, proveedor, referencia o unidad, sucursal y estado. Con tu usuario <strong>no ves los importes</strong> (dice "Los costos de compra no están disponibles para tu perfil") y no podés cargar una compra nueva.</p>
+    <h4>Registrar el pago de una compra</h4>
+    <ol class="steps">
+      <li><span>Buscá la compra y tocá <strong>Pagar</strong>.</span></li>
+      <li><span>Elegí la <strong>Cuenta</strong> y escribí el <strong>Importe</strong> que te indiquen.</span></li>
+      <li><span>Tocá <strong>Registrar pago</strong>. El estado pasa a Parcial o Pagado.</span></li>
+    </ol>
+    <p class="warn">Como no ves el total ni el saldo, el importe te lo tiene que pasar quien hizo la compra. Si ponés de más, dice "El importe supera el saldo pendiente".</p>
+  </section>
+
+  <section>
+    <h3>Patentes y seguros</h3>
+    <span class="where">Administración financiera → Patentes/seguros de motos</span>
+    <p>Es el registro de lo que la agencia paga por la documentación de cada moto: patente, seguro, formularios. Cada pago está <strong>Pendiente</strong> o <strong>Pagado</strong>.</p>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Patentes, seguros y formularios</figcaption>
+      <div class="in">
+        <div class="scroll"><table>
+          <thead><tr><th>Fecha</th><th>Concepto</th><th>Vehículo</th><th>Operación</th><th>Proveedor</th><th>Importe</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>02/10/2026</td><td>Patente</td><td>8CHKD0810SP001209<small>Honda XR 150</small></td><td>#1048<small>Boleto SM-0417</small></td><td>Gestoría Norte</td><td>$ 85.000</td><td><span class="badge wa">Pendiente</span></td><td><span class="b">Marcar pagado</span> <span class="b">Patente</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <h4>Cargar un pago</h4>
+    <ol class="steps">
+      <li><span>Tocá <strong>Cargar pago nuevo</strong>.</span></li>
+      <li><span>En <strong>Buscar por boleto</strong> escribí el boleto o el número de operación y elegila: se completan solas la operación y la moto. Si no hay venta, buscá la moto en <strong>VIN / Chasis</strong>.</span></li>
+      <li><span>Elegí el <strong>Concepto</strong> (Patente, Seguro, Formulario) y el <strong>Proveedor</strong>. Tanto en Concepto como en Proveedor, el botón <strong>+</strong> permite agregar uno nuevo ahí mismo.</span></li>
+      <li><span>Completá el <strong>Importe</strong> y el <strong>Estado</strong> (Pendiente o Pagado).</span></li>
+      <li><span>Tocá <strong>Guardar pago</strong>.</span></li>
+    </ol>
+    <h4>Marcar pagado</h4>
+    <p><strong>Marcar pagado</strong> y <strong>Marcar pendiente</strong> cambian el estado al instante, sin preguntar. El botón <strong>Patente</strong> abre la ventana de patentamiento de esa venta (capítulo 4).</p>
+    <p class="warn">Esta pantalla sólo anota si se pagó o no: <strong>no descuenta plata de ninguna caja</strong>. Si la venta todavía no tiene moto asignada, no deja cargar el pago. Un pago cargado no se puede editar ni borrar.</p>
+  </section>
+</div>
+
+<!-- ============ 8 ============ -->
+<div class="chapter" id="creditos">
+  <header><span>Capítulo 8</span><h2>Créditos personales</h2><p>Las cuotas de los créditos que da la casa y la consulta de antecedentes en el Banco Central.</p></header>
+
+  <section>
+    <h3>Cobranza de cuotas</h3>
+    <span class="where">Créditos personales → Cobranza de cuotas</span>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Cobranza de cuotas</figcaption>
+      <div class="in">
+        <div class="scroll"><table>
+          <thead><tr><th>Vencimiento</th><th>Cliente</th><th>Operación</th><th>Cuota</th><th>Importe</th><th>Pagado</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>28/09/2026</td><td>Ruiz, Marta</td><td>#1040</td><td>#3</td><td>$ 95.000</td><td>$ 40.000</td><td><span class="badge re">Vencida</span></td><td><span class="b p">Cobrar</span></td></tr>
+            <tr><td>10/10/2026</td><td>Gómez, Luis</td><td>#1048</td><td>#1</td><td>$ 90.000</td><td>$ 0</td><td><span class="badge">Pendiente</span></td><td><span class="b p">Cobrar</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <div class="tablebox"><table>
+      <thead><tr><th>Estado</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge">Pendiente</span></td><td>No se pagó nada y todavía no venció.</td></tr>
+        <tr><td><span class="badge wa">Pago parcial</span></td><td>Se pagó una parte y todavía no venció.</td></tr>
+        <tr><td><span class="badge re">Vencida</span></td><td>Pasó la fecha y no está completa, aunque tenga un pago parcial.</td></tr>
+        <tr><td><span class="badge ok">Pagada</span></td><td>Completa. Ya no tiene botón Cobrar.</td></tr>
+      </tbody>
+    </table></div>
+    <h4>Cobrar una cuota</h4>
+    <ol class="steps">
+      <li><span>Buscá por cliente o número de operación, o filtrá por <strong>Estado</strong>, y tocá <strong>Aplicar</strong>.</span></li>
+      <li><span>Tocá <strong>Cobrar</strong> en la fila.</span></li>
+      <li><span><strong>Importe cobrado</strong> viene con el saldo completo. Bajalo si paga una parte.</span></li>
+      <li><span>Revisá la <strong>Fecha de cobro</strong> y elegí el <strong>Medio</strong>.</span></li>
+      <li><span>Elegí la <strong>Cuenta de caja</strong>. Si es efectivo, elegí también <strong>Se rinde a</strong>; la cuenta se elige a mano: tiene que ser la caja de esa persona.</span></li>
+      <li><span>Tocá <strong>Registrar cobro</strong>.</span></li>
+    </ol>
+    <ul>
+      <li>No hay recargos ni intereses por mora: nunca se puede cobrar más que el saldo de la cuota.</li>
+      <li>Cada cobro crea solo un ingreso de tipo "Cuota crédito". <strong>No lo cargues de nuevo en Ingresos.</strong></li>
+      <li>Un cobro registrado no se puede deshacer desde esta pantalla.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>Consulta BCRA</h3>
+    <span class="where">Créditos personales → Consulta BCRA</span>
+    <p>Consulta en el Banco Central si una persona tiene deudas en mora, antes de darle un crédito.</p>
+    <ol class="steps">
+      <li><span>Escribí el <strong>CUIT / CUIL</strong> (11 números). Con el DNI solo no funciona.</span></li>
+      <li><span>Tocá <strong>Consultar</strong>.</span></li>
+      <li><span>Leé el resultado.</span></li>
+    </ol>
+    <div class="tablebox"><table>
+      <thead><tr><th>Resultado</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge ok">Sin antecedentes de mora</span></td><td>Está al día y no tuvo atrasos importantes en los últimos 24 meses.</td></tr>
+        <tr><td><span class="badge wa">Antecedentes a revisar</span></td><td>Tiene un atraso leve ahora, o tuvo atrasos importantes en los últimos 24 meses.</td></tr>
+        <tr><td><span class="badge re">Situación irregular</span></td><td>Tiene atrasos importantes ahora o un proceso judicial.</td></tr>
+        <tr><td><span class="badge">Sin antecedentes registrados</span></td><td>El BCRA no tiene datos. No es malo: puede que nunca haya sacado un crédito.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="warn">Es una ayuda para decidir: no aprueba ni rechaza nada, y el resultado no queda guardado. El detalle banco por banco no lo ves con tu usuario; si hace falta, pedíselo a un Gerente o Administrador.</p>
+  </section>
+</div>
+
+<!-- ============ 9 ============ -->
+<div class="chapter" id="limites">
+  <header><span>Capítulo 9</span><h2>Lo que no podés hacer</h2><p>Para que no pierdas tiempo buscando un botón que no está. Cada cosa tiene a quién pedírsela.</p></header>
+  <section>
+    <div class="tablebox"><table>
+      <thead><tr><th>No podés…</th><th>Por qué</th><th>A quién pedirlo</th></tr></thead>
+      <tbody>
+        <tr><td>Aprobar o rechazar una venta por debajo de lista</td><td>No es de tu rol.</td><td>Gerente o Administrador</td></tr>
+        <tr><td>Enviar un borrador, cerrar o cancelar una venta después de salir de la pantalla de alta</td><td>Los botones sólo están justo después de guardar. Hoy no lo puede hacer ningún usuario.</td><td>Avisá a un Administrador (lo gestiona con soporte)</td></tr>
+        <tr><td>Cerrar una venta de moto 0 km</td><td>El botón no aparece en ventas 0 km.</td><td>Avisá a un Administrador (lo gestiona con soporte)</td></tr>
+        <tr><td>Editar una venta ya cargada (cliente, precio, plan de pago)</td><td>No hay pantalla para eso, con ningún usuario.</td><td>Avisá a un Administrador (lo gestiona con soporte)</td></tr>
+        <tr><td>Programar o marcar la entrega de la moto</td><td>No hay pantalla para eso.</td><td>—</td></tr>
+        <tr><td>Confirmar que se recibió un efectivo (rendición)</td><td>Lo confirma quien recibe la plata.</td><td>La persona elegida en "Se rinde a"</td></tr>
+        <tr><td>Crear o editar cuentas de caja</td><td>No es de tu rol.</td><td>Administrador</td></tr>
+        <tr><td>Corregir, borrar o reversar un cobro, pago, ingreso o gasto</td><td>No es de tu rol.</td><td>Gerente o Administrador</td></tr>
+        <tr><td>Cargar una compra o ver costos de compra</td><td>No es de tu rol.</td><td>Gerente o Administrador</td></tr>
+        <tr><td>Pasar plata de una cuenta a otra o ver los movimientos de una caja</td><td>No hay pantalla para eso, con ningún usuario.</td><td>—</td></tr>
+        <tr><td>Crear marcas o modelos nuevos, proveedores o financieras</td><td>No es de tu rol o no hay pantalla.</td><td>Administrador</td></tr>
+        <tr><td>Trasladar una moto a otra sucursal</td><td>No hay pantalla para eso, con ningún usuario.</td><td>—</td></tr>
+        <tr><td>Crear planes de crédito, ver comisiones, usuarios o auditoría</td><td>No es de tu rol.</td><td>Administrador</td></tr>
+        <tr><td>Cambiar tu contraseña estando adentro</td><td>Se hace con "¿Olvidaste tu contraseña?".</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</div>
+
+<!-- ============ 10 ============ -->
+<div class="chapter" id="ayuda">
+  <header><span>Capítulo 10</span><h2>Si algo no sale</h2><p>Los mensajes más comunes y qué hacer con cada uno.</p></header>
+  <section>
+    <div class="tablebox"><table>
+      <thead><tr><th>Qué ves</th><th>Qué hacer</th></tr></thead>
+      <tbody>
+        <tr><td>"Los datos ingresados no son válidos." (al entrar)</td><td>Correo o contraseña mal escritos. Revisá mayúsculas.</td></tr>
+        <tr><td>"Tu sesión venció. Ingresá nuevamente."</td><td>Volvé a entrar. Lo que no habías guardado hay que cargarlo otra vez.</td></tr>
+        <tr><td>"No tenés permiso para realizar esta acción."</td><td>Esa acción no es de tu rol. Mirá el capítulo 9.</td></tr>
+        <tr><td>"No pudimos conectar con el servidor…"</td><td>Revisá internet y probá de nuevo.</td></tr>
+        <tr><td>"La operación cambió o la unidad ya fue reservada…"</td><td>Otra persona modificó lo mismo. Actualizá la pantalla y repetí.</td></tr>
+        <tr><td>"…todavía no tiene una caja para esta sucursal"</td><td>Quien recibe el efectivo no tiene caja creada. Pedile a un Administrador que la cree, o guardá el ingreso como "Pendiente de cobro".</td></tr>
+        <tr><td>"No hay cuentas de caja activas para esta sucursal"</td><td>Las cuentas las crea un Administrador.</td></tr>
+        <tr><td>"Esta operación no tiene saldo pendiente de cobro."</td><td>La venta ya está saldada. Si es una cuota de crédito propio, va por Cobranza de cuotas.</td></tr>
+        <tr><td>"El importe supera el saldo…"</td><td>Revisá el importe o la parte del plan elegida.</td></tr>
+        <tr><td>"Ese cobro ya se envió con otros datos. Cerrá y volvé a abrir el cobro."</td><td>Cerrá la ventana, abrila de nuevo y cargalo otra vez. Antes fijate en la lista que no haya quedado registrado.</td></tr>
+        <tr><td>"El VIN, nombre o recepción ya fue registrado."</td><td>Ese chasis ya existe, o el precio se superpone con otro ya cargado. Revisá el dato.</td></tr>
+        <tr><td>"No hay unidades en stock de esta versión…"</td><td>No hay moto para asignar: usá Pedir a proveedor.</td></tr>
+        <tr><td>"La operación ya tiene un pedido al proveedor sin recibir"</td><td>Registrá la llegada de ese pedido antes de asignar otra moto.</td></tr>
+        <tr><td>"La operación todavía no tiene una unidad asignada."</td><td>Primero asigná la moto; después cargá la patente o el pago.</td></tr>
+        <tr><td>"Ya existe un cliente con ese documento…"</td><td>Buscalo en Clientes y usá ese.</td></tr>
+        <tr><td>Guardaste un ingreso y no aparece en la lista</td><td>Revisá los filtros (mes, estado, tipo) y tocá Limpiar. Si sigue sin aparecer, avisá a un Administrador.</td></tr>
+        <tr><td>No encontrás una venta en "Mis operaciones"</td><td>Ahí sólo están las que tienen tu nombre como vendedora. Buscala en "Operaciones".</td></tr>
+        <tr><td>El plan de pago de la venta está mal</td><td>No se puede modificar desde el sistema. Cobrá con el medio real en "Medio con el que pagó" y avisá a un Administrador.</td></tr>
+        <tr><td>Cargaste algo equivocado</td><td>No lo cargues de nuevo encima. Avisá a un Administrador con el número de operación o la fecha.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</div>
+
+<footer>Luma Motos · Manual de uso para el rol Administrativa · Octubre 2026 · Las pantallas de ejemplo usan datos inventados.</footer>
+</div>
+</main>
+</body>
+</html>
