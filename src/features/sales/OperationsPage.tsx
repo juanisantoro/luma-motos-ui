@@ -16,6 +16,7 @@ import { listSalesOperations } from './api'
 import { releaseSalesReservation } from './api'
 import { salesErrorMessage } from './errors'
 import { alertError, alertSuccess } from '../../shared/alerts'
+import { EditOperationModal } from './EditOperationModal'
 import { LicensingModal } from './LicensingModal'
 import { OperationTrackingPanel } from './OperationTrackingPanel'
 import { SalesDecisionModal } from './SalesDecisionModal'
@@ -125,6 +126,12 @@ export function OperationsPage({
     useState<SalesOperation | null>(null)
   // Grilla administrativa: la ve quien no está limitado a "mis operaciones".
   const showLicensing = !effectiveMine
+  // Corrección de ventas ya cargadas (operaciones migradas).
+  const canCorrect =
+    showLicensing && hasPermission(user?.role.permissions, 'ventas.corregir')
+  const [editOperation, setEditOperation] = useState<SalesOperation | null>(
+    null,
+  )
   const showUnitFilter = showLicensing && vehicleType === 'MOTO'
   const [searchParams, setSearchParams] = useSearchParams()
   const licensingFilter = showLicensing
@@ -468,6 +475,7 @@ export function OperationsPage({
                 }}
                 showLicensing={showLicensing}
                 onManageLicensing={setLicensingOperation}
+                {...(canCorrect ? { onEdit: setEditOperation } : {})}
                 {...(showLicensing && canPayLicensing
                   ? { onRegisterLicensingPayment: registerLicensingPayment }
                   : {})}
@@ -519,6 +527,17 @@ export function OperationsPage({
             </footer>
           )}
         </section>
+      )}
+      {editOperation && (
+        <EditOperationModal
+          key={editOperation.id}
+          onClose={() => setEditOperation(null)}
+          onSaved={() => {
+            setEditOperation(null)
+            setRefreshKey((value) => value + 1)
+          }}
+          operation={editOperation}
+        />
       )}
       {licensingOperation && (
         <LicensingModal

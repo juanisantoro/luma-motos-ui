@@ -2,6 +2,7 @@ import {
   FileBadge,
   FileText,
   PackageCheck,
+  Pencil,
   Store,
   Unlock,
   Warehouse,
@@ -279,6 +280,7 @@ export function SalesOperationList({
   onRegisterLicensingPayment,
   unitActions,
   onUnitAction,
+  onEdit,
 }: {
   operations: SalesOperation[]
   canRelease?: boolean
@@ -292,6 +294,8 @@ export function SalesOperationList({
   // Fase 3 (motos): acciones de unidad disponibles por fila.
   unitActions?: (operation: SalesOperation) => UnitAction[]
   onUnitAction?: (operation: SalesOperation, action: UnitAction) => void
+  // Corrección de la venta (ventas.corregir): botón Editar por fila.
+  onEdit?: (operation: SalesOperation) => void
 }) {
   const cards = useMediaQuery('(max-width: 768px)')
   const unitColumn =
@@ -393,6 +397,17 @@ export function SalesOperationList({
             <p className="sales-card__note">
               <strong>Observación:</strong> {observation(operation)}
             </p>
+            {onEdit && (
+              <button
+                aria-label={`Editar operación ${operation.number}`}
+                className="button button--secondary sales-card__action"
+                onClick={() => onEdit(operation)}
+                type="button"
+              >
+                <Pencil size={16} />
+                Editar
+              </button>
+            )}
             {canRelease && (
               <ReleaseButton
                 operation={operation}
@@ -436,6 +451,17 @@ export function SalesOperationList({
                 <strong>#{operation.number}</strong>
                 {operation.ticketNumber && (
                   <small>Boleto {operation.ticketNumber}</small>
+                )}
+                {onEdit && (
+                  <button
+                    aria-label={`Editar operación ${operation.number}`}
+                    className="button button--secondary button--compact"
+                    onClick={() => onEdit(operation)}
+                    type="button"
+                  >
+                    <Pencil size={14} />
+                    Editar
+                  </button>
                 )}
               </td>
               <td>{formatOperationDate(operation.operationDate)}</td>

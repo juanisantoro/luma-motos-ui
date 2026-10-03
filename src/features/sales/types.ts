@@ -409,6 +409,26 @@ export type UpdateSalesOperationInput = {
   licensingAmount?: number | null
 }
 
+// Corrección administrativa de una venta ya cargada (PATCH /:id/correction).
+export type CorrectSalesOperationInput = {
+  expectedVersion: number
+  clientId?: string
+  sellerId?: string
+  contactId?: string | null
+  agreedPrice?: number
+  paymentPlatform?: SalesPaymentPlatform
+  creditAmount?: number | null
+  financialInstitutionId?: string
+  guarantor?: string | null
+  operationDate?: string
+  deliveryStatus?: SalesDeliveryStatus
+  papersDelivered?: boolean
+  debt?: SalesDebt
+  notes?: string | null
+  ticketNumber?: string | null
+  includesHelmet?: boolean
+}
+
 export type AssignSalesUnitInput = {
   expectedVersion: number
   unitId: string

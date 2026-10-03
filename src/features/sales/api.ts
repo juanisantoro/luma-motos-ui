@@ -4,6 +4,7 @@ import {
 } from '../../shared/api/client'
 import type {
   AssignSalesUnitInput,
+  CorrectSalesOperationInput,
   CreateSalesOperationInput,
   CreateSalesTradeInInput,
   SalesPricePolicy,
@@ -193,6 +194,17 @@ export function updateSalesOperation(
   input: UpdateSalesOperationInput,
 ) {
   return request<SalesOperation>(`/sales/operations/${id}`, {
+    method: 'PATCH',
+    body: input,
+  })
+}
+
+// Corrección de una venta ya cargada: cualquier estado, sin cambiarlo.
+export function correctSalesOperation(
+  id: string,
+  input: CorrectSalesOperationInput,
+) {
+  return request<SalesOperation>(`/sales/operations/${id}/correction`, {
     method: 'PATCH',
     body: input,
   })

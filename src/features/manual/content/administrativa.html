@@ -425,10 +425,32 @@ a{color:var(--red)}
       <li><strong>Cancelar operación</strong> pide un motivo y libera la moto y el pedido al proveedor.</li>
       <li><strong>Cerrar operación</strong> sólo aparece si la venta es de una moto usada elegida del stock y quedó Aprobada. Marca la moto como vendida. En las ventas 0 km no aparece, porque la moto se asigna después.</li>
       <li><strong>Cargar otra</strong> abre un formulario nuevo: después de tocarlo ya no volvés a esta pantalla.</li>
-      <li>Una venta ya cargada <strong>no se puede editar</strong>: ni cliente, ni precio, ni plan de pago. Revisá el resumen antes de confirmar.</li>
+      <li>Si una venta ya cargada tiene un dato mal, se corrige desde <strong>Operaciones</strong> con el botón <strong>Editar</strong> (ver "Editar una venta ya cargada").</li>
       <li>Si aparece el mensaje de que la operación "quedó guardada como borrador, pero no se completaron todos sus datos", <strong>no la cargues de nuevo</strong>: anotá el número y avisá.</li>
     </ul>
   </section>
+
+  <!-- editar-venta:inicio -->
+  <section>
+    <h3>Editar una venta ya cargada</h3>
+    <span class="where">Ventas → Operaciones moto → Operaciones → Editar</span>
+    <p>Sirve para dejar bien asociada una venta que quedó con datos incompletos o equivocados, por ejemplo las que vinieron de las planillas. Funciona en cualquier estado, también en ventas Cerradas o Canceladas.</p>
+    <ol class="steps">
+      <li><span>En la fila de la venta, debajo del número, tocá <strong>Editar</strong>.</span></li>
+      <li><span>Cambiá lo que haga falta: <strong>Fecha de operación</strong>, <strong>Número de boleto</strong>, <strong>Cliente</strong>, <strong>Vendedor</strong>, <strong>Contacto</strong>, <strong>Precio de cierre</strong>, <strong>Forma de pago</strong>, <strong>Debe</strong>, <strong>Entrega</strong>, <strong>Papeles entregados</strong>, <strong>Casco de regalo</strong> y <strong>Observaciones</strong>.</span></li>
+      <li><span>Para cambiar el cliente, escribí su nombre o documento, tocá <strong>Buscar</strong> y elegilo de la lista.</span></li>
+      <li><span>Si la forma de pago lleva crédito, completá <strong>Monto del crédito</strong> y <strong>Financiera</strong>.</span></li>
+      <li><span>Tocá <strong>Guardar cambios</strong>.</span></li>
+    </ol>
+    <ul>
+      <li>El estado de la venta no cambia y no vuelve a pedir aprobación, aunque cambies el precio.</li>
+      <li>La moto y el chasis no se cambian acá: van por Asignar de stock. La patente, por Gestionar.</li>
+      <li>Si cambiás el precio o la forma de pago, el sistema reacomoda solo el plan de pago. Los cobros ya cargados quedan en la venta.</li>
+      <li>Cada corrección queda registrada con tu usuario y los datos anteriores.</li>
+    </ul>
+    <p class="warn">No deja pasar a una forma de pago "con moto" si la venta no tiene una moto tomada en parte de pago cargada, ni sacar la moto si ya la tiene. Tampoco deja cambiar el crédito de una venta con crédito propio que ya tiene cuotas generadas. Después de cambiar precio o forma de pago en una venta con cobros, revisá el saldo en Seguimiento de cobros.</p>
+  </section>
+  <!-- editar-venta:fin -->
 
   <section>
     <h3>Conseguir la moto para una venta</h3>
@@ -1006,7 +1028,7 @@ a{color:var(--red)}
         <tr><td>Aprobar o rechazar una venta por debajo de lista</td><td>No es de tu rol.</td><td>Gerente o Administrador</td></tr>
         <tr><td>Cerrar o cancelar una venta después de salir de la pantalla de alta</td><td>Los botones sólo están justo después de guardar. Hoy no lo puede hacer ningún usuario.</td><td>Avisá a un Administrador (lo gestiona con soporte)</td></tr>
         <tr><td>Cerrar una venta de moto 0 km</td><td>El botón no aparece en ventas 0 km.</td><td>Avisá a un Administrador (lo gestiona con soporte)</td></tr>
-        <tr><td>Editar una venta ya cargada (cliente, precio, plan de pago)</td><td>No hay pantalla para eso, con ningún usuario.</td><td>Avisá a un Administrador (lo gestiona con soporte)</td></tr>
+        <tr><td>Cambiar la moto, el modelo o la sucursal de una venta ya cargada</td><td>Editar no lo incluye: la moto se cambia con Asignar de stock.</td><td>Avisá a un Administrador</td></tr>
         <tr><td>Programar o marcar la entrega de la moto</td><td>No hay pantalla para eso.</td><td>—</td></tr>
         <tr><td>Confirmar que se recibió un efectivo (rendición)</td><td>Lo confirma quien recibe la plata.</td><td>La persona elegida en "Se rinde a"</td></tr>
         <tr><td>Crear o editar cuentas de caja</td><td>No es de tu rol.</td><td>Administrador</td></tr>
@@ -1046,7 +1068,7 @@ a{color:var(--red)}
         <tr><td>"Ya existe un cliente con ese documento…"</td><td>Buscalo en Clientes y usá ese.</td></tr>
         <tr><td>Guardaste un ingreso y no aparece en la lista</td><td>Revisá los filtros (mes, estado, tipo) y tocá Limpiar. Si sigue sin aparecer, avisá a un Administrador.</td></tr>
         <tr><td>No encontrás una venta en "Mis operaciones"</td><td>Ahí sólo están las que tienen tu nombre como vendedora. Buscala en "Operaciones".</td></tr>
-        <tr><td>El plan de pago de la venta está mal</td><td>No se puede modificar desde el sistema. Cobrá con el medio real en "Medio con el que pagó" y avisá a un Administrador.</td></tr>
+        <tr><td>El plan de pago de la venta está mal</td><td>Corregilo con <strong>Editar</strong> en Operaciones: cambiá el precio o la forma de pago y el plan se reacomoda.</td></tr>
         <tr><td>Cargaste algo equivocado</td><td>No lo cargues de nuevo encima. Avisá a un Administrador con el número de operación o la fecha.</td></tr>
       </tbody>
     </table></div>
