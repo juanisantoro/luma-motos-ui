@@ -35,6 +35,7 @@ import {
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
 import { hasPermission } from '../../features/auth/PermissionRoute'
+import { ManualAssistant } from '../../features/manual/ManualAssistant'
 import { Brand } from '../../shared/components/Brand'
 import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
 
@@ -190,14 +191,15 @@ const navigationGroups: NavGroup[] = [
         description: 'Inventario y proveedores',
         to: '/stock/motos',
         icon: Bike,
-        permissions: ['inventario.consultar'],
+        // Mismo permiso que la ruta: sin él la pantalla no abre.
+        permissions: ['inventario.gestionar'],
       },
       {
         label: 'Stock de autos',
         description: 'Inventario y proveedores',
         to: '/stock/autos',
         icon: CarFront,
-        permissions: ['inventario.consultar'],
+        permissions: ['inventario.gestionar'],
       },
     ],
   },
@@ -832,6 +834,7 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <ManualAssistant />
     </div>
   )
 }

@@ -309,7 +309,7 @@ function chooseLicensing(mode: 'BONIFICADA' | 'PAGA_CLIENTE' = 'BONIFICADA') {
 // Guardar/Enviar abre la previsualización; el POST sale recién al confirmar.
 async function confirmSave(
   user: ReturnType<typeof userEvent.setup>,
-  action: 'Guardar borrador' | 'Guardar y enviar operación',
+  action: 'Guardar y enviar operación',
 ) {
   await user.click(screen.getByRole('button', { name: action }))
   const dialog = await screen.findByRole('dialog', {
@@ -317,8 +317,7 @@ async function confirmSave(
   })
   await user.click(
     within(dialog).getByRole('button', {
-      name:
-        action === 'Guardar borrador' ? 'Confirmar borrador' : 'Confirmar y enviar',
+      name: 'Confirmar y enviar',
     }),
   )
 }
@@ -648,7 +647,7 @@ describe('Nueva operación productiva', () => {
   it('no envía importe de patente cuando es bonificada', async () => {
     renderPage()
     const user = await completeBaseData()
-    await confirmSave(user, 'Guardar borrador')
+    await confirmSave(user, 'Guardar y enviar operación')
 
     const payload = mocks.createOperation.mock.calls[0]?.[0] as Record<
       string,
@@ -661,10 +660,10 @@ describe('Nueva operación productiva', () => {
     expect(payload).not.toHaveProperty('licensingAmount')
   })
 
-  it('guarda un documento nuevo como borrador y delega al backend crear el cliente', async () => {
+  it('guarda un documento nuevo, delega al backend crear el cliente y envía la operación', async () => {
     renderPage()
     const user = await completeBaseData()
-    await confirmSave(user, 'Guardar borrador')
+    await confirmSave(user, 'Guardar y enviar operación')
 
     expect(mocks.createOperation).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -673,9 +672,12 @@ describe('Nueva operación productiva', () => {
       }),
     )
     expect(mocks.replacePaymentPlan).toHaveBeenCalled()
-    expect(mocks.submitOperation).not.toHaveBeenCalled()
+    // Ya no existe el guardado como borrador: toda alta se envía.
+    await waitFor(() =>
+      expect(mocks.submitOperation).toHaveBeenCalledWith('operation-1', 3),
+    )
     expect(
-      await screen.findByText(/condiciones comerciales quedaron guardados como borrador/i),
+      await screen.findByRole('heading', { name: 'Operación #105' }),
     ).toBeInTheDocument()
   })
 
@@ -715,7 +717,7 @@ describe('Nueva operación productiva', () => {
       target: { value: '1000000' },
     })
     chooseLicensing()
-    await confirmSave(user, 'Guardar borrador')
+    await confirmSave(user, 'Guardar y enviar operación')
 
     expect(mocks.createOperation).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -782,7 +784,7 @@ describe('Nueva operación productiva', () => {
     await user.click(option)
 
     const user2 = await completeBaseData()
-    await confirmSave(user2, 'Guardar borrador')
+    await confirmSave(user2, 'Guardar y enviar operación')
     const payload = mocks.createOperation.mock.calls[0]?.[0] as Record<
       string,
       unknown
@@ -829,7 +831,7 @@ describe('Nueva operación productiva', () => {
       expect(screen.getByText(/5\.000\.000/)).toBeInTheDocument(),
     )
     chooseLicensing()
-    await confirmSave(user, 'Guardar borrador')
+    await confirmSave(user, 'Guardar y enviar operación')
     expect(mocks.createOperation).toHaveBeenCalledWith(
       expect.objectContaining({ unitId: 'used-unit', condition: 'USADO' }),
     )
@@ -867,7 +869,7 @@ describe('Nueva operación productiva', () => {
       expect(screen.getByText(/5\.000\.000/)).toBeInTheDocument(),
     )
     chooseLicensing()
-    await confirmSave(user, 'Guardar borrador')
+    await confirmSave(user, 'Guardar y enviar operación')
 
     expect(
       await screen.findByRole('heading', {
@@ -1004,23 +1006,21 @@ describe('Nueva operación productiva', () => {
     expect(mocks.listUnits).toHaveBeenCalledTimes(2)
   })
 
-  it('ofrece enviar la operación recién guardada sin recargar y usa el rowVersion vigente', async () => {
+  it('no ofrece guardar como borrador y envía con el rowVersion vigente', async () => {
     renderPage()
+    expect(
+      screen.queryByRole('button', { name: 'Guardar borrador' }),
+    ).not.toBeInTheDocument()
     const user = await completeBaseData()
-    await confirmSave(user, 'Guardar borrador')
+    await confirmSave(user, 'Guardar y enviar operación')
 
     expect(
       await screen.findByRole('heading', { name: 'Operación #105' }),
     ).toBeInTheDocument()
-    expect(screen.getByTestId('created-operation-status')).toHaveTextContent('Borrador')
-    await user.click(screen.getByRole('button', { name: 'Enviar operación' }))
-
     // rowVersion 3 es el que devolvió el reemplazo del plan de pago, no el
-    // 1 del alta: el panel conserva la última respuesta del backend.
+    // 1 del alta.
     expect(mocks.submitOperation).toHaveBeenCalledWith('operation-1', 3)
-    await waitFor(() =>
-      expect(screen.getByTestId('created-operation-status')).toHaveTextContent('Pendiente'),
-    )
+    expect(screen.getByTestId('created-operation-status')).toHaveTextContent('Pendiente')
     expect(
       screen.queryByRole('button', { name: 'Enviar operación' }),
     ).not.toBeInTheDocument()
@@ -1048,8 +1048,7 @@ describe('Nueva operación productiva', () => {
     })
     renderPage()
     const user = await completeBaseData()
-    await confirmSave(user, 'Guardar borrador')
-    await user.click(await screen.findByRole('button', { name: 'Enviar operación' }))
+    await confirmSave(user, 'Guardar y enviar operación')
 
     await user.click(await screen.findByRole('button', { name: 'Cerrar operación' }))
     expect(mocks.closeOperation).toHaveBeenCalledWith('operation-1', 4)
@@ -1062,20 +1061,34 @@ describe('Nueva operación productiva', () => {
   })
 
   it('recarga la operación ante un 409 para no reutilizar una versión vieja', async () => {
-    mocks.submitOperation.mockRejectedValueOnce(
+    mocks.extraPermissions = ['ventas.cerrar']
+    const reservation = {
+      id: 'reservation-1',
+      unitId: 'unit-1',
+      supplierAvailabilityId: null,
+      status: 'ACTIVO',
+      quantity: 1,
+      expiresAt: null,
+      releasedAt: null,
+      releaseReason: null,
+    }
+    mocks.submitOperation.mockResolvedValueOnce(
+      operation({ rowVersion: 4, status: 'APROBADA', reservation }),
+    )
+    mocks.closeOperation.mockRejectedValueOnce(
       new ApiError(409, 'Version conflict', { code: 'VERSION_CONFLICT' } as never),
     )
     mocks.getOperation.mockResolvedValueOnce(
-      operation({ rowVersion: 7, status: 'PENDIENTE_APROBACION' }),
+      operation({ rowVersion: 7, status: 'CERRADA' }),
     )
     renderPage()
     const user = await completeBaseData()
-    await confirmSave(user, 'Guardar borrador')
-    await user.click(await screen.findByRole('button', { name: 'Enviar operación' }))
+    await confirmSave(user, 'Guardar y enviar operación')
+    await user.click(await screen.findByRole('button', { name: 'Cerrar operación' }))
 
     expect(mocks.getOperation).toHaveBeenCalledWith('operation-1')
     await waitFor(() =>
-      expect(screen.getByTestId('created-operation-status')).toHaveTextContent('Pendiente'),
+      expect(screen.getByTestId('created-operation-status')).toHaveTextContent('Cerrada'),
     )
     expect(screen.getByRole('alert')).toHaveTextContent('cambió mientras la tenías abierta')
   })
@@ -1084,7 +1097,7 @@ describe('Nueva operación productiva', () => {
     mocks.replacePaymentPlan.mockRejectedValueOnce(new NetworkError())
     renderPage()
     const user = await completeBaseData()
-    await confirmSave(user, 'Guardar borrador')
+    await confirmSave(user, 'Guardar y enviar operación')
 
     expect(
       await screen.findByRole('heading', { name: 'Operación #105' }),

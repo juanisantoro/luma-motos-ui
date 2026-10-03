@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>html{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Manual del Vendedor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,500;0,700;0,800;1,800&family=Public+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: portada roja, índice, y capítulos en una columna de lectura; cada tarea = pasos numerados + una "pantalla de ejemplo" dibujada. */
+:root{
+  --red:#e32636; --red-dark:#bd1927; --red-soft:#fff0f2; --on-red:#ffffff;
+  --bg:#ffffff; --surface:#fbf7f7; --ink:#1d1416; --muted:#6b5b5e; --line:#ecdfe1;
+  --ok:#17794a; --ok-soft:#e5f5ec; --warn:#8a5a00; --warn-soft:#fdf1d6; --off:#5d5759; --off-soft:#efebec;
+  --display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --red:#ff5562; --red-dark:#e32636; --red-soft:#34171b; --on-red:#ffffff;
+    --bg:#171113; --surface:#211719; --ink:#f6eced; --muted:#bca9ac; --line:#3a2a2d;
+    --ok:#6fd6a0; --ok-soft:#173326; --warn:#f0c26a; --warn-soft:#3a2c10; --off:#c9bfc1; --off-soft:#2e2628; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --red:#ff5562; --red-dark:#e32636; --red-soft:#34171b; --on-red:#ffffff;
+  --bg:#171113; --surface:#211719; --ink:#f6eced; --muted:#bca9ac; --line:#3a2a2d;
+  --ok:#6fd6a0; --ok-soft:#173326; --warn:#f0c26a; --warn-soft:#3a2c10; --off:#c9bfc1; --off-soft:#2e2628; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.cover{background:var(--red-dark);color:var(--on-red);padding-block:36px 40px;padding-inline:16px}
+.wrap{max-width:820px;margin-inline:auto}
+.brand{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:800;letter-spacing:.14em;font-size:14px}
+.brand i{display:grid;place-items:center;width:40px;height:40px;border-radius:10px;background:#ffffff;color:#bd1927;font-style:italic;font-size:16px;letter-spacing:0}
+.cover h1{font-family:var(--display);font-weight:800;font-style:italic;font-size:clamp(34px,7vw,56px);line-height:1.02;margin:28px 0 12px;text-wrap:balance}
+.cover p{margin:0;max-width:58ch;font-size:17px}
+.cover .meta{margin-top:20px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+main{padding-block:32px 56px;padding-inline:16px}
+main>.wrap{display:grid;gap:56px}
+.chapter{display:grid;gap:28px;min-width:0}
+.chapter>header{border-top:4px solid var(--red);padding-top:14px;display:grid;gap:6px}
+.chapter>header span{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red)}
+h2{font-family:var(--display);font-weight:800;font-style:italic;font-size:clamp(28px,5vw,38px);line-height:1.08;margin:0;text-wrap:balance}
+.chapter>header p{margin:0;color:var(--muted);max-width:65ch}
+section{display:grid;gap:14px;min-width:0}
+h3{font-family:var(--display);font-weight:800;font-size:22px;line-height:1.2;margin:0;text-wrap:balance}
+h4{font-family:var(--display);font-weight:700;font-size:16px;margin:6px 0 0}
+section>p,section>ul{margin:0;max-width:68ch}
+section>ul{padding-left:20px;display:grid;gap:6px}
+.where{font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--red)}
+ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:10px;counter-reset:s}
+ol.steps>li{counter-increment:s;display:grid;grid-template-columns:30px 1fr;gap:12px;align-items:start}
+ol.steps>li::before{content:counter(s);display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--red);color:var(--on-red);font-family:var(--display);font-weight:700;font-size:14px}
+ol.steps>li>span{padding-top:2px;min-width:0}
+strong{font-weight:700}
+.note,.warn{border-radius:10px;padding:14px 16px;max-width:none}
+.note{background:var(--red-soft)}
+.warn{background:var(--warn-soft);color:var(--ink)}
+.warn::before{content:"Ojo";display:inline-block;font-family:var(--display);font-weight:800;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);margin-right:8px}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th{font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;text-align:left;background:var(--red);color:var(--on-red);padding:10px 14px}
+td{padding:10px 14px;border-top:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even) td{background:var(--surface)}
+td:first-child{font-weight:600}
+/* Índice */
+.toc{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));padding:0;margin:0;list-style:none}
+.toc a{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:10px;color:var(--ink);text-decoration:none;font-weight:600}
+.toc a:hover,.toc a:focus-visible{border-color:var(--red);outline:none}
+.toc b{font-family:var(--display);font-style:italic;font-size:22px;color:var(--red)}
+/* Pantallas de ejemplo */
+.mock{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
+.mock>figcaption{display:flex;gap:10px;align-items:center;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.mock>figcaption b{font-family:var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--red);font-size:11px}
+figure{margin:0;min-width:0}
+main>.wrap,.chapter,section,.mock .in{grid-template-columns:minmax(0,1fr)}
+main>.wrap>*,.mock,.mock .in>*,.tablebox,.two>*,.fgrid>*{min-width:0}
+.mock .in{padding:16px;display:grid;gap:12px;font-size:14px}
+.mock .scroll{overflow-x:auto}
+.mock table{font-size:13px;min-width:560px}
+.mock th{background:var(--surface);color:var(--muted);border-bottom:1px solid var(--line)}
+.mock td{background:var(--bg)!important}
+.mock td small,.mini{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red)}
+.mtitle{font-family:var(--display);font-weight:800;font-size:19px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.f{display:grid;gap:4px;min-width:0}
+.f>span{font-size:12px;font-weight:700}
+.f>div{border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:36px;background:var(--bg);overflow-wrap:anywhere}
+.f.ro>div{background:var(--surface);font-weight:600}
+.f.wide{grid-column:1/-1}
+.f small{color:var(--muted);font-size:12px}
+.b{display:inline-block;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px;background:var(--bg);white-space:nowrap}
+.b.p{background:var(--red);border-color:var(--red);color:var(--on-red)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;background:var(--off-soft);color:var(--off);white-space:nowrap}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.wa{background:var(--warn-soft);color:var(--warn)}
+.badge.re{background:var(--red-soft);color:var(--red)}
+.callout{font-size:13px;color:var(--muted)}
+.callout b{color:var(--red)}
+/* Circuito */
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;counter-reset:f}
+.flow>div{counter-increment:f;border:1px solid var(--line);border-top:4px solid var(--red);border-radius:10px;padding:12px;display:grid;gap:4px;align-content:start}
+.flow>div::before{content:counter(f);font-family:var(--display);font-style:italic;font-weight:800;font-size:22px;color:var(--red)}
+.flow strong{font-family:var(--display)}
+.flow small{color:var(--muted)}
+.menu{display:grid;gap:2px;max-width:320px;background:#16181d;color:#e9e6e7;border-radius:10px;padding:12px;font-size:13px}
+.menu b{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#a79c9f;margin-top:10px}
+.menu span{padding:5px 10px;border-radius:6px}
+.menu span.on{background:#e32636;color:#fff;font-weight:700}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:start}
+footer{border-top:1px solid var(--line);padding-top:16px;font-size:13px;color:var(--muted)}
+a{color:var(--red)}
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="wrap">
+    <div class="brand"><i>LM</i>LUMA MOTOS</div>
+    <h1>Manual del Vendedor</h1>
+    <p>Todo lo que podés hacer en el sistema con tu usuario, pantalla por pantalla y paso a paso: cargar una venta, seguirla, consultar el catálogo, tus clientes y tus comisiones.</p>
+    <div class="meta">Octubre 2026 · Manual completo del perfil</div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+<section>
+  <h3>Cómo usar este manual</h3>
+  <p>Cada capítulo es una parte del menú. Adentro, cada tarea tiene los pasos numerados y una <strong>pantalla de ejemplo</strong> dibujada, con datos inventados, para que reconozcas lo que vas a ver. Los textos entre comillas o en negrita son los que aparecen escritos en el sistema.</p>
+  <ul class="toc">
+    <li><a href="#entrar"><b>1</b>Entrar al sistema</a></li>
+    <li><a href="#pantalla"><b>2</b>La pantalla y el menú</a></li>
+    <li><a href="#inicio"><b>3</b>Inicio</a></li>
+    <li><a href="#vender"><b>4</b>Cargar una venta</a></li>
+    <li><a href="#seguir"><b>5</b>Seguir tus ventas</a></li>
+    <li><a href="#clientes"><b>6</b>Clientes</a></li>
+    <li><a href="#catalogo"><b>7</b>Catálogo</a></li>
+    <li><a href="#creditos"><b>8</b>Créditos</a></li>
+    <li><a href="#comisiones"><b>9</b>Mis comisiones</a></li>
+    <li><a href="#limites"><b>10</b>Lo que no podés hacer</a></li>
+    <li><a href="#ayuda"><b>11</b>Si algo no sale</a></li>
+  </ul>
+</section>
+
+<section>
+  <h3>Lo más importante, en un minuto</h3>
+  <div class="tablebox"><table>
+    <thead><tr><th>Regla</th><th>Por qué</th></tr></thead>
+    <tbody>
+      <tr><td>Revisá todo antes de confirmar una venta</td><td>Una venta guardada no se puede editar ni cancelar desde tu usuario.</td></tr>
+      <tr><td>Precio por debajo de lista = espera aprobación</td><td>La venta queda "Pendiente" hasta que la apruebe un Gerente o Administrador.</td></tr>
+      <tr><td>Vos cargás la venta; la moto la asigna la administrativa</td><td>En una 0 km no elegís el chasis: se asigna o se pide al proveedor después.</td></tr>
+      <tr><td>Sólo ves tus ventas y tu sucursal</td><td>No ves las ventas de tus compañeros.</td></tr>
+      <tr><td>La plata no se carga desde tu usuario</td><td>Cobros, patente y caja los maneja la administrativa.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ 1 ============ -->
+<div class="chapter" id="entrar">
+  <header><span>Capítulo 1</span><h2>Entrar al sistema</h2><p>Entrás con tu correo y tu contraseña. La primera vez vas a tener que elegir una contraseña propia.</p></header>
+
+  <section>
+    <h3>Ingresar</h3>
+    <ol class="steps">
+      <li><span>Abrí la dirección del sistema. Aparece la pantalla <strong>Ingresá a tu cuenta</strong>.</span></li>
+      <li><span>Escribí tu <strong>Correo electrónico</strong> y tu <strong>Contraseña</strong>.</span></li>
+      <li><span>Tocá <strong>Ingresar al sistema</strong>. Entrás a la pantalla Inicio.</span></li>
+    </ol>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Pantalla de ingreso</figcaption>
+      <div class="in" style="max-width:380px">
+        <div class="eyebrow">LM · LUMA MOTOS</div>
+        <div class="mtitle">Ingresá a tu cuenta</div>
+        <div class="f"><span>Correo electrónico</span><div>nombre@lumamotos.com.ar</div></div>
+        <div class="f"><span>Contraseña</span><div>••••••••••••</div></div>
+        <div class="row"><span class="b p">Ingresar al sistema</span></div>
+        <div class="callout">¿Olvidaste tu contraseña?</div>
+      </div>
+    </figure>
+  </section>
+
+  <section>
+    <h3>La primera vez (contraseña temporal)</h3>
+    <p>Te llega un mail con una contraseña temporal. Sirve por tiempo limitado; si venció, pedile a un Administrador que reenvíe la invitación.</p>
+    <ol class="steps">
+      <li><span>Ingresá con tu correo y la contraseña temporal del mail.</span></li>
+      <li><span>El sistema te lleva a <strong>Configurá tu contraseña</strong>.</span></li>
+      <li><span>Escribí una contraseña nueva que cumpla las cinco reglas: 12 caracteres como mínimo, una mayúscula, una minúscula, un número y un carácter especial (por ejemplo # o !).</span></li>
+      <li><span>Repetila en <strong>Confirmar nueva contraseña</strong> y tocá <strong>Configurar contraseña</strong>.</span></li>
+      <li><span>Volvés a la pantalla de ingreso. Entrá de nuevo, ahora con tu contraseña nueva.</span></li>
+    </ol>
+  </section>
+
+  <section>
+    <h3>Si te olvidaste la contraseña</h3>
+    <ol class="steps">
+      <li><span>En la pantalla de ingreso tocá <strong>¿Olvidaste tu contraseña?</strong></span></li>
+      <li><span>Escribí tu correo y tocá <strong>Enviar contraseña temporal</strong>.</span></li>
+      <li><span>Abrí el mail, ingresá con esa contraseña temporal y elegí una nueva, igual que la primera vez.</span></li>
+    </ol>
+    <p class="warn">No hay una pantalla para cambiar la contraseña estando adentro: se cambia sólo por este camino. Si el mail no llega, avisá a un Administrador.</p>
+  </section>
+
+  <section>
+    <h3>La sesión</h3>
+    <ul>
+      <li>Si pasás un rato largo sin usar el sistema, la sesión se cierra sola y vuelve a pedirte la contraseña. <strong>Lo que estabas cargando sin guardar se pierde</strong>: no dejes una venta a medio cargar.</li>
+      <li>Si cerrás la pestaña o abrís el sistema en otra pestaña, también te pide ingresar de nuevo.</li>
+      <li>Si probás más de 5 veces en un minuto, hay que esperar cinco minutos.</li>
+      <li>Para salir, usá el botón <strong>Cerrar sesión</strong>, abajo en el menú, al lado de tu nombre.</li>
+    </ul>
+  </section>
+</div>
+
+<!-- ============ 2 ============ -->
+<div class="chapter" id="pantalla">
+  <header><span>Capítulo 2</span><h2>La pantalla y el menú</h2><p>A la izquierda está el menú. Arriba, el nombre de la pantalla en la que estás y tu sucursal.</p></header>
+
+  <section>
+    <div class="two">
+      <figure class="mock"><figcaption><b>Ejemplo</b>Tu menú completo</figcaption>
+        <div class="in">
+          <div class="menu">
+            <span class="on">Inicio</span>
+            <b>Ventas · Operaciones moto</b><span>Mis operaciones</span>
+            <b>Ventas · Operaciones auto</b><span>Mis operaciones</span>
+            <b>Clientes</b><span>Clientes</span><span>Clientes en rojo</span>
+                        <b>Catálogo</b><span>Catálogo de motos</span><span>Catálogo de autos</span>
+            <b>Créditos personales</b><span>Cobranza de cuotas</span><span>Consulta BCRA</span>
+            <b>Comisiones</b><span>Mis comisiones</span>
+            <b>&nbsp;</b><span>Manual de uso</span>
+          </div>
+        </div>
+      </figure>
+      <div style="display:grid;gap:14px">
+        <p style="margin:0">Los títulos en gris son grupos: tocalos para abrirlos o cerrarlos.</p>
+        <p style="margin:0">Arriba de todo ves el nombre de la pantalla y, debajo, <strong>organización · sucursal</strong>. Esa es tu sucursal: sólo cargás ventas de ella.</p>
+        <p style="margin:0">En el celular el menú está escondido: se abre con el botón de arriba a la izquierda y se cierra solo al elegir una opción. Las listas se ven como tarjetas.</p>
+        <p style="margin:0">Para saber si hay stock de un modelo usá el <strong>Catálogo</strong> (capítulo 7).</p>
+        <p class="note" style="margin:0"><strong>Nueva operación</strong> no está en el menú: se entra desde <strong>Mis operaciones</strong>, con el botón de arriba a la derecha. Mientras cargás una venta, la barra de arriba dice "Inicio"; es normal.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Cosas que se repiten en todas las pantallas</h3>
+    <div class="tablebox"><table>
+      <thead><tr><th>Qué ves</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td>Asterisco (*) al lado de un campo</td><td>Es obligatorio. Sin eso no guarda.</td></tr>
+        <tr><td>Campo gris que no deja escribir</td><td>Lo completa el sistema (tu sucursal, tu nombre como vendedor, el mes).</td></tr>
+        <tr><td>Cartel "Listo" con botón Aceptar</td><td>Se guardó bien.</td></tr>
+        <tr><td>Cartel "Ocurrió un error"</td><td>No se guardó. Leé el mensaje, corregí y volvé a intentar.</td></tr>
+        <tr><td>Etiqueta de color en una fila</td><td>El estado de ese registro. Verde: listo. Amarillo: esperando. Rojo: requiere atención.</td></tr>
+        <tr><td>"Página 1 de 5" con flechas</td><td>Las listas muestran 20 filas por página. Usá las flechas o el buscador.</td></tr>
+        <tr><td>Buscadores "Ingresá al menos 3 letras"</td><td>Escribí parte del nombre, modelo o chasis y elegí de la lista que aparece debajo.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</div>
+
+<!-- ============ 3 ============ -->
+<div class="chapter" id="inicio">
+  <header><span>Capítulo 3</span><h2>Inicio</h2><p>Es tu tablero: cuánto vendiste en el mes, tu comisión estimada y qué ventas tuyas necesitan atención.</p></header>
+
+  <section>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Inicio</figcaption>
+      <div class="in">
+        <div class="eyebrow">LUMA MOTOS</div>
+        <div class="mtitle">Buen día, Federico</div>
+        <div class="note" style="font-size:13px">Tenés <strong>2</strong> operaciones que necesitan tu atención. <span class="b">Ir a mis operaciones</span></div>
+        <div class="fgrid">
+          <div class="f ro"><span>Tus ventas del mes</span><div>7 unidades<small style="display:block">+16% vs. mes anterior</small></div></div>
+          <div class="f ro"><span>Monto vendido este mes</span><div>$ 18.400.000</div></div>
+          <div class="f ro"><span>Tu comisión estimada</span><div>$ 40.000<small style="display:block">Período actual</small></div></div>
+          <div class="f ro"><span>Clientes cargados esta semana</span><div>5</div></div>
+        </div>
+        <strong>Mis operaciones</strong>
+        <div class="scroll"><table>
+          <thead><tr><th>Operación</th><th>Cliente</th><th>Monto</th><th>Estado</th></tr></thead>
+          <tbody>
+            <tr><td>1061</td><td>Sosa, Diego</td><td>$ 2.350.000</td><td><span class="badge wa">Esperando aprobación</span></td></tr>
+            <tr><td>1058</td><td>Luna, Carla</td><td>$ 2.500.000</td><td><span class="badge ok">Lista para firmar</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <div class="tablebox"><table>
+      <thead><tr><th>Lo que ves</th><th>Qué te dice</th></tr></thead>
+      <tbody>
+        <tr><td>Tus ventas del mes</td><td>Cuántas ventas tuyas del mes están Aprobadas o Cerradas, motos y autos juntos, y la comparación con el mes anterior.</td></tr>
+        <tr><td>Monto vendido este mes</td><td>La suma del precio acordado de esas ventas.</td></tr>
+        <tr><td>Tu comisión estimada</td><td>Lo que te correspondería hoy por las ventas del mes. Es una estimación (capítulo 9).</td></tr>
+        <tr><td>Clientes cargados esta semana</td><td>Clientes que cargaste desde la pantalla Clientes en los últimos 7 días. Los que se crean solos al guardar una venta no suman acá.</td></tr>
+      </tbody>
+    </table></div>
+    <h4>El cuadro "Mis operaciones"</h4>
+    <p>Lista hasta 20 ventas tuyas que están Pendientes, Rechazadas o Aprobadas sin cerrar, de cualquier mes. No se puede hacer clic en las filas; para verlas completas tocá <strong>Ver todas</strong>.</p>
+    <div class="tablebox"><table>
+      <thead><tr><th>Estado</th><th>Qué significa</th><th>Qué hacer</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge wa">Esperando aprobación</span></td><td>La cargaste por debajo del precio de lista.</td><td>Esperar. Si urge, avisale al Gerente.</td></tr>
+        <tr><td><span class="badge re">Rechazada, a corregir</span></td><td>No aprobaron ese precio.</td><td>Mirá el motivo en Mis operaciones y, si corresponde, cargá una venta nueva con el precio correcto.</td></tr>
+        <tr><td><span class="badge ok">Lista para firmar</span></td><td>La venta está aprobada.</td><td>Avanzar con el cliente.</td></tr>
+        <tr><td><span class="badge wa">Reserva por vencer</span></td><td>La unidad reservada (moto usada o auto) se libera en 48 horas o menos. Aparece desde que guardás la venta.</td><td>Si falta la aprobación, pedísela al Gerente: con la reserva vencida no se puede aprobar. La reserva no se puede extender desde el sistema.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Más abajo están <strong>Tus modelos más vendidos</strong> (los 5 del mes) y <strong>Accesos rápidos</strong>: Consulta BCRA, Catálogo y Nuevo cliente (este último abre la lista de clientes; ahí tocás "Nuevo cliente").</p>
+    <p class="warn">Los botones "Ir a mis operaciones" y "Ver todas" siempre abren las de <strong>motos</strong>. Si la venta es de un auto, entrá por Ventas → Operaciones auto → Mis operaciones.</p>
+  </section>
+</div>
+
+<!-- ============ 4 ============ -->
+<div class="chapter" id="vender">
+  <header><span>Capítulo 4</span><h2>Cargar una venta</h2><p>Una venta en el sistema se llama <strong>operación</strong>. Se carga en un solo formulario con cuatro partes.</p></header>
+
+  <section>
+    <h3>El recorrido de una venta</h3>
+    <div class="flow">
+      <div><strong>La cargás vos</strong><small>Cliente, moto, precio, forma de pago y patentamiento.</small></div>
+      <div><strong>Se aprueba</strong><small>Sola si va a precio de lista. Si va por debajo, la aprueba un Gerente o Administrador.</small></div>
+      <div><strong>Se consigue la moto</strong><small>La administrativa la asigna del stock o la pide al proveedor.</small></div>
+      <div><strong>Se cobra y se patenta</strong><small>Lo carga la administrativa.</small></div>
+    </div>
+    <p>Tu parte es el primer paso. Después podés ir viendo cómo avanza en <strong>Mis operaciones</strong> (capítulo 5).</p>
+  </section>
+
+  <section>
+    <h3>Antes de empezar</h3>
+    <ul>
+      <li>Tené a mano: DNI, nombre, apellido y teléfono del cliente; el modelo; el precio acordado; cómo va a pagar; y si la patente es bonificada o la paga el cliente.</li>
+      <li>Si va con crédito de una financiera: el monto y qué financiera.</li>
+      <li>Si entrega una moto en parte de pago: qué moto es y en cuánto se la toman.</li>
+      <li>Si el modelo no tiene precio cargado para tu sucursal, no vas a poder guardar. Lo ves recién al elegirlo en el formulario.</li>
+    </ul>
+    <span class="where">Ventas → Operaciones moto → Mis operaciones → Nueva operación</span>
+  </section>
+
+  <section>
+    <h3>Parte 1 · Cliente y consulta crediticia</h3>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Parte 1</figcaption>
+      <div class="in">
+        <div class="fgrid">
+          <div class="f"><span>DNI / CI *</span><div>30111222</div></div>
+          <div class="f"><span>Tipo *</span><div>DNI</div></div>
+          <div class="f"><span>Nombre *</span><div>Ana</div></div>
+          <div class="f"><span>Apellido *</span><div>Pérez</div></div>
+          <div class="f"><span>Teléfono *</span><div>11 5555-0000</div></div>
+        </div>
+        <div class="callout">No hay rechazos previos registrados para este documento.</div>
+      </div>
+    </figure>
+    <ol class="steps">
+      <li><span>Escribí el <strong>DNI / CI</strong> sin puntos y elegí el <strong>Tipo</strong>.</span></li>
+      <li><span>El sistema busca solo si esa persona tiene un crédito rechazado antes y te muestra el resultado debajo.</span></li>
+      <li><span>Completá <strong>Nombre</strong>, <strong>Apellido</strong> y <strong>Teléfono</strong>.</span></li>
+    </ol>
+    <p>No hace falta crear el cliente antes: se crea solo al guardar la venta.</p>
+    <p class="warn">Si el documento ya es de un cliente cargado, el nombre y el teléfono que escribas acá <strong>reemplazan</strong> a los que tenía. Escribilos bien.</p>
+    <div class="tablebox"><table>
+      <thead><tr><th>Mensaje</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td>"No hay antecedentes crediticios registrados para este documento."</td><td>Es un cliente nuevo, sin historial en la agencia.</td></tr>
+        <tr><td>"No hay rechazos previos registrados para este documento."</td><td>Ya es cliente y no tiene rechazos.</td></tr>
+        <tr><td>"Este documento registra un rechazo crediticio previo"</td><td>Una financiera lo rechazó antes. Te muestra cuál, cuándo y por qué. Es un aviso: podés seguir, pero tenelo en cuenta si la venta va con crédito.</td></tr>
+        <tr><td>"No se pudo completar la consulta"</td><td>Falló la búsqueda. Tocá <strong>Reintentar</strong>.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h3>Parte 2 · Vehículo y precio</h3>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Parte 2</figcaption>
+      <div class="in">
+        <div class="fgrid">
+          <div class="f"><span>Condición *</span><div>0 km (catálogo)</div></div>
+          <div class="f wide"><span>Buscar vehículo *</span><div>wave</div><small>Ingresá al menos 3 letras para buscar.</small></div>
+        </div>
+        <div class="row"><strong>Honda Wave 110</strong> <span class="mini">0 km · 2 en stock en la sucursal</span> <span class="badge ok">Hay stock</span></div>
+        <div class="row"><strong>Honda Wave 110 S</strong> <span class="mini">0 km · Sin stock en la sucursal · Disponible en Motos del Sur</span> <span class="badge wa">A pedir</span></div>
+        <div class="fgrid">
+          <div class="f ro"><span>Sucursal de la operación *</span><div>SM · San Miguel</div></div>
+          <div class="f"><span>Color deseado (opcional)</span><div>Rojo</div></div>
+          <div class="f ro"><span>Precio de lista</span><div>$ 2.500.000</div></div>
+          <div class="f"><span>Precio de cierre *</span><div>2500000</div></div>
+        </div>
+      </div>
+    </figure>
+    <ol class="steps">
+      <li><span>Elegí la <strong>Condición</strong>: "0 km (catálogo)" o "Usada (stock)". Ojo: si la cambiás después, se borran el vehículo y el precio elegidos.</span></li>
+      <li><span>En <strong>Buscar vehículo</strong> escribí al menos 3 letras de la marca, el modelo o el chasis, y elegí de la lista.</span></li>
+      <li><span>Si es 0 km, elegí el <strong>Color deseado</strong>. Le sirve a la administrativa para elegir la moto o pedirla.</span></li>
+      <li><span>El <strong>Precio de lista</strong> aparece solo, con el "Piso adicional" debajo (el precio mínimo). En <strong>Precio de cierre</strong> dejá el de lista o escribí el precio acordado con el cliente.</span></li>
+    </ol>
+    <div class="tablebox"><table>
+      <thead><tr><th>En la lista de resultados</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge ok">Hay stock</span> "N en stock en la sucursal"</td><td>Hay motos de ese modelo en tu sucursal.</td></tr>
+        <tr><td><span class="badge wa">A pedir</span> "Sin stock en la sucursal"</td><td>No hay en tu sucursal. Se puede vender igual: se pide al proveedor. Si dice "Disponible en…", ese proveedor informó que tiene.</td></tr>
+        <tr><td>"Disponible · Stock físico" (usada)</td><td>Es una moto usada puntual, con su chasis. Al guardar la venta queda reservada 48 horas.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="warn">Si el precio de cierre es <strong>menor al de lista</strong> aparece "Precio por debajo de lista" con la diferencia. La venta va a quedar <strong>Pendiente</strong> hasta que la apruebe un Gerente o Administrador.</p>
+    <p class="warn">Si el modelo <strong>no tiene precio cargado</strong>, dice "Solicitá a un usuario con permiso de catálogo que configure el precio para esta sucursal" y no deja guardar. Avisá a la administrativa, esperá que lo cargue y tocá <strong>Reintentar</strong>.</p>
+    <p>En una 0 km no elegís el chasis: dice "La unidad la asigna la administrativa".</p>
+  </section>
+
+  <section>
+    <h3>Parte 3 · Condiciones comerciales</h3>
+    <ol class="steps">
+      <li><span>Revisá la <strong>Fecha de operación</strong> (viene con la de hoy).</span></li>
+      <li><span><strong>Quién hizo la venta</strong> viene con tu nombre y no se puede cambiar. <strong>Quién fue el contacto</strong> es opcional: elegilo si a ese cliente lo trajo otra persona.</span></li>
+      <li><span>Elegí la <strong>Plataforma de pago</strong> (ver tabla).</span></li>
+      <li><span>Completá los campos que aparecen según lo que elegiste.</span></li>
+    </ol>
+    <div class="tablebox"><table>
+      <thead><tr><th>Plataforma de pago</th><th>Cuándo usarla</th><th>Qué te pide</th></tr></thead>
+      <tbody>
+        <tr><td>Efectivo</td><td>Paga todo él (efectivo, transferencia o tarjeta).</td><td>Nada más.</td></tr>
+        <tr><td>Crédito</td><td>Todo lo financia una financiera.</td><td>Monto del crédito y Financiera.</td></tr>
+        <tr><td>Efectivo + crédito</td><td>Una parte la pone él y otra la financiera.</td><td>Monto del crédito y Financiera.</td></tr>
+        <tr><td>Moto + efectivo</td><td>Entrega una moto y paga el resto.</td><td>Unidad recibida como parte de pago y Valor aceptado.</td></tr>
+        <tr><td>Moto + crédito</td><td>Entrega una moto y el resto lo financia.</td><td>Los cuatro campos anteriores.</td></tr>
+        <tr><td>Moto + efectivo + crédito</td><td>Las tres cosas.</td><td>Los cuatro campos anteriores.</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>El <strong>efectivo</strong> no se escribe: el sistema lo calcula solo (precio menos crédito menos parte de pago).</li>
+      <li>"Efectivo" acá quiere decir "lo que paga el cliente por su cuenta". Si después paga por transferencia o tarjeta, lo indica la administrativa al cobrar.</li>
+      <li><strong>Respaldo / garante</strong> aparece cuando la venta incluye crédito y es opcional.</li>
+      <li>En "Crédito" y "Moto + crédito", el crédito y la parte de pago tienen que completar justo el precio.</li>
+    </ul>
+    <h4>Crédito personal (de la casa)</h4>
+    <p>Si la agencia le financia en cuotas propias, hay que cargarlo en <strong>dos lugares</strong>:</p>
+    <ol class="steps">
+      <li><span>En <strong>Plataforma de pago</strong> elegí una opción con crédito. En <strong>Financiera</strong> elegí <strong>Crédito personal</strong> y poné el <strong>Monto del crédito</strong>.</span></li>
+      <li><span>En <strong>Crédito personal (opcional)</strong> elegí el plan de cuotas. Completá <strong>Primer vencimiento</strong> y <strong>Monto a financiar</strong> con el mismo monto.</span></li>
+      <li><span>Revisá lo que te muestra: la cuota, el interés total, el total a pagar y la lista de cuotas.</span></li>
+    </ol>
+    <p class="warn">Si sólo elegís el plan y dejás la plataforma en "Efectivo", la venta queda con todo el precio a cobrar en efectivo <strong>y además</strong> con las cuotas. Antes de ofrecer el crédito conviene hacer la Consulta BCRA (capítulo 8).</p>
+  </section>
+
+  <section>
+    <h3>Parte 4 · Entrega y documentación</h3>
+    <ol class="steps">
+      <li><span><strong>Debe</strong>: indicá si el cliente queda debiendo algo (Reserva, Cuota inicial, Papeles, Accesorios, Otro) o dejá "No".</span></li>
+      <li><span><strong>Número de boleto</strong>: es opcional, pero cargalo si lo tenés. Después todos buscan la venta por boleto.</span></li>
+      <li><span><strong>Patentamiento</strong> (obligatorio): <strong>Bonificada</strong> si no se le cobra la patente al cliente, o <strong>Paga el cliente</strong>. En ese caso podés anotar el <strong>Importe de patente</strong>, o dejarlo vacío.</span></li>
+      <li><span>Tildá <strong>Casco de regalo</strong> y <strong>Papeles entregados</strong> si corresponde.</span></li>
+      <li><span>En <strong>Observaciones</strong> escribí lo que la administrativa o el Gerente necesiten saber (por ejemplo, por qué se hizo un descuento).</span></li>
+    </ol>
+    <p>La <strong>Llegada estimada de la patente</strong> la calcula el sistema: entre 10 y 15 días hábiles desde la venta. Es informativa; podés decírsela al cliente como estimación.</p>
+  </section>
+
+  <section>
+    <h3>Guardar y enviar</h3>
+    <p>Hay un solo botón: <strong>Guardar y enviar operación</strong>. Guarda la venta y la manda en el mismo paso.</p>
+    <ol class="steps">
+      <li><span>Tocá <strong>Guardar y enviar operación</strong>.</span></li>
+      <li><span>Aparece el resumen <strong>Confirmá la operación de moto</strong>, con Cliente, Vehículo, Precio, Plan de pago, Entrega y patentamiento, y Operación. <strong>Leelo entero.</strong></span></li>
+      <li><span>Si algo está mal, tocá <strong>Volver</strong>: no se pierde nada de lo cargado.</span></li>
+      <li><span>Si está bien, tocá <strong>Confirmar y enviar</strong>.</span></li>
+    </ol>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Lo que ves después de enviar</figcaption>
+      <div class="in">
+        <div class="mtitle">Operación #1053</div>
+        <div>Estado: <span class="badge ok">Aprobada</span></div>
+        <div class="callout">La operación y el cliente quedaron registrados y se enviaron al circuito comercial.</div>
+        <div class="row"><span class="b">Ver mis operaciones</span><span class="b">Cargar otra</span></div>
+      </div>
+    </figure>
+    <div class="tablebox"><table>
+      <thead><tr><th>Mensaje al terminar</th><th>Cómo quedó</th></tr></thead>
+      <tbody>
+        <tr><td>"…se enviaron al circuito comercial."</td><td><span class="badge ok">Aprobada</span>. Iba a precio de lista o más.</td></tr>
+        <tr><td>"Se envió a aprobación por una diferencia de $… debajo de lista."</td><td><span class="badge wa">Pendiente</span>. Espera la aprobación.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="warn">Si aparece el mensaje de que la operación "quedó guardada como borrador, pero no se completaron todos sus datos relacionados", <strong>no la cargues de nuevo</strong>: se duplicaría. Anotá el número de operación y avisá.</p>
+    <p><strong>Cargar otra</strong> abre el formulario vacío para la venta siguiente.</p>
+  </section>
+
+  <section>
+    <h3>Si la venta es de un auto</h3>
+    <span class="where">Ventas → Operaciones auto → Mis operaciones → Nueva operación</span>
+    <ul>
+      <li>No hay campo "Condición". En el buscador aparecen autos que están en stock y autos que tiene un proveedor (etiqueta "Disponibilidad proveedor"; el chasis se conoce al recibirlo).</li>
+      <li>En un auto de proveedor el color se llama <strong>Color solicitado (opcional)</strong>.</li>
+      <li>Al guardar, el auto elegido queda reservado 48 horas.</li>
+      <li>El resto es igual. Las opciones de pago siguen diciendo "Moto + …": usalas igual para una toma en parte de pago.</li>
+    </ul>
+  </section>
+</div>
+
+<!-- ============ 5 ============ -->
+<div class="chapter" id="seguir">
+  <header><span>Capítulo 5</span><h2>Seguir tus ventas</h2><p>En Mis operaciones ves todas las ventas donde figurás como vendedor: si se aprobaron, por qué, y cómo viene la moto.</p></header>
+
+  <section>
+    <h3>Mis operaciones</h3>
+    <span class="where">Ventas → Operaciones moto → Mis operaciones</span>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Mis operaciones de motos</figcaption>
+      <div class="in">
+        <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Ventas</div><div class="mtitle">Mis operaciones de motos</div></div><span class="b p">Nueva operación</span></div>
+        <div class="fgrid">
+          <div class="f"><span>Buscar</span><div class="mini">Operación, cliente, VIN, patente o boleto</div></div>
+          <div class="f"><span>Estado</span><div>Todos los estados</div></div>
+          <div class="f"><span>Período</span><div></div></div>
+        </div>
+        <div class="scroll"><table>
+          <thead><tr><th>Operación</th><th>Cliente</th><th>Vehículo / chasis</th><th>Precio</th><th>Estado operación</th><th>Unidad</th><th>Observación</th></tr></thead>
+          <tbody>
+            <tr><td>#1061</td><td>Sosa, Diego<small>DNI 33444555</small></td><td>Honda Wave 110<small>Moto · Nuevo · Sin chasis asignado</small></td><td>$ 2.350.000<small>Lista $ 2.500.000</small></td><td><span class="badge wa">Pendiente</span></td><td><span class="badge re">Pendiente de asignar unidad</span></td><td>Precio bajo revisión</td></tr>
+            <tr><td>#1053<small>Boleto SM-0421</small></td><td>Pérez, Ana<small>DNI 30111222</small></td><td>Honda Wave 110<small>Moto · Nuevo · Color Rojo</small></td><td>$ 2.500.000</td><td><span class="badge ok">Aprobada</span></td><td><span class="badge">Pedida a Motos del Sur (02/10/2026)</span></td><td>—</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <p>La lista tiene además las columnas Fecha, Origen / destino y Vendedor. Muestra 20 ventas por página, las más nuevas primero.</p>
+    <h4>Buscar y filtrar</h4>
+    <ul>
+      <li><strong>Buscador</strong>: escribí número de operación, nombre del cliente, chasis, patente o boleto y tocá <strong>Buscar</strong> (o Enter). No busca por DNI.</li>
+      <li><strong>Estado</strong> y <strong>Período</strong> (mes): se aplican solos al elegir. Período viene vacío: muestra todos los meses.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>Qué significa cada estado</h3>
+    <div class="tablebox"><table>
+      <thead><tr><th>Estado operación</th><th>Qué significa</th><th>Qué hacés vos</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge">Borrador</span></td><td>Quedó a medio guardar por un error. No avanza.</td><td>No la cargues de nuevo. Avisá a un Administrador con el número de operación.</td></tr>
+        <tr><td><span class="badge wa">Pendiente</span></td><td>Va por debajo de lista y espera aprobación.</td><td>Esperar.</td></tr>
+        <tr><td><span class="badge ok">Aprobada</span></td><td>Va a precio de lista o ya la aprobaron.</td><td>Seguir con el cliente. Cuenta para tu comisión.</td></tr>
+        <tr><td><span class="badge re">Rechazada</span></td><td>No aprobaron el precio. Si había una moto reservada, se libera.</td><td>Leé el motivo en "Observación".</td></tr>
+        <tr><td><span class="badge re">Cancelada</span></td><td>Se dio de baja.</td><td>—</td></tr>
+        <tr><td><span class="badge ok">Cerrada</span></td><td>Venta terminada; la moto quedó como vendida.</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p>La columna <strong>Observación</strong> muestra el motivo con el que aprobaron o rechazaron la venta. Si no hay, muestra el motivo de una reserva liberada o lo que escribiste vos en Observaciones; y si no hay nada y está pendiente, "Precio bajo revisión".</p>
+  </section>
+
+  <section>
+    <h3>Cómo viene la moto</h3>
+    <p>La columna <strong>Unidad</strong> te dice en qué anda la moto de cada venta 0 km. Sirve para contestarle al cliente cuándo la tiene.</p>
+    <div class="tablebox"><table>
+      <thead><tr><th>Unidad</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge re">Pendiente de asignar unidad</span></td><td>Todavía no tiene moto. La administrativa tiene que asignarla o pedirla.</td></tr>
+        <tr><td><span class="badge">Pedida a (proveedor) (fecha)</span></td><td>Se pidió al proveedor ese día.</td></tr>
+        <tr><td><span class="badge">Pendiente de ingreso de (proveedor)</span></td><td>Está en camino.</td></tr>
+        <tr><td><span class="badge wa">Recibida, falta asignar</span></td><td>Llegó a la sucursal y falta asignarla a tu venta.</td></tr>
+        <tr><td><span class="badge ok">Recibida / asignada</span></td><td>La moto ya está y es de esa venta. En "Vehículo / chasis" aparece el chasis.</td></tr>
+      </tbody>
+    </table></div>
+    <p>En las ventas de autos la columna se llama <strong>Abastecimiento</strong> y muestra un texto: "Unidad reservada", "Pendiente de abastecimiento", "Unidad asignada", etc.</p>
+    <p class="warn">Desde tu usuario no ves si la venta está cobrada ni cómo va la patente. Eso consultáselo a la administrativa.</p>
+  </section>
+
+  <section>
+    <h3>Liberar reserva</h3>
+    <p>Es la única acción que tenés en la lista. Aparece en una venta que quedó en Borrador o Rechazada y todavía tiene una unidad reservada, sea una moto usada o un auto. Es poco frecuente.</p>
+    <ol class="steps">
+      <li><span>Tocá <strong>Liberar reserva</strong> en la fila.</span></li>
+      <li><span>Escribí el <strong>Motivo de la liberación</strong>.</span></li>
+      <li><span>Tocá <strong>Liberar reserva</strong>. La moto vuelve a estar disponible para otra venta.</span></li>
+    </ol>
+    <p>La ventana dice "APROBACIONES" arriba; es sólo un título, no cambia nada.</p>
+  </section>
+</div>
+
+<!-- ============ 6 ============ -->
+<div class="chapter" id="clientes">
+  <header><span>Capítulo 6</span><h2>Clientes</h2><p>La cartera de clientes y la lista de personas con un crédito rechazado. Las dos son de toda la empresa, no sólo de tu sucursal.</p></header>
+
+  <section>
+    <h3>Clientes</h3>
+    <span class="where">Clientes → Clientes</span>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Clientes</figcaption>
+      <div class="in">
+        <div class="row" style="justify-content:space-between"><div class="mtitle">Clientes</div><span class="b p">Nuevo cliente</span></div>
+        <div class="scroll"><table>
+          <thead><tr><th>Cliente</th><th>Documento</th><th>Contacto</th><th>Organización</th><th>Estado</th><th>Actualizado</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Pérez, Ana</td><td>DNI 30111222</td><td>11 5555-0000</td><td>Luma</td><td><span class="badge ok">Activo</span></td><td>02/10/2026</td><td>✎</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <p>Para buscar, escribí nombre, documento o mail y tocá <strong>Buscar</strong>. No busca por teléfono. El filtro de estado (Todos los estados, Activos, Inactivos) se aplica solo.</p>
+    <h4>Crear un cliente</h4>
+    <ol class="steps">
+      <li><span>Tocá <strong>Nuevo cliente</strong>.</span></li>
+      <li><span>Completá <strong>Nombre completo</strong> (obligatorio).</span></li>
+      <li><span>Si cargás documento, completá <strong>Tipo de documento</strong> y <strong>Número de documento</strong> juntos. Usá DNI siempre que puedas, sin puntos: así la venta lo reconoce.</span></li>
+      <li><span>Teléfono, correo, domicilio y notas son opcionales, pero cargá al menos el teléfono.</span></li>
+      <li><span>Tocá <strong>Guardar cliente</strong>.</span></li>
+    </ol>
+    <h4>Editar</h4>
+    <ul>
+      <li>El <strong>lápiz</strong> de la fila abre los datos para corregirlos.</li>
+      <li>Un cliente no se desactiva. Si alguno figura "Inactivo", en su fila aparece un botón para <strong>Activar cliente</strong>; también se reactiva solo al cargarle una venta.</li>
+      <li>No se puede borrar un cliente.</li>
+    </ul>
+    <p class="note">No hace falta crear el cliente antes de una venta: se crea solo al guardar la operación. Esta pantalla sirve para cargar interesados que todavía no compraron y para corregir datos.</p>
+    <p class="warn">Dos clientes no pueden tener el mismo tipo y número de documento ("12.345.678" y "12345678" son el mismo): si dice "Ya existe un cliente con ese documento", buscalo y usá ese. Si abrís un cliente y no cambiás nada, salí con Cancelar: Guardar sin cambios da error.</p>
+  </section>
+
+  <section>
+    <h3>Clientes en rojo</h3>
+    <span class="where">Clientes → Clientes en rojo</span>
+    <p>Es la lista propia de la agencia de personas a las que una financiera les rechazó un crédito. Cuando alguien escribe ese documento en una venta nueva, el sistema muestra el aviso. No tiene que ver con la Consulta BCRA.</p>
+    <h4>Registrar un rechazo</h4>
+    <ol class="steps">
+      <li><span>Tocá <strong>Registrar rechazo</strong>.</span></li>
+      <li><span>Completá <strong>Tipo de documento</strong>, <strong>Documento</strong> y <strong>Nombre y apellido</strong>.</span></li>
+      <li><span>Elegí la <strong>Financiera</strong> y revisá la <strong>Fecha del rechazo</strong>.</span></li>
+      <li><span>En <strong>Vendedor que lo registró</strong> elegite a vos. No viene puesto solo.</span></li>
+      <li><span>Escribí el <strong>Motivo informado</strong> y tocá <strong>Registrar rechazo</strong>. Si la persona no estaba cargada como cliente, se crea sola.</span></li>
+    </ol>
+    <h4>Consultar</h4>
+    <ul>
+      <li>El panel <strong>Filtros</strong> permite buscar por documento o nombre, financiera, fechas, sucursal y vendedor. Se aplican con <strong>Aplicar filtros</strong>.</li>
+      <li>La flecha al final de cada fila muestra el historial de intentos de esa persona: cuántos rechazados, aprobados y pendientes.</li>
+    </ul>
+    <p class="warn">Cargá el rechazo con tipo <strong>DNI</strong> siempre que puedas: el aviso en una venta nueva sólo salta si el tipo y el número coinciden, y en la venta sólo se puede elegir DNI o CI. Un rechazo cargado no se puede corregir ni borrar. Si la financiera no está en la lista, avisá a un Administrador.</p>
+  </section>
+</div>
+
+<!-- ============ 7 ============ -->
+<div class="chapter" id="catalogo">
+  <header><span>Capítulo 7</span><h2>Catálogo</h2><p>El catálogo es tu herramienta para contestarle rápido a un cliente: qué modelos hay, cuánto salen y si hay en la sucursal.</p></header>
+
+  <section>
+    <h3>Catálogo de motos</h3>
+    <span class="where">Catálogo → Catálogo de motos</span>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Una tarjeta del catálogo</figcaption>
+      <div class="in" style="max-width:340px">
+        <div class="f ro"><div style="min-height:90px;display:grid;place-items:center" class="mini">Foto del modelo</div></div>
+        <div class="mtitle">Honda Wave 110</div>
+        <div><strong>$ 2.500.000</strong></div>
+        <div class="row"><span class="badge ok">2 en stock</span><span class="mini">0 km</span></div>
+        <div class="mini">San Miguel · 2</div>
+        <div><span class="eyebrow">Proveedor</span><div>Motos del Sur</div></div>
+      </div>
+    </figure>
+    <ol class="steps">
+      <li><span>Escribí la marca, el modelo o la versión en el buscador. Filtra mientras escribís.</span></li>
+      <li><span>Mirá la tarjeta: foto (tocala para agrandarla), precio, stock y proveedor.</span></li>
+    </ol>
+    <div class="tablebox"><table>
+      <thead><tr><th>En la tarjeta</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td>Precio</td><td>El precio general de la empresa. El que vale para tu venta es el <strong>Precio de lista</strong> que aparece al cargarla: si tu sucursal tiene un precio propio, puede ser distinto.</td></tr>
+        <tr><td>"Sin precio configurado"</td><td>No tiene precio general. Puede tener uno de tu sucursal: probá igual en Nueva operación.</td></tr>
+        <tr><td>"N en stock"</td><td>Motos libres para vender <strong>en tu sucursal</strong>. No cuenta las reservadas ni las de otras sucursales.</td></tr>
+        <tr><td>"0 en stock"</td><td>No hay en tu sucursal. Puede haber en otra, o se puede pedir.</td></tr>
+        <tr><td>Proveedor</td><td>Quién la tiene o la provee. Si no hay ninguno dice "Sin proveedor asociado".</td></tr>
+      </tbody>
+    </table></div>
+    <p>Es sólo para consultar: no se puede modificar nada. En el catálogo no se ven costos ni el precio mínimo. El <strong>Catálogo de autos</strong> funciona igual.</p>
+  </section>
+
+</div>
+
+<!-- ============ 8 ============ -->
+<div class="chapter" id="creditos">
+  <header><span>Capítulo 8</span><h2>Créditos</h2><p>La consulta al Banco Central antes de ofrecer un crédito, y la lista de cuotas de los créditos de la casa.</p></header>
+
+  <section>
+    <h3>Consulta BCRA</h3>
+    <span class="where">Créditos personales → Consulta BCRA</span>
+    <p>Consulta en el Banco Central si una persona tiene deudas en mora. Usala antes de ofrecer un crédito personal.</p>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Resultado de la consulta</figcaption>
+      <div class="in">
+        <div class="fgrid">
+          <div class="f"><span>CUIT / CUIL</span><div>27-30111222-4</div></div>
+        </div>
+        <div class="row"><span class="b p">Consultar</span></div>
+        <div class="note" style="background:var(--ok-soft)"><strong style="color:var(--ok)">Sin antecedentes de mora</strong><br>Sin antecedentes de mora en el período más reciente ni en los últimos 24 meses.</div>
+        <div class="fgrid">
+          <div class="f ro"><span>Nombre según BCRA</span><div>PEREZ ANA</div></div>
+          <div class="f ro"><span>Período informado más reciente</span><div>08/2026</div></div>
+        </div>
+      </div>
+    </figure>
+    <ol class="steps">
+      <li><span>Escribí el <strong>CUIT / CUIL</strong> (11 números; los guiones se ponen solos). Con el DNI solo no funciona: pedile el CUIL al cliente.</span></li>
+      <li><span>Tocá <strong>Consultar</strong>. El botón se habilita recién cuando el número es válido.</span></li>
+      <li><span>Leé el color y el texto del resultado. Puede sumar una línea con el monto en situación irregular y avisos como "Proceso judicial activo" o "Registró mora en los últimos 24 meses".</span></li>
+    </ol>
+    <div class="tablebox"><table>
+      <thead><tr><th>Resultado</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge ok">Sin antecedentes de mora</span></td><td>Está al día y no tuvo atrasos importantes en los últimos 24 meses.</td></tr>
+        <tr><td><span class="badge wa">Antecedentes a revisar</span></td><td>Tiene un atraso leve ahora, o tuvo atrasos importantes en los últimos 24 meses.</td></tr>
+        <tr><td><span class="badge re">Situación irregular</span></td><td>Tiene atrasos importantes ahora o un proceso judicial.</td></tr>
+        <tr><td><span class="badge">Sin antecedentes registrados</span></td><td>El BCRA no tiene datos. No es malo: puede que nunca haya sacado un crédito.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="warn">Es una ayuda para decidir: no aprueba ni rechaza nada. El resultado <strong>no queda guardado</strong>: si salís de la pantalla hay que consultar de nuevo. El detalle banco por banco no lo ves con tu usuario; si hace falta, pedíselo a un Gerente o Administrador.</p>
+  </section>
+
+  <section>
+    <h3>Cobranza de cuotas</h3>
+    <span class="where">Créditos personales → Cobranza de cuotas</span>
+    <p>Con tu usuario es <strong>sólo de consulta</strong>: ves las cuotas de los créditos de la casa de tu sucursal (de todas las ventas, no sólo las tuyas), pero no tenés el botón para cobrar.</p>
+    <ul>
+      <li>Buscá por cliente o número de operación, o filtrá por <strong>Estado</strong>, y tocá <strong>Aplicar</strong>.</li>
+      <li>Columnas: Vencimiento, Cliente, Operación, Cuota, Importe, Pagado y Estado.</li>
+    </ul>
+    <div class="tablebox"><table>
+      <thead><tr><th>Estado</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge">Pendiente</span></td><td>No se pagó y todavía no venció.</td></tr>
+        <tr><td><span class="badge wa">Pago parcial</span></td><td>Se pagó una parte y todavía no venció.</td></tr>
+        <tr><td><span class="badge re">Vencida</span></td><td>Pasó la fecha y no está completa.</td></tr>
+        <tr><td><span class="badge ok">Pagada</span></td><td>Completa.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Te sirve para saber si un cliente tuyo está al día antes de ofrecerle otra operación. Si un cliente quiere pagar una cuota, derivalo a la administrativa.</p>
+  </section>
+</div>
+
+<!-- ============ 9 ============ -->
+<div class="chapter" id="comisiones">
+  <header><span>Capítulo 9</span><h2>Mis comisiones</h2><p>Tu progreso del mes y los pagos que ya recibiste. Sólo ves lo tuyo.</p></header>
+
+  <section>
+    <span class="where">Comisiones → Mis comisiones</span>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Mis comisiones · Motos</figcaption>
+      <div class="in">
+        <div class="row" style="justify-content:space-between"><div class="mtitle">Motos</div><span class="badge">Calculada</span></div>
+        <div class="fgrid">
+          <div class="f ro"><span>Ventas computables</span><div>7</div></div>
+          <div class="f ro"><span>Escala alcanzada</span><div>6 a 10</div></div>
+          <div class="f ro"><span>Comisión fija total</span><div>$ 40.000</div></div>
+          <div class="f ro"><span>Próxima escala</span><div>11 a 15<small style="display:block">Faltan 4 ventas</small></div></div>
+        </div>
+        <div class="callout">Hoy cobrarías <b>$ 40.000</b> como monto fijo total por la escala 6 a 10. Te faltan <b>4 ventas</b> para la próxima escala.</div>
+        <div class="scroll"><table>
+          <thead><tr><th>Fecha</th><th>Cliente / vehículo</th><th>Precio lista</th><th>Cierre</th><th>Diferencia</th><th>Estado</th><th>Computable</th></tr></thead>
+          <tbody>
+            <tr><td>01/10/2026</td><td>Pérez, Ana<small>Honda Wave 110</small></td><td>$ 2.500.000</td><td>$ 2.500.000</td><td>$ 0</td><td>Aprobada</td><td>Sí</td></tr>
+            <tr><td>02/10/2026</td><td>Sosa, Diego<small>Honda Wave 110</small></td><td>$ 2.500.000</td><td>$ 2.350.000</td><td>-$ 150.000</td><td>Pendiente</td><td>No<small>Espera aprobación: cuenta cuando se apruebe.</small></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <p>Elegí el mes en <strong>Período</strong> (viene el actual). Hay dos bloques, <strong>Motos</strong> y <strong>Autos</strong>: se calculan por separado.</p>
+  </section>
+
+  <section>
+    <h3>Cómo se calcula</h3>
+    <ul>
+      <li>Es un <strong>monto fijo por mes</strong> según cuántas ventas computables hiciste. No es un importe por cada moto: al pasar a una escala más alta, cambia el total del mes.</li>
+      <li>Una venta <strong>cuenta</strong> si está <strong>Aprobada</strong> o <strong>Cerrada</strong>, la fecha es de ese mes, vos sos el vendedor y es de tu sucursal principal. No hace falta que esté cobrada.</li>
+      <li><strong>No cuentan</strong> las que están en Borrador, Pendiente, Rechazada o Cancelada. Figurar como "contacto" de una venta tampoco suma.</li>
+      <li>Los montos de cada escala los define la empresa; el ejemplo de arriba usa números inventados.</li>
+    </ul>
+    <div class="tablebox"><table>
+      <thead><tr><th>Lo que ves</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td>Ventas computables</td><td>Cuántas ventas tuyas cuentan este mes.</td></tr>
+        <tr><td>Escala alcanzada</td><td>En qué tramo estás (por ejemplo "6 a 10"). "Sin escala" si todavía no llegás a ninguna.</td></tr>
+        <tr><td>Comisión fija total</td><td>Lo que te correspondería hoy por ese tramo.</td></tr>
+        <tr><td>Próxima escala</td><td>El tramo siguiente y cuántas ventas te faltan.</td></tr>
+        <tr><td>Columna Computable</td><td>"Sí" o "No" por cada venta. Si es "No", al lado figura el motivo.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="tablebox"><table>
+      <thead><tr><th>Etiqueta del bloque</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge">Calculada</span></td><td>Es el cálculo al día de hoy; puede cambiar si cargás más ventas.</td></tr>
+        <tr><td><span class="badge wa">Acordada</span></td><td>Ya se acordó el número de ese mes y falta pagarla. La pantalla pasa a mostrar "Comisión acordada de este período" con el importe.</td></tr>
+        <tr><td><span class="badge wa">Pendiente de pago</span></td><td>El pago está en proceso.</td></tr>
+        <tr><td><span class="badge ok">Pagada</span></td><td>Ya te la pagaron.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Dentro de cada bloque (Motos y Autos), <strong>Tus comisiones pagadas</strong> muestra el histórico de pagos: Fecha, Período, Tipo, Cantidad, Escala y Monto. No depende del mes elegido arriba.</p>
+    <p class="warn">Si dice "Escalas no configuradas", avisá a un Administrador.</p>
+  </section>
+</div>
+
+<!-- ============ 10 ============ -->
+<div class="chapter" id="limites">
+  <header><span>Capítulo 10</span><h2>Lo que no podés hacer</h2><p>Para que no pierdas tiempo buscando un botón que no está. Cada cosa tiene a quién pedírsela.</p></header>
+  <section>
+    <div class="tablebox"><table>
+      <thead><tr><th>No podés…</th><th>Por qué</th><th>A quién pedirlo</th></tr></thead>
+      <tbody>
+        <tr><td>Editar una venta ya guardada (cliente, precio, forma de pago)</td><td>No hay pantalla para eso, con ningún usuario.</td><td>Avisá a un Administrador (lo gestiona con soporte)</td></tr>
+        <tr><td>Cancelar o cerrar una venta</td><td>No es de tu perfil.</td><td>Avisá a un Administrador</td></tr>
+        <tr><td>Aprobar un precio por debajo de lista</td><td>No es de tu perfil.</td><td>Gerente o Administrador</td></tr>
+        <tr><td>Cargar una venta a nombre de otro vendedor</td><td>El vendedor siempre sos vos.</td><td>—</td></tr>
+        <tr><td>Ver las ventas de tus compañeros</td><td>Sólo ves las tuyas.</td><td>—</td></tr>
+        <tr><td>Asignar la moto, pedirla al proveedor o registrar que llegó</td><td>No es de tu perfil.</td><td>Administrativa</td></tr>
+        <tr><td>Cobrar, ver si una venta está cobrada o cobrar una cuota</td><td>No es de tu perfil.</td><td>Administrativa</td></tr>
+        <tr><td>Cargar o ver la patente de una venta</td><td>No es de tu perfil.</td><td>Administrativa</td></tr>
+        <tr><td>Cargar el precio de un modelo</td><td>No es de tu perfil.</td><td>Administrativa</td></tr>
+        <tr><td>Ver el stock físico moto por moto</td><td>No es de tu perfil.</td><td>Usá el Catálogo, o consultá a la administrativa</td></tr>
+        <tr><td>Ver el detalle banco por banco del BCRA</td><td>No es de tu perfil.</td><td>Gerente o Administrador</td></tr>
+        <tr><td>Corregir o borrar un rechazo en Clientes en rojo</td><td>No hay pantalla para eso.</td><td>Avisá a un Administrador</td></tr>
+        <tr><td>Cambiar tu contraseña estando adentro</td><td>Se hace con "¿Olvidaste tu contraseña?".</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</div>
+
+<!-- ============ 11 ============ -->
+<div class="chapter" id="ayuda">
+  <header><span>Capítulo 11</span><h2>Si algo no sale</h2><p>Los mensajes más comunes y qué hacer con cada uno.</p></header>
+  <section>
+    <div class="tablebox"><table>
+      <thead><tr><th>Qué ves</th><th>Qué hacer</th></tr></thead>
+      <tbody>
+        <tr><td>"Los datos ingresados no son válidos." (al entrar)</td><td>Correo o contraseña mal escritos. Revisá mayúsculas.</td></tr>
+        <tr><td>"Tu sesión venció. Ingresá nuevamente."</td><td>Volvé a entrar. Lo que no habías guardado hay que cargarlo otra vez.</td></tr>
+        <tr><td>"No tenés permiso para ingresar"</td><td>Esa pantalla no es de tu perfil. Tocá "Volver al inicio".</td></tr>
+        <tr><td>"No pudimos conectar con el servidor…"</td><td>Revisá internet y probá de nuevo.</td></tr>
+        <tr><td>"Revisá los campos marcados antes de guardar la operación."</td><td>Falta o está mal algún campo. Cada uno tiene su mensaje al lado.</td></tr>
+        <tr><td>"El DNI debe tener solo números (6 a 9 dígitos)."</td><td>Escribilo sin puntos ni espacios.</td></tr>
+        <tr><td>"Seleccioná un vehículo de los resultados."</td><td>No alcanza con escribir el modelo: hay que tocarlo en la lista que aparece debajo.</td></tr>
+        <tr><td>"Cargá una política de precio vigente."</td><td>El modelo no tiene precio. Pedile a la administrativa que lo cargue y tocá Reintentar.</td></tr>
+        <tr><td>"El crédito no puede superar el precio de cierre."</td><td>Revisá el monto del crédito.</td></tr>
+        <tr><td>"En esta combinación, crédito y parte de pago deben completar el precio."</td><td>Con "Crédito" o "Moto + crédito" no queda nada en efectivo. Si paga una parte él, elegí una opción con efectivo.</td></tr>
+        <tr><td>"La combinación debe dejar un importe positivo para efectivo."</td><td>El crédito más la toma cubren todo el precio. Bajá alguno o cambiá la plataforma de pago.</td></tr>
+        <tr><td>"Elegí la modalidad de patentamiento."</td><td>Falta elegir Bonificada o Paga el cliente.</td></tr>
+        <tr><td>"Esta unidad acaba de ser reservada por otra operación"</td><td>Otro vendedor tomó esa moto usada antes. Tocá "Elegir otra unidad"; el resto de lo cargado se conserva.</td></tr>
+        <tr><td>"La operación quedó guardada como borrador, pero no se completaron todos sus datos…"</td><td>No la cargues de nuevo. Anotá el número de operación y avisá.</td></tr>
+        <tr><td>"Ya existe un cliente con ese documento en la organización."</td><td>Buscalo en Clientes y usá ese.</td></tr>
+        <tr><td>El botón Consultar del BCRA no se habilita</td><td>El CUIT/CUIL tiene que tener 11 números y ser válido. Revisalo.</td></tr>
+        <tr><td>"No pudimos consultar al BCRA en este momento…"</td><td>Esperá unos segundos y probá de nuevo.</td></tr>
+        <tr><td>Una venta no aparece en Mis operaciones</td><td>Revisá el Período (mes) y el Estado elegidos. Si es de un auto, está en Operaciones auto.</td></tr>
+        <tr><td>Cargaste algo equivocado</td><td>No lo cargues de nuevo encima. Avisá a un Administrador con el número de operación.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</div>
+
+<footer>Luma Motos · Manual de uso para el perfil Vendedor · Octubre 2026 · Las pantallas de ejemplo usan datos inventados.</footer>
+</div>
+</main>
+</body>
+</html>

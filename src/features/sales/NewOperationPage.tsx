@@ -2185,14 +2185,6 @@ export function NewOperationPage({
               </span>
             </div>
             <button
-              className="button button--secondary"
-              disabled={submitting}
-              onClick={() => requestSave(false)}
-              type="button"
-            >
-              Guardar borrador
-            </button>
-            <button
               className="button button--primary"
               disabled={submitting}
               type="submit"

@@ -361,7 +361,7 @@ a{color:var(--red)}
     <div class="tablebox"><table>
       <thead><tr><th>Etiqueta</th><th>Qué significa</th></tr></thead>
       <tbody>
-        <tr><td><span class="badge">Borrador</span></td><td>Está guardada pero no se envió. Todavía no se le puede asignar moto.</td></tr>
+        <tr><td><span class="badge">Borrador</span></td><td>Quedó a medio guardar por un error. No avanza: avisá a un Administrador con el número.</td></tr>
         <tr><td><span class="badge wa">Pendiente</span></td><td>Se envió con precio por debajo de lista. Espera que la apruebe un Gerente o Administrador.</td></tr>
         <tr><td><span class="badge ok">Aprobada</span></td><td>Va a precio de lista o más (queda aprobada sola), o ya la aprobaron.</td></tr>
         <tr><td><span class="badge re">Rechazada</span></td><td>No la aprobaron. Si tenía una moto reservada, se libera.</td></tr>
@@ -398,7 +398,7 @@ a{color:var(--red)}
       <li><span>Elegí la <strong>Plataforma de pago</strong>: Efectivo, Crédito, Efectivo + crédito, Moto + efectivo, Moto + crédito, o Moto + efectivo + crédito.</span></li>
       <li><span>Si incluye <strong>crédito</strong>: completá <strong>Monto del crédito</strong> y <strong>Financiera</strong>. <strong>Respaldo / garante</strong> es opcional.</span></li>
       <li><span>Si incluye <strong>moto</strong> (toma en parte de pago): describí la <strong>Unidad recibida como parte de pago</strong> y el <strong>Valor aceptado</strong>.</span></li>
-      <li><span>Si la casa le da un crédito propio en cuotas, elegí el plan en <strong>Crédito personal (opcional)</strong> y completá <strong>Primer vencimiento</strong> y <strong>Monto a financiar</strong>. Te muestra la cuota y el total.</span></li>
+      <li><span>Si la casa le da un crédito propio en cuotas, cargalo en dos lugares: elegí una plataforma con crédito, con <strong>Financiera</strong> "Crédito personal" y el <strong>Monto del crédito</strong>; y además elegí el plan en <strong>Crédito personal (opcional)</strong>, con <strong>Primer vencimiento</strong> y <strong>Monto a financiar</strong> por el mismo monto. Si sólo elegís el plan y la plataforma queda en "Efectivo", la venta queda con todo el precio a cobrar más las cuotas.</span></li>
     </ol>
     <p class="note">Con esto el sistema arma solo el <strong>plan de pago</strong>: la toma, la financiación y el resto como efectivo. Si después el cliente paga por transferencia o tarjeta, eso se indica al cobrar.</p>
 
@@ -410,7 +410,7 @@ a{color:var(--red)}
       <li><span>Tildá <strong>Casco de regalo</strong> y <strong>Papeles entregados</strong> si corresponde, y escribí <strong>Observaciones</strong> si hace falta.</span></li>
       <li><span>Tocá <strong>Guardar y enviar operación</strong>. Revisá el resumen y tocá <strong>Confirmar y enviar</strong>.</span></li>
     </ol>
-    <p>"Guardar borrador" guarda la venta sin enviarla. Los campos grises del formulario (Sucursal de la operación, Usuario que carga, Estado de entrega, Mes, Chasis de la operación) los completa el sistema.</p>
+    <p>Los campos grises del formulario (Sucursal de la operación, Usuario que carga, Estado de entrega, Mes, Chasis de la operación) los completa el sistema.</p>
 
     <figure class="mock"><figcaption><b>Ejemplo</b>Lo que ves después de guardar</figcaption>
       <div class="in">
@@ -420,7 +420,7 @@ a{color:var(--red)}
         <div class="row"><span class="b">Cancelar operación</span><span class="b">Ver mis operaciones</span><span class="b">Cargar otra</span></div>
       </div>
     </figure>
-    <p class="warn">Los botones <strong>Enviar operación</strong>, <strong>Cerrar operación</strong> y <strong>Cancelar operación</strong> sólo existen en esta pantalla, la que aparece justo después de guardar. Cuando salís de acá, ya no hay desde dónde hacerlo, con ningún usuario. Si más adelante hace falta enviar un borrador, cerrar o cancelar una venta, avisá a un Administrador para que lo gestione con soporte.</p>
+    <p class="warn">Los botones <strong>Cerrar operación</strong> y <strong>Cancelar operación</strong> sólo existen en esta pantalla, la que aparece justo después de guardar. Cuando salís de acá, ya no hay desde dónde hacerlo, con ningún usuario. Si más adelante hace falta cerrar o cancelar una venta, avisá a un Administrador para que lo gestione con soporte.</p>
     <ul>
       <li><strong>Cancelar operación</strong> pide un motivo y libera la moto y el pedido al proveedor.</li>
       <li><strong>Cerrar operación</strong> sólo aparece si la venta es de una moto usada elegida del stock y quedó Aprobada. Marca la moto como vendida. En las ventas 0 km no aparece, porque la moto se asigna después.</li>
@@ -604,10 +604,10 @@ a{color:var(--red)}
       <li><span>Teléfono, correo, domicilio y notas son opcionales.</span></li>
       <li><span>Tocá <strong>Guardar cliente</strong>.</span></li>
     </ol>
-    <h4>Editar o desactivar</h4>
+    <h4>Editar</h4>
     <ul>
       <li>El <strong>lápiz</strong> de la fila abre los datos para corregirlos.</li>
-      <li>El ícono de <strong>persona</strong> desactiva o activa al cliente <strong>al instante, sin preguntar</strong>. Si lo tocaste sin querer, tocalo de nuevo.</li>
+      <li>Un cliente no se desactiva. Si alguno figura "Inactivo", en su fila aparece un botón para <strong>Activar cliente</strong>; también se reactiva solo al cargarle una venta.</li>
       <li>No se puede borrar un cliente.</li>
     </ul>
     <p class="warn">No hace falta crear el cliente antes de una venta: se crea solo al guardar la operación. Dos documentos iguales no se pueden cargar ("12.345.678" y "12345678" son el mismo). Si abrís un cliente y no cambiás nada, salí con Cancelar: Guardar sin cambios da error.</p>
@@ -1004,7 +1004,7 @@ a{color:var(--red)}
       <thead><tr><th>No podés…</th><th>Por qué</th><th>A quién pedirlo</th></tr></thead>
       <tbody>
         <tr><td>Aprobar o rechazar una venta por debajo de lista</td><td>No es de tu rol.</td><td>Gerente o Administrador</td></tr>
-        <tr><td>Enviar un borrador, cerrar o cancelar una venta después de salir de la pantalla de alta</td><td>Los botones sólo están justo después de guardar. Hoy no lo puede hacer ningún usuario.</td><td>Avisá a un Administrador (lo gestiona con soporte)</td></tr>
+        <tr><td>Cerrar o cancelar una venta después de salir de la pantalla de alta</td><td>Los botones sólo están justo después de guardar. Hoy no lo puede hacer ningún usuario.</td><td>Avisá a un Administrador (lo gestiona con soporte)</td></tr>
         <tr><td>Cerrar una venta de moto 0 km</td><td>El botón no aparece en ventas 0 km.</td><td>Avisá a un Administrador (lo gestiona con soporte)</td></tr>
         <tr><td>Editar una venta ya cargada (cliente, precio, plan de pago)</td><td>No hay pantalla para eso, con ningún usuario.</td><td>Avisá a un Administrador (lo gestiona con soporte)</td></tr>
         <tr><td>Programar o marcar la entrega de la moto</td><td>No hay pantalla para eso.</td><td>—</td></tr>

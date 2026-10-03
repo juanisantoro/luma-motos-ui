@@ -49,6 +49,41 @@ export const managerScopeLabels: Record<ManagerCommissionScope, string> = {
   TODAS_LAS_SUCURSALES: 'Todas las sucursales',
 }
 
+// Estado de la venta tal como se llama en el resto del sistema.
+const operationStatusText: Record<string, string> = {
+  BORRADOR: 'Borrador',
+  PENDIENTE_APROBACION: 'Pendiente',
+  APROBADA: 'Aprobada',
+  RECHAZADA: 'Rechazada',
+  CANCELADA: 'Cancelada',
+  CERRADA: 'Cerrada',
+}
+
+export function commissionOperationStatus(status: string) {
+  return operationStatusText[status] ?? status
+}
+
+/** Por qué una venta no cuenta para la comisión, en palabras. */
+export function nonComputableReasonText(
+  reason: string | null,
+  status: string,
+) {
+  if (!reason) return null
+  if (reason !== 'STATUS_NOT_ELIGIBLE') return reason
+  switch (status) {
+    case 'PENDIENTE_APROBACION':
+      return 'Espera aprobación: cuenta cuando se apruebe.'
+    case 'BORRADOR':
+      return 'Es un borrador: no se envió.'
+    case 'RECHAZADA':
+      return 'Fue rechazada.'
+    case 'CANCELADA':
+      return 'Fue cancelada.'
+    default:
+      return 'No cuenta por su estado.'
+  }
+}
+
 export function formatCommissionMoney(value: string | number | null) {
   if (value === null || value === '') return 'Sin definir'
   return new Intl.NumberFormat('es-AR', {

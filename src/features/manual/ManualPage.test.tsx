@@ -29,6 +29,16 @@ describe('Manual de uso por perfil', () => {
     expect(html).not.toContain('<script')
   })
 
+  it('al vendedor le muestra sólo el manual del vendedor', async () => {
+    mocks.role = { code: 'VENDEDOR', name: 'Vendedor' }
+    render(<ManualPage />)
+
+    const frame = await screen.findByTitle('Manual de uso · Vendedor')
+    const html = frame.getAttribute('srcdoc') ?? ''
+    expect(html).toContain('Manual del Vendedor')
+    expect(html).not.toContain('Manual de la Administrativa')
+  })
+
   it('avisa cuando el perfil todavía no tiene manual', () => {
     mocks.role = { code: 'GERENTE', name: 'Gerente' }
     render(<ManualPage />)

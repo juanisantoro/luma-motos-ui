@@ -13,10 +13,12 @@ import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import {
   commissionErrorMessage,
+  commissionOperationStatus,
   decimalAmount,
   formatCommissionDate,
   formatCommissionMoney,
   localIsoDate,
+  nonComputableReasonText,
   statusLabels,
   tierLabel,
   vehicleLabels,
@@ -146,13 +148,18 @@ export function CommissionOperations({ operations }: { operations: CommissionOpe
                 <td>{formatCommissionMoney(operation.listPrice)}</td>
                 <td>{formatCommissionMoney(operation.closingPrice)}</td>
                 <td>{operation.difference ? formatCommissionMoney(operation.difference) : '—'}</td>
-                <td>{operation.status}</td>
+                <td>{commissionOperationStatus(operation.status)}</td>
                 <td>
                   <span className={`status-badge ${operation.computable ? 'status-badge--success' : ''}`}>
                     {operation.computable ? 'Sí' : 'No'}
                   </span>
                   {!operation.computable && operation.nonComputableReason && (
-                    <small>{operation.nonComputableReason}</small>
+                    <small>
+                      {nonComputableReasonText(
+                        operation.nonComputableReason,
+                        operation.status,
+                      )}
+                    </small>
                   )}
                 </td>
               </tr>
@@ -179,9 +186,16 @@ export function CommissionOperations({ operations }: { operations: CommissionOpe
               <div><dt>Lista</dt><dd>{formatCommissionMoney(operation.listPrice)}</dd></div>
               <div><dt>Cierre</dt><dd>{formatCommissionMoney(operation.closingPrice)}</dd></div>
               <div><dt>Diferencia</dt><dd>{operation.difference ? formatCommissionMoney(operation.difference) : '—'}</dd></div>
-              <div><dt>Estado</dt><dd>{operation.status}</dd></div>
+              <div><dt>Estado</dt><dd>{commissionOperationStatus(operation.status)}</dd></div>
             </dl>
-            {!operation.computable && operation.nonComputableReason && <p>{operation.nonComputableReason}</p>}
+            {!operation.computable && operation.nonComputableReason && (
+              <p>
+                {nonComputableReasonText(
+                  operation.nonComputableReason,
+                  operation.status,
+                )}
+              </p>
+            )}
           </article>
         ))}
       </div>

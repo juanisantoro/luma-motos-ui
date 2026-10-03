@@ -1,0 +1,374 @@
+/* Lumi, el asistente virtual. La cara es un faro de moto: el ámbar del faro
+   es el único color propio; el resto sale de la paleta de la app. */
+.lumi {
+  --lumi-amber: #ffc247;
+  --lumi-amber-deep: #f08a1c;
+  position: fixed;
+  z-index: 40;
+  right: 20px;
+  bottom: 20px;
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.lumi > * {
+  pointer-events: auto;
+}
+
+.lumi-face {
+  display: block;
+  flex: none;
+  border-radius: 50%;
+}
+
+/* Botón flotante */
+.lumi__launcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 18px 6px 6px;
+  border: 0;
+  border-radius: 999px;
+  color: white;
+  background: var(--dark);
+  box-shadow:
+    0 10px 24px #1013183d,
+    0 0 0 1px #ffffff14 inset;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.lumi__launcher:hover {
+  transform: translateY(-2px);
+}
+
+.lumi__launcher:hover .lumi-face,
+.lumi--open .lumi__launcher .lumi-face {
+  box-shadow: 0 0 0 3px #ffc24738, 0 0 18px 4px #ffc24766;
+}
+
+.lumi__launcher:focus-visible,
+.lumi__close:focus-visible,
+.lumi__form button:focus-visible,
+.lumi__suggestions button:focus-visible {
+  outline: 3px solid var(--lumi-amber);
+  outline-offset: 2px;
+}
+
+/* Panel */
+.lumi__panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  width: min(384px, calc(100vw - 24px));
+  height: min(560px, calc(100dvh - 120px));
+  overflow: hidden;
+  border-radius: 20px;
+  background: white;
+  box-shadow:
+    0 24px 60px #10131847,
+    0 0 0 1px #1013181a;
+  transform-origin: bottom right;
+  animation: lumi-open 180ms ease-out;
+}
+
+@keyframes lumi-open {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+.lumi__head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 14px 16px 16px;
+  overflow: hidden;
+  color: white;
+  background: var(--dark);
+}
+
+/* El haz del faro: se enciende una vez al abrir. */
+.lumi__head::before {
+  position: absolute;
+  top: 50%;
+  left: 38px;
+  width: 340px;
+  height: 220px;
+  background: linear-gradient(90deg, #ffc24752, #ffc24700 78%);
+  clip-path: polygon(0 46%, 100% 0, 100% 100%, 0 54%);
+  content: '';
+  transform: translateY(-50%);
+  animation: lumi-beam 700ms ease-out both;
+}
+
+@keyframes lumi-beam {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0.3);
+    transform-origin: left center;
+  }
+}
+
+.lumi__head > * {
+  position: relative;
+}
+
+.lumi__head .lumi-face {
+  box-shadow: 0 0 0 3px #ffc24738, 0 0 18px 4px #ffc24766;
+}
+
+.lumi__title {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+
+.lumi__title strong {
+  font-size: 19px;
+  font-weight: 850;
+  letter-spacing: -0.2px;
+  line-height: 1.15;
+}
+
+.lumi__title small {
+  color: #c9ced6;
+  font-size: 12.5px;
+}
+
+.lumi__close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: white;
+  background: #ffffff1a;
+  cursor: pointer;
+}
+
+.lumi__close:hover {
+  background: #ffffff30;
+}
+
+/* Conversación */
+.lumi__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  overflow-y: auto;
+  background: var(--background);
+}
+
+.lumi__bubble {
+  max-width: 88%;
+  margin: 0;
+  padding: 10px 13px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lumi__bubble--assistant {
+  align-self: flex-start;
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 5px;
+  color: var(--ink);
+  background: white;
+}
+
+.lumi__bubble--user {
+  align-self: flex-end;
+  border-bottom-right-radius: 5px;
+  color: white;
+  background: var(--red);
+}
+
+.lumi__suggestions {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+  margin: 2px 0 4px;
+}
+
+.lumi__suggestions button {
+  padding: 8px 13px;
+  border: 1px solid #f3d38a;
+  border-radius: 999px;
+  color: var(--ink);
+  background: #fff8e6;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lumi__suggestions button:hover:not(:disabled) {
+  border-color: var(--lumi-amber-deep);
+  background: #ffefc4;
+}
+
+.lumi__typing {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 5px;
+  margin: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  border-bottom-left-radius: 5px;
+  background: white;
+}
+
+.lumi__typing span[aria-hidden] {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lumi-amber-deep);
+  animation: lumi-typing 1s ease-in-out infinite;
+}
+
+.lumi__typing span[aria-hidden]:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.lumi__typing span[aria-hidden]:nth-child(3) {
+  animation-delay: 300ms;
+}
+
+@keyframes lumi-typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.lumi__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.lumi__error {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: var(--red-dark);
+  background: var(--red-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Pregunta */
+.lumi__form {
+  display: flex;
+  gap: 8px;
+  padding: 12px 12px 6px;
+  border-top: 1px solid var(--line);
+  background: white;
+}
+
+.lumi__form input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #d9dde2;
+  border-radius: 999px;
+  color: var(--ink);
+  background: white;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.lumi__form input:focus {
+  border-color: var(--lumi-amber-deep);
+  box-shadow: 0 0 0 3px #ffc2474d;
+}
+
+.lumi__form button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: white;
+  background: var(--red);
+  cursor: pointer;
+}
+
+.lumi__form button:hover:not(:disabled) {
+  background: var(--red-dark);
+}
+
+.lumi__form button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.lumi__note {
+  margin: 0;
+  padding: 0 16px 12px;
+  color: var(--muted);
+  background: white;
+  font-size: 11.5px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .lumi {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .lumi__panel {
+    height: min(560px, calc(100dvh - 96px));
+  }
+
+  .lumi__launcher {
+    padding: 5px;
+  }
+
+  .lumi__launcher span {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lumi__panel,
+  .lumi__head::before,
+  .lumi__typing span[aria-hidden] {
+    animation: none;
+  }
+
+  .lumi__launcher {
+    transition: none;
+  }
+}

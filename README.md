@@ -29,6 +29,13 @@ del rol del usuario. Cada manual es un HTML autónomo en
 iniciada. Un rol sin manual ve un aviso. Al cambiar una pantalla, actualizá el
 manual de los perfiles que la usan en el mismo cambio.
 
+Lumi es el asistente virtual (`ManualAssistant`, montado en `AppLayout`): un
+chat flotante en todas las pantallas que responde con el manual del perfil vía
+`POST /assistant/ask`. Lo ven los perfiles con manual y el Administrador, que
+recibe los manuales de todos. La API usa una copia en texto de cada HTML:
+después de tocar un manual, regenerala en `luma-motos-api` con
+`node scripts/sync-assistant-manuals.mjs <esta carpeta content>`.
+
 ## API
 
 `VITE_API_URL` debe apuntar al prefijo completo de la API, por ejemplo

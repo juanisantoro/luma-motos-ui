@@ -136,10 +136,17 @@ export function MyCommissionsPage({ gateway }: { gateway: CommissionGateway }) {
                 ) : (
                   <>
                     <CommissionProgress commission={detail} />
-                    <div className="commission-own-message">
-                      Hoy cobrarías <strong>{formatCommissionMoney(detail.suggestedAmount)}</strong> como monto fijo total por la escala {tierLabel(detail.scale)}.
-                      {detail.unitsToNextScale !== null && <> Te faltan <strong>{detail.unitsToNextScale} ventas</strong> para la próxima escala.</>}
-                    </div>
+                    {detail.settlement?.agreedAmount ? (
+                      <div className="commission-own-message">
+                        Comisión acordada de este período: <strong>{formatCommissionMoney(detail.settlement.agreedAmount)}</strong>
+                        {' '}(sugerida por la escala {tierLabel(detail.scale)}: {formatCommissionMoney(detail.suggestedAmount)}).
+                      </div>
+                    ) : (
+                      <div className="commission-own-message">
+                        Hoy cobrarías <strong>{formatCommissionMoney(detail.suggestedAmount)}</strong> como monto fijo total por la escala {tierLabel(detail.scale)}.
+                        {detail.unitsToNextScale !== null && <> Te faltan <strong>{detail.unitsToNextScale} ventas</strong> para la próxima escala.</>}
+                      </div>
+                    )}
                     <div className="commission-meeting__section-title"><div><h3>Tus operaciones</h3><p>Las no computables incluyen el motivo informado por el sistema.</p></div></div>
                     <CommissionOperations operations={detail.operations} />
                   </>

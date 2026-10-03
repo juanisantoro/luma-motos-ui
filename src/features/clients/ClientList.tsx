@@ -1,4 +1,4 @@
-import { Pencil, UserRoundCheck, UserRoundX } from 'lucide-react'
+import { Pencil, UserRoundCheck } from 'lucide-react'
 import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
 import type { Client } from './types'
 
@@ -52,20 +52,19 @@ function ClientActions({
       >
         <Pencil size={17} />
       </button>
-      <button
-        className="icon-button table-action"
-        aria-label={`${client.active ? 'Desactivar' : 'Activar'} a ${client.fullName}`}
-        disabled={busy}
-        onClick={() => onToggleStatus(client)}
-        title={client.active ? 'Desactivar cliente' : 'Activar cliente'}
-        type="button"
-      >
-        {client.active ? (
-          <UserRoundX size={18} />
-        ) : (
+      {/* Un cliente no se desactiva: sólo se reactiva uno que quedó inactivo. */}
+      {!client.active && (
+        <button
+          className="icon-button table-action"
+          aria-label={`Activar a ${client.fullName}`}
+          disabled={busy}
+          onClick={() => onToggleStatus(client)}
+          title="Activar cliente"
+          type="button"
+        >
           <UserRoundCheck size={18} />
-        )}
-      </button>
+        </button>
+      )}
     </div>
   )
 }

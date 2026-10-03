@@ -4,6 +4,8 @@
 const manualLoaders: Record<string, () => Promise<string>> = {
   ADMINISTRATIVA: () =>
     import('./content/administrativa.html?raw').then((module) => module.default),
+  VENDEDOR: () =>
+    import('./content/vendedor.html?raw').then((module) => module.default),
 }
 
 export function hasManual(roleCode: string | undefined) {
