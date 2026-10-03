@@ -1,4 +1,6 @@
 import {
+  ChevronDown,
+  ChevronRight,
   FileBadge,
   FileText,
   PackageCheck,
@@ -7,6 +9,7 @@ import {
   Unlock,
   Warehouse,
 } from 'lucide-react'
+import { Fragment, useState, type MouseEvent } from 'react'
 import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
 import {
   fulfillmentLabel,
@@ -177,12 +180,35 @@ function rowClass(operation: SalesOperation, showLicensing: boolean) {
     .join(' ')
 }
 
+function canManageLicensing(operation: SalesOperation) {
+  return Boolean(operation.licensing) && operation.status !== 'CANCELADA'
+}
+
+function canRegisterLicensingPayment(operation: SalesOperation) {
+  return (
+    Boolean(operation.licensing) &&
+    Boolean(operation.vehicle.unit) &&
+    operation.status !== 'CANCELADA' &&
+    operation.status !== 'RECHAZADA'
+  )
+}
+
+function canReleaseReservation(operation: SalesOperation) {
+  return (
+    operation.reservation?.status === 'ACTIVO' &&
+    (operation.status === 'BORRADOR' || operation.status === 'RECHAZADA')
+  )
+}
+
 function LicensingSummary({
   operation,
   onManage,
   onRegisterPayment,
+  compact = false,
 }: {
   operation: SalesOperation
+  // Grilla: sólo datos en una línea; las acciones van en la columna Acciones.
+  compact?: boolean
   onManage?: ((operation: SalesOperation) => void) | undefined
   onRegisterPayment?: ((operation: SalesOperation) => void) | undefined
 }) {
@@ -191,7 +217,7 @@ function LicensingSummary({
   const plateStatus = plateStatusOf(licensing)
   const plateNumber = licensing.plate?.number ?? operation.vehicle.unit?.licensePlate
   return (
-    <div className="licensing-cell">
+    <div className={`licensing-cell ${compact ? 'licensing-cell--compact' : ''}`}>
       <strong>
         {licensing.mode ? licensingModeLabels[licensing.mode] : 'Sin definir'}
       </strong>
@@ -212,7 +238,7 @@ function LicensingSummary({
           {plateNumber ? ` · ${plateNumber}` : ''}
         </span>
       )}
-      {onManage && operation.status !== 'CANCELADA' && (
+      {!compact && onManage && canManageLicensing(operation) && (
         <button
           aria-label={`Gestionar patentamiento de la operación #${operation.number}`}
           className="button button--secondary button--compact"
@@ -223,10 +249,9 @@ function LicensingSummary({
           Gestionar
         </button>
       )}
-      {onRegisterPayment &&
-        operation.vehicle.unit &&
-        operation.status !== 'CANCELADA' &&
-        operation.status !== 'RECHAZADA' && (
+      {!compact &&
+        onRegisterPayment &&
+        canRegisterLicensingPayment(operation) && (
           <button
             aria-label={`Registrar pago de patente de la operación #${operation.number}`}
             className="button button--secondary button--compact"
@@ -250,13 +275,7 @@ function ReleaseButton({
   busyId?: string | null
   onRelease?: (operation: SalesOperation) => void
 }) {
-  if (
-    !onRelease ||
-    operation.reservation?.status !== 'ACTIVO' ||
-    (operation.status !== 'BORRADOR' && operation.status !== 'RECHAZADA')
-  ) {
-    return null
-  }
+  if (!onRelease || !canReleaseReservation(operation)) return null
   return (
     <button
       className="button button--danger-quiet sales-card__action"
@@ -267,6 +286,132 @@ function ReleaseButton({
       <Unlock size={16} />
       Liberar reserva
     </button>
+  )
+}
+
+// Resumen de patentamiento para la fila plegada: la patente recibida si ya
+// llegó, si no el estado del trámite. El detalle completo va en el acordeón.
+function LicensingBadge({ operation }: { operation: SalesOperation }) {
+  const licensing = operation.licensing
+  if (!licensing) return <span>—</span>
+  const plateStatus = plateStatusOf(licensing)
+  if (plateStatus?.startsWith('RECIBIDA')) {
+    const plateNumber =
+      licensing.plate?.number ?? operation.vehicle.unit?.licensePlate
+    const label = `${plateStatusLabel(plateStatus, licensing)}${plateNumber ? ` · ${plateNumber}` : ''}`
+    return (
+      <span className={`status-badge ${plateStatusClass(plateStatus)}`} title={label}>
+        {label}
+      </span>
+    )
+  }
+  const label = licensingStatusLabels[licensing.status]
+  return (
+    <span
+      className={`status-badge ${licensingStatusClass(licensing.status)}`}
+      title={licensing.overdue ? `${label} · patente demorada` : label}
+    >
+      {label}
+    </span>
+  )
+}
+
+function unitSummary(operation: SalesOperation) {
+  return isAuto(operation)
+    ? supplyStatus(operation)
+    : fulfillmentLabel(operationFulfillment(operation))
+}
+
+// Grilla: todas las acciones de la fila en una sola columna compacta, como
+// íconos con tooltip (data-tip), así las celdas de datos no crecen. La acción
+// que toca en ese momento (asignar / registrar llegada) va resaltada.
+function RowActions({
+  operation,
+  unitActions = [],
+  onUnitAction,
+  onEdit,
+  onManageLicensing,
+  onRegisterLicensingPayment,
+  canRelease,
+  busyId,
+  onRelease,
+}: {
+  operation: SalesOperation
+  unitActions?: UnitAction[] | undefined
+  onUnitAction?: ((operation: SalesOperation, action: UnitAction) => void) | undefined
+  onEdit?: ((operation: SalesOperation) => void) | undefined
+  onManageLicensing?: ((operation: SalesOperation) => void) | undefined
+  onRegisterLicensingPayment?: ((operation: SalesOperation) => void) | undefined
+  canRelease: boolean
+  busyId?: string | null | undefined
+  onRelease?: ((operation: SalesOperation) => void) | undefined
+}) {
+  const visibleUnitActions =
+    onUnitAction && !isAuto(operation) ? unitActions : []
+  return (
+    <div className="row-actions">
+      {visibleUnitActions.map((action) => {
+        const button = unitActionButtons[action]
+        const Icon = button.icon
+        return (
+          <button
+            aria-label={`${button.aria} #${operation.number}`}
+            className={`row-action ${button.primary ? 'row-action--primary' : ''}`}
+            data-tip={button.label}
+            key={action}
+            onClick={() => onUnitAction?.(operation, action)}
+            type="button"
+          >
+            <Icon size={16} />
+          </button>
+        )
+      })}
+      {onEdit && (
+        <button
+          aria-label={`Editar operación ${operation.number}`}
+          className="row-action"
+          data-tip="Editar venta"
+          onClick={() => onEdit(operation)}
+          type="button"
+        >
+          <Pencil size={16} />
+        </button>
+      )}
+      {onManageLicensing && canManageLicensing(operation) && (
+        <button
+          aria-label={`Gestionar patentamiento de la operación #${operation.number}`}
+          className="row-action"
+          data-tip="Gestionar patentamiento"
+          onClick={() => onManageLicensing(operation)}
+          type="button"
+        >
+          <FileBadge size={16} />
+        </button>
+      )}
+      {onRegisterLicensingPayment && canRegisterLicensingPayment(operation) && (
+        <button
+          aria-label={`Registrar pago de patente de la operación #${operation.number}`}
+          className="row-action"
+          data-tip="Pago de patente"
+          onClick={() => onRegisterLicensingPayment(operation)}
+          type="button"
+        >
+          <FileText size={16} />
+        </button>
+      )}
+      {canRelease && onRelease && canReleaseReservation(operation) && (
+        <button
+          className="row-action row-action--danger"
+          data-tip="Liberar reserva"
+          disabled={busyId === operation.id}
+          onClick={() => onRelease(operation)}
+          type="button"
+        >
+          <Unlock size={16} />
+          <span className="sr-only">Liberar reserva</span>
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -302,6 +447,33 @@ export function SalesOperationList({
     operations.length > 0 && operations.every(isAuto)
       ? 'Abastecimiento'
       : 'Unidad'
+
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const allExpanded =
+    operations.length > 0 &&
+    operations.every((operation) => expanded.has(operation.id))
+  const toggle = (id: string) =>
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const toggleAll = () =>
+    setExpanded(
+      allExpanded ? new Set() : new Set(operations.map((item) => item.id)),
+    )
+  // Clic en cualquier parte de la fila la despliega, salvo sobre un botón.
+  const toggleFromRow = (event: MouseEvent<HTMLTableRowElement>, id: string) => {
+    if ((event.target as HTMLElement).closest('button, a')) return
+    toggle(id)
+  }
+  const hasActions = Boolean(
+    canRelease ||
+      onEdit ||
+      onUnitAction ||
+      (showLicensing && (onManageLicensing || onRegisterLicensingPayment)),
+  )
 
   if (cards) {
     return (
@@ -421,115 +593,204 @@ export function SalesOperationList({
     )
   }
 
+  const columnCount = 8 + (showLicensing ? 1 : 0) + (hasActions ? 1 : 0)
+
   return (
     <div className="sales-table-wrap">
       <table className="sales-table sales-table--operations">
         <thead>
           <tr>
-            <th>Operación</th>
-            <th>Fecha</th>
+            <th className="sales-col--toggle">
+              <button
+                aria-expanded={allExpanded}
+                aria-label={allExpanded ? 'Plegar todas' : 'Desplegar todas'}
+                className="row-action"
+                data-tip={allExpanded ? 'Plegar todas' : 'Desplegar todas'}
+                onClick={toggleAll}
+                type="button"
+              >
+                {allExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+            </th>
+            <th className="sales-col--number">Operación</th>
             <th>Cliente</th>
-            <th>Vehículo / chasis</th>
-            <th>Origen / destino</th>
-            <th>Precio</th>
+            <th>Vehículo</th>
+            <th className="sales-col--price">Precio</th>
             <th>Vendedor</th>
-            <th>Estado operación</th>
-            <th>{unitColumn}</th>
-            {showLicensing && <th>Patentamiento</th>}
-            <th>Observación</th>
-            {canRelease && (
-              <th>
-                <span className="sr-only">Acciones</span>
-              </th>
-            )}
+            <th className="sales-col--status">Estado operación</th>
+            <th className="sales-col--unit">{unitColumn}</th>
+            {showLicensing && <th className="sales-col--licensing">Patentamiento</th>}
+            {hasActions && <th className="sales-table__actions">Acciones</th>}
           </tr>
         </thead>
         <tbody>
-          {operations.map((operation) => (
-            <tr className={rowClass(operation, showLicensing)} key={operation.id}>
-              <td>
-                <strong>#{operation.number}</strong>
-                {operation.ticketNumber && (
-                  <small>Boleto {operation.ticketNumber}</small>
-                )}
-                {onEdit && (
-                  <button
-                    aria-label={`Editar operación ${operation.number}`}
-                    className="button button--secondary button--compact"
-                    onClick={() => onEdit(operation)}
-                    type="button"
-                  >
-                    <Pencil size={14} />
-                    Editar
-                  </button>
-                )}
-              </td>
-              <td>{formatOperationDate(operation.operationDate)}</td>
-              <td>
-                <strong>{operation.client.fullName}</strong>
-                <small>{clientDocument(operation)}</small>
-              </td>
-              <td>
-                <strong>{vehicleLabel(operation)}</strong>
-                <small>
-                  {operation.vehicle.model.vehicleType === 'MOTO'
-                    ? 'Moto'
-                    : 'Auto'}{' '}
-                  ·{' '}
-                  {operation.vehicle.condition === 'NUEVO'
-                    ? 'Nuevo'
-                    : 'Usado'}
-                  {requestedColorLabel(operation)}{' '}
-                  · {operation.vehicle.unit?.vin ?? 'Sin chasis asignado'}
-                </small>
-              </td>
-              <td>{sourceAndDestination(operation)}</td>
-              <td>
-                <strong>
-                  {formatMoney(operation.agreedPrice, operation.currency)}
-                </strong>
-                {isBelowList(operation) && (
-                  <small>
-                    Lista {formatMoney(operation.listPrice, operation.currency)}
-                  </small>
-                )}
-              </td>
-              <td>{operation.seller?.fullName ?? 'Sin asignar'}</td>
-              <td>
-                <span
-                  className={`status-badge ${operationStatusClass(operation.status)}`}
+          {operations.map((operation) => {
+            const open = expanded.has(operation.id)
+            const fulfillmentClass = isAuto(operation)
+              ? ''
+              : fulfillmentStatusClass(operationFulfillment(operation).status)
+            return (
+              <Fragment key={operation.id}>
+                <tr
+                  className={`sales-row ${open ? 'sales-row--open' : ''} ${rowClass(operation, showLicensing)}`}
+                  onClick={(event) => toggleFromRow(event, operation.id)}
                 >
-                  {operationStatusLabels[operation.status]}
-                </span>
-              </td>
-              <td>
-                <UnitStatus
-                  actions={unitActions?.(operation)}
-                  onAction={onUnitAction}
-                  operation={operation}
-                />
-              </td>
-              {showLicensing && (
-                <td>
-                  <LicensingSummary
-                    operation={operation}
-                    onManage={onManageLicensing}
-                    onRegisterPayment={onRegisterLicensingPayment}
-                  />
-                </td>
-              )}
-              <td>{observation(operation)}</td>
-              {canRelease && (
-                <td>
-                  <ReleaseButton
-                    operation={operation}
-                    {...(busyId !== undefined ? { busyId } : {})}
-                    {...(onRelease ? { onRelease } : {})}
-                  />
-                </td>
-              )}
-            </tr>
-          ))}
+                  <td className="sales-col--toggle">
+                    <button
+                      aria-controls={`operation-detail-${operation.id}`}
+                      aria-expanded={open}
+                      aria-label={`${open ? 'Ocultar' : 'Ver'} detalle de la operación #${operation.number}`}
+                      className="row-action"
+                      data-tip={open ? 'Ocultar detalle' : 'Ver detalle'}
+                      onClick={() => toggle(operation.id)}
+                      type="button"
+                    >
+                      {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </button>
+                  </td>
+                  <td>
+                    <strong>#{operation.number}</strong>
+                  </td>
+                  <td title={operation.client.fullName}>
+                    <strong>{operation.client.fullName}</strong>
+                  </td>
+                  <td title={vehicleLabel(operation)}>{vehicleLabel(operation)}</td>
+                  <td>
+                    <strong>
+                      {formatMoney(operation.agreedPrice, operation.currency)}
+                    </strong>
+                  </td>
+                  <td title={operation.seller?.fullName ?? 'Sin asignar'}>
+                    {operation.seller?.fullName ?? 'Sin asignar'}
+                  </td>
+                  <td>
+                    <span
+                      className={`status-badge ${operationStatusClass(operation.status)}`}
+                    >
+                      {operationStatusLabels[operation.status]}
+                    </span>
+                  </td>
+                  <td>
+                    {isAuto(operation) ? (
+                      <span title={unitSummary(operation)}>
+                        {unitSummary(operation)}
+                      </span>
+                    ) : (
+                      <span
+                        className={`status-badge ${fulfillmentClass}`}
+                        title={unitSummary(operation)}
+                      >
+                        {unitSummary(operation)}
+                      </span>
+                    )}
+                  </td>
+                  {showLicensing && (
+                    <td>
+                      <LicensingBadge operation={operation} />
+                    </td>
+                  )}
+                  {hasActions && (
+                    <td className="sales-table__actions">
+                      <RowActions
+                        busyId={busyId}
+                        canRelease={canRelease}
+                        onEdit={onEdit}
+                        onManageLicensing={
+                          showLicensing ? onManageLicensing : undefined
+                        }
+                        onRegisterLicensingPayment={
+                          showLicensing ? onRegisterLicensingPayment : undefined
+                        }
+                        onRelease={onRelease}
+                        onUnitAction={onUnitAction}
+                        operation={operation}
+                        unitActions={unitActions?.(operation)}
+                      />
+                    </td>
+                  )}
+                </tr>
+                {open && (
+                  <tr
+                    className="sales-detail-row"
+                    id={`operation-detail-${operation.id}`}
+                  >
+                    <td colSpan={columnCount}>
+                      <dl className="sales-detail">
+                        <div>
+                          <dt>Fecha</dt>
+                          <dd>{formatOperationDate(operation.operationDate)}</dd>
+                        </div>
+                        <div>
+                          <dt>Boleto</dt>
+                          <dd>
+                            {operation.ticketNumber
+                              ? `Boleto ${operation.ticketNumber}`
+                              : 'Sin boleto'}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Cliente</dt>
+                          <dd>
+                            {operation.client.fullName}
+                            <small>{clientDocument(operation)}</small>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Vehículo / chasis</dt>
+                          <dd>
+                            {vehicleLabel(operation)}
+                            <small>
+                              {operation.vehicle.model.vehicleType === 'MOTO'
+                                ? 'Moto'
+                                : 'Auto'}{' '}
+                              ·{' '}
+                              {operation.vehicle.condition === 'NUEVO'
+                                ? 'Nuevo'
+                                : 'Usado'}
+                              {requestedColorLabel(operation)}{' '}
+                              · {operation.vehicle.unit?.vin ?? 'Sin chasis asignado'}
+                            </small>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Origen / destino</dt>
+                          <dd>{sourceAndDestination(operation)}</dd>
+                        </div>
+                        <div>
+                          <dt>Precio</dt>
+                          <dd>
+                            {formatMoney(operation.agreedPrice, operation.currency)}
+                            {isBelowList(operation) && (
+                              <small>
+                                Lista{' '}
+                                {formatMoney(operation.listPrice, operation.currency)}
+                              </small>
+                            )}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Vendedor</dt>
+                          <dd>{operation.seller?.fullName ?? 'Sin asignar'}</dd>
+                        </div>
+                        {showLicensing && (
+                          <div>
+                            <dt>Patentamiento</dt>
+                            <dd>
+                              <LicensingSummary compact operation={operation} />
+                            </dd>
+                          </div>
+                        )}
+                        <div className="sales-detail__wide">
+                          <dt>Observación</dt>
+                          <dd>{observation(operation)}</dd>
+                        </div>
+                      </dl>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            )
+          })}
         </tbody>
       </table>
     </div>

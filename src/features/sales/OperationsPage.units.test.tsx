@@ -242,7 +242,6 @@ describe('Unidad de motos desde la grilla de operaciones', () => {
     )
     const [, pendingRow, , orderedRow] = within(table).getAllByRole('row')
     expect(pendingRow).toHaveTextContent('Pendiente de asignar unidad')
-    expect(pendingRow).toHaveTextContent('Rojo')
     expect(orderedRow).toHaveTextContent('Pedida a Motos Norte (25/09/2026)')
     expect(
       within(pendingRow!).getByRole('button', { name: /Pedir a proveedor/ }),
@@ -253,6 +252,11 @@ describe('Unidad de motos desde la grilla de operaciones', () => {
     expect(
       within(orderedRow!).getByRole('button', { name: /Registrar llegada/ }),
     ).toBeInTheDocument()
+    // El color pedido está en el detalle desplegable de la fila.
+    await userEvent.click(
+      within(pendingRow!).getByRole('button', { name: /Ver detalle/ }),
+    )
+    expect(table).toHaveTextContent('Rojo')
   })
 
   it('filtra por situación', async () => {

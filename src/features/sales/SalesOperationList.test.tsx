@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 import { SalesOperationList } from './SalesOperationList'
 import type { SalesOperation } from './types'
@@ -60,24 +60,30 @@ it('mantiene acciones en la última columna de la tabla', () => {
   )
 
   const headers = screen.getAllByRole('columnheader')
-  const cells = screen.getAllByRole('cell')
   expect(headers.at(-1)).toHaveTextContent('Acciones')
-  expect(headers.map((header) => header.textContent)).toEqual([
+  expect(headers.slice(1).map((header) => header.textContent)).toEqual([
     'Operación',
-    'Fecha',
     'Cliente',
-    'Vehículo / chasis',
-    'Origen / destino',
+    'Vehículo',
     'Precio',
     'Vendedor',
     'Estado operación',
     'Unidad',
-    'Observación',
     'Acciones',
   ])
-  expect(cells[2]).toHaveTextContent('DNI 12.345.678')
-  expect(cells[3]).toHaveTextContent('Honda Wave 110 S')
-  expect(cells[3]).not.toHaveTextContent('[object Object]')
-  expect(cells[4]).toHaveTextContent('Stock físico · Casa Central')
-  expect(cells.at(-1)).toHaveTextContent('Liberar')
+  const [, row] = screen.getAllByRole('row')
+  expect(row).toHaveTextContent('Honda Wave 110 S')
+  expect(row).not.toHaveTextContent('[object Object]')
+  expect(row).not.toHaveTextContent('DNI 12.345.678')
+  expect(screen.getAllByRole('cell').at(-1)).toHaveTextContent('Liberar')
+
+  // El detalle (documento, chasis, origen) se despliega en acordeón.
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Ver detalle de la operación #105' }),
+  )
+  const detail = screen.getAllByRole('row')[2]
+  expect(detail).toHaveTextContent('29/08/2026')
+  expect(detail).toHaveTextContent('DNI 12.345.678')
+  expect(detail).toHaveTextContent('VIN-001')
+  expect(detail).toHaveTextContent('Stock físico · Casa Central')
 })

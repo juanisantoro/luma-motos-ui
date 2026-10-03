@@ -92,17 +92,22 @@ describe('Patentamiento en la grilla administrativa', () => {
     expect(
       within(table).getByRole('columnheader', { name: 'Patentamiento' }),
     ).toBeInTheDocument()
-    const [, overdueRow, undefinedRow] = within(table).getAllByRole('row')
+    // El detalle de cada venta está en el acordeón: se despliegan todas.
+    await userEvent.click(
+      within(table).getByRole('button', { name: 'Desplegar todas' }),
+    )
+    const [, overdueRow, overdueDetail, undefinedRow, undefinedDetail] =
+      within(table).getAllByRole('row')
     expect(overdueRow).toHaveClass('sales-row--licensing-overdue')
-    expect(within(overdueRow!).getByText('Paga el cliente')).toBeInTheDocument()
-    expect(within(overdueRow!).getByText('Boleto B-0001')).toBeInTheDocument()
+    expect(within(overdueDetail!).getByText('Paga el cliente')).toBeInTheDocument()
+    expect(within(overdueDetail!).getByText('Boleto B-0001')).toBeInTheDocument()
     expect(
-      within(overdueRow!).getByText(
+      within(overdueDetail!).getByText(
         'Patente en trámite, pasó la fecha estimada (estimada entre 11/09/2026 y 18/09/2026)',
       ),
     ).toBeInTheDocument()
     expect(undefinedRow).not.toHaveClass('sales-row--licensing-overdue')
-    expect(within(undefinedRow!).getAllByText('Sin definir')).toHaveLength(2)
+    expect(within(undefinedDetail!).getAllByText('Sin definir')).toHaveLength(2)
   })
 
   it('filtra por modalidad y por patentes demoradas', async () => {
