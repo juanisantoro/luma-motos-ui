@@ -14,8 +14,8 @@ import './manual-assistant.css'
 const HISTORY_LIMIT = 8
 const QUESTION_MAX_LENGTH = 600
 
-// Perfiles sin manual propio a los que la API les responde con los manuales
-// de todos los perfiles (ver assistant.manuals.ts en luma-motos-api).
+// Perfiles a los que la API les responde con su manual más los de todos los
+// demás perfiles (ver assistant.manuals.ts en luma-motos-api).
 const ALL_MANUALS_ROLES = new Set(['ADMINISTRADOR'])
 
 export function hasAssistant(roleCode: string | undefined) {
@@ -46,8 +46,8 @@ const SUGGESTIONS: Record<string, string[]> = {
     '¿Cómo registro el acuerdo de una comisión?',
   ],
   ADMINISTRADOR: [
-    '¿Cómo carga una venta el vendedor?',
-    '¿Cómo se le asigna una moto a una venta?',
+    '¿Cómo creo un usuario nuevo?',
+    '¿Cómo confirmo que recibí un efectivo?',
     '¿Qué pagos de patentes están pendientes?',
   ],
 }

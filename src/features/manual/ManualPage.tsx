@@ -2,7 +2,7 @@ import { BookOpen, LoaderCircle } from 'lucide-react'
 import { useEffect, useState, type SyntheticEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { StatePanel } from '../../shared/components/StatePanel'
-import { hasManual, loadManual } from './manuals'
+import { loadManual, manualsForRole } from './manuals'
 
 type ManualState =
   | { status: 'loading' }
@@ -29,14 +29,21 @@ export function ManualPage() {
   const { user } = useAuth()
   const roleCode = user?.role.code
   const roleName = user?.role.name ?? ''
-  const available = hasManual(roleCode)
+  // El Administrador puede leer los manuales de todos los perfiles; el resto
+  // sólo el propio.
+  const manuals = manualsForRole(roleCode)
+  const available = manuals.length > 0
+  const [selectedCode, setSelectedCode] = useState(roleCode ?? '')
+  const selected =
+    manuals.find((manual) => manual.code === selectedCode) ?? manuals[0]
+  const manualCode = selected?.code
   const [state, setState] = useState<ManualState>({ status: 'loading' })
 
   useEffect(() => {
-    if (!roleCode || !available) return
+    if (!manualCode) return
     let cancelled = false
     setState({ status: 'loading' })
-    loadManual(roleCode)
+    loadManual(manualCode)
       .then((html) => {
         if (cancelled) return
         setState(html ? { status: 'ready', html } : { status: 'error' })
@@ -47,7 +54,7 @@ export function ManualPage() {
     return () => {
       cancelled = true
     }
-  }, [available, roleCode])
+  }, [manualCode])
 
   if (!available)
     return (
@@ -58,38 +65,69 @@ export function ManualPage() {
       />
     )
 
+  const tabs =
+    manuals.length > 1 ? (
+      <div
+        aria-label="Manuales por perfil"
+        role="tablist"
+        style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}
+      >
+        {manuals.map((manual) => (
+          <button
+            aria-selected={manual.code === manualCode}
+            className={`button ${manual.code === manualCode ? 'button--primary' : 'button--secondary'}`}
+            key={manual.code}
+            onClick={() => setSelectedCode(manual.code)}
+            role="tab"
+            type="button"
+          >
+            {manual.label}
+          </button>
+        ))}
+      </div>
+    ) : null
+
   if (state.status === 'error')
     return (
-      <StatePanel
-        icon={BookOpen}
-        title="No pudimos cargar el manual"
-        description="Revisá tu conexión y volvé a entrar a esta pantalla."
-        tone="danger"
-      />
+      <>
+        {tabs}
+        <StatePanel
+          icon={BookOpen}
+          title="No pudimos cargar el manual"
+          description="Revisá tu conexión y volvé a entrar a esta pantalla."
+          tone="danger"
+        />
+      </>
     )
 
   if (state.status === 'loading')
     return (
-      <p role="status">
-        <LoaderCircle className="spin" size={18} aria-hidden="true" /> Cargando
-        manual…
-      </p>
+      <>
+        {tabs}
+        <p role="status">
+          <LoaderCircle className="spin" size={18} aria-hidden="true" />{' '}
+          Cargando manual…
+        </p>
+      </>
     )
 
   return (
-    <iframe
-      onLoad={handleAnchors}
-      srcDoc={state.html}
-      style={{
-        display: 'block',
-        width: '100%',
-        height: 'calc(100dvh - 130px)',
-        minHeight: 480,
-        border: '1px solid var(--border, #e7e2e3)',
-        borderRadius: 12,
-        background: '#ffffff',
-      }}
-      title={`Manual de uso · ${roleName}`}
-    />
+    <>
+      {tabs}
+      <iframe
+        onLoad={handleAnchors}
+        srcDoc={state.html}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: `calc(100dvh - ${tabs ? 185 : 130}px)`,
+          minHeight: 480,
+          border: '1px solid var(--border, #e7e2e3)',
+          borderRadius: 12,
+          background: '#ffffff',
+        }}
+        title={`Manual de uso · ${selected?.label ?? roleName}`}
+      />
+    </>
   )
 }

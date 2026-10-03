@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ManualPage } from './ManualPage'
 
@@ -59,14 +60,41 @@ describe('Manual de uso por perfil', () => {
     expect(callCenterHtml).not.toContain('Manual del Vendedor')
   })
 
-  it('avisa cuando el perfil todavía no tiene manual', () => {
+  it('al administrador le muestra su manual y los de todos los perfiles', async () => {
     mocks.role = { code: 'ADMINISTRADOR', name: 'Administrador' }
+    const user = userEvent.setup()
+    render(<ManualPage />)
+
+    const own = await screen.findByTitle('Manual de uso · Administrador')
+    expect(own.getAttribute('srcdoc')).toContain('Manual del Administrador')
+    expect(
+      screen.getAllByRole('tab').map((tab) => tab.textContent),
+    ).toEqual(['Administrador', 'Gerente', 'Administrativa', 'Vendedor', 'Call Center'])
+    expect(screen.getByRole('tab', { name: 'Administrador' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+
+    await user.click(screen.getByRole('tab', { name: 'Vendedor' }))
+    const seller = await screen.findByTitle('Manual de uso · Vendedor')
+    expect(seller.getAttribute('srcdoc')).toContain('Manual del Vendedor')
+  })
+
+  it('los demás perfiles no ven solapas de otros manuales', async () => {
+    render(<ManualPage />)
+
+    await screen.findByTitle('Manual de uso · Administrativa')
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+  })
+
+  it('avisa cuando el perfil todavía no tiene manual', () => {
+    mocks.role = { code: 'ROL_PROPIO', name: 'Encargado' }
     render(<ManualPage />)
 
     expect(
       screen.getByText('Todavía no hay un manual para tu perfil'),
     ).toBeInTheDocument()
-    expect(screen.getByText(/perfil Administrador/)).toBeInTheDocument()
+    expect(screen.getByText(/perfil Encargado/)).toBeInTheDocument()
     expect(screen.queryByTitle(/Manual de uso/)).not.toBeInTheDocument()
   })
 })

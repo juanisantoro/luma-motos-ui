@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>html{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Manual del Administrador</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,500;0,700;0,800;1,800&family=Public+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: portada roja, índice, y capítulos en una columna de lectura; cada tarea = pasos numerados + una "pantalla de ejemplo" dibujada. */
+:root{
+  --red:#e32636; --red-dark:#bd1927; --red-soft:#fff0f2; --on-red:#ffffff;
+  --bg:#ffffff; --surface:#fbf7f7; --ink:#1d1416; --muted:#6b5b5e; --line:#ecdfe1;
+  --ok:#17794a; --ok-soft:#e5f5ec; --warn:#8a5a00; --warn-soft:#fdf1d6; --off:#5d5759; --off-soft:#efebec;
+  --display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --red:#ff5562; --red-dark:#e32636; --red-soft:#34171b; --on-red:#ffffff;
+    --bg:#171113; --surface:#211719; --ink:#f6eced; --muted:#bca9ac; --line:#3a2a2d;
+    --ok:#6fd6a0; --ok-soft:#173326; --warn:#f0c26a; --warn-soft:#3a2c10; --off:#c9bfc1; --off-soft:#2e2628; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --red:#ff5562; --red-dark:#e32636; --red-soft:#34171b; --on-red:#ffffff;
+  --bg:#171113; --surface:#211719; --ink:#f6eced; --muted:#bca9ac; --line:#3a2a2d;
+  --ok:#6fd6a0; --ok-soft:#173326; --warn:#f0c26a; --warn-soft:#3a2c10; --off:#c9bfc1; --off-soft:#2e2628; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.cover{background:var(--red-dark);color:var(--on-red);padding-block:36px 40px;padding-inline:16px}
+.wrap{max-width:820px;margin-inline:auto}
+.brand{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:800;letter-spacing:.14em;font-size:14px}
+.brand i{display:grid;place-items:center;width:40px;height:40px;border-radius:10px;background:#ffffff;color:#bd1927;font-style:italic;font-size:16px;letter-spacing:0}
+.cover h1{font-family:var(--display);font-weight:800;font-style:italic;font-size:clamp(34px,7vw,56px);line-height:1.02;margin:28px 0 12px;text-wrap:balance}
+.cover p{margin:0;max-width:58ch;font-size:17px}
+.cover .meta{margin-top:20px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+main{padding-block:32px 56px;padding-inline:16px}
+main>.wrap{display:grid;gap:56px}
+.chapter{display:grid;gap:28px;min-width:0}
+.chapter>header{border-top:4px solid var(--red);padding-top:14px;display:grid;gap:6px}
+.chapter>header span{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red)}
+h2{font-family:var(--display);font-weight:800;font-style:italic;font-size:clamp(28px,5vw,38px);line-height:1.08;margin:0;text-wrap:balance}
+.chapter>header p{margin:0;color:var(--muted);max-width:65ch}
+section{display:grid;gap:14px;min-width:0}
+h3{font-family:var(--display);font-weight:800;font-size:22px;line-height:1.2;margin:0;text-wrap:balance}
+h4{font-family:var(--display);font-weight:700;font-size:16px;margin:6px 0 0}
+section>p,section>ul{margin:0;max-width:68ch}
+section>ul{padding-left:20px;display:grid;gap:6px}
+.where{font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--red)}
+ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:10px;counter-reset:s}
+ol.steps>li{counter-increment:s;display:grid;grid-template-columns:30px 1fr;gap:12px;align-items:start}
+ol.steps>li::before{content:counter(s);display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--red);color:var(--on-red);font-family:var(--display);font-weight:700;font-size:14px}
+ol.steps>li>span{padding-top:2px;min-width:0}
+strong{font-weight:700}
+.note,.warn{border-radius:10px;padding:14px 16px;max-width:none}
+.note{background:var(--red-soft)}
+.warn{background:var(--warn-soft);color:var(--ink)}
+.warn::before{content:"Ojo";display:inline-block;font-family:var(--display);font-weight:800;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);margin-right:8px}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th{font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;text-align:left;background:var(--red);color:var(--on-red);padding:10px 14px}
+td{padding:10px 14px;border-top:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even) td{background:var(--surface)}
+td:first-child{font-weight:600}
+/* Índice */
+.toc{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));padding:0;margin:0;list-style:none}
+.toc a{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:10px;color:var(--ink);text-decoration:none;font-weight:600}
+.toc a:hover,.toc a:focus-visible{border-color:var(--red);outline:none}
+.toc b{font-family:var(--display);font-style:italic;font-size:22px;color:var(--red)}
+/* Pantallas de ejemplo */
+.mock{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
+.mock>figcaption{display:flex;gap:10px;align-items:center;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.mock>figcaption b{font-family:var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--red);font-size:11px}
+figure{margin:0;min-width:0}
+main>.wrap,.chapter,section,.mock .in{grid-template-columns:minmax(0,1fr)}
+main>.wrap>*,.mock,.mock .in>*,.tablebox,.two>*,.fgrid>*{min-width:0}
+.mock .in{padding:16px;display:grid;gap:12px;font-size:14px}
+.mock .scroll{overflow-x:auto}
+.mock table{font-size:13px;min-width:560px}
+.mock th{background:var(--surface);color:var(--muted);border-bottom:1px solid var(--line)}
+.mock td{background:var(--bg)!important}
+.mock td small,.mini{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red)}
+.mtitle{font-family:var(--display);font-weight:800;font-size:19px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.f{display:grid;gap:4px;min-width:0}
+.f>span{font-size:12px;font-weight:700}
+.f>div{border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:36px;background:var(--bg);overflow-wrap:anywhere}
+.f.ro>div{background:var(--surface);font-weight:600}
+.f.wide{grid-column:1/-1}
+.f small{color:var(--muted);font-size:12px}
+.b{display:inline-block;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px;background:var(--bg);white-space:nowrap}
+.b.p{background:var(--red);border-color:var(--red);color:var(--on-red)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;background:var(--off-soft);color:var(--off);white-space:nowrap}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.wa{background:var(--warn-soft);color:var(--warn)}
+.badge.re{background:var(--red-soft);color:var(--red)}
+.callout{font-size:13px;color:var(--muted)}
+.callout b{color:var(--red)}
+/* Circuito */
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;counter-reset:f}
+.flow>div{counter-increment:f;border:1px solid var(--line);border-top:4px solid var(--red);border-radius:10px;padding:12px;display:grid;gap:4px;align-content:start}
+.flow>div::before{content:counter(f);font-family:var(--display);font-style:italic;font-weight:800;font-size:22px;color:var(--red)}
+.flow strong{font-family:var(--display)}
+.flow small{color:var(--muted)}
+.menu{display:grid;gap:2px;max-width:320px;background:#16181d;color:#e9e6e7;border-radius:10px;padding:12px;font-size:13px}
+.menu b{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#a79c9f;margin-top:10px}
+.menu span{padding:5px 10px;border-radius:6px}
+.menu span.on{background:#e32636;color:#fff;font-weight:700}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:start}
+footer{border-top:1px solid var(--line);padding-top:16px;font-size:13px;color:var(--muted)}
+a{color:var(--red)}
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="wrap">
+    <div class="brand"><i>LM</i>LUMA MOTOS</div>
+    <h1>Manual del Administrador</h1>
+    <p>Lo que sólo vos podés hacer en el sistema: usuarios, roles, cuentas de caja, rendiciones, correcciones de ventas y escalas de comisión. Los manuales de los demás perfiles están en las solapas de arriba.</p>
+    <div class="meta">Octubre 2026 · Manual completo del perfil</div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+<section>
+  <h3>Cómo usar este manual</h3>
+  <p>Como Administrador ves <strong>todo el sistema</strong>. Este manual explica lo que es exclusivo de tu perfil. Todo lo demás (cargar una venta, asignar una moto, cobrar, patentar, aprobar, pagar comisiones) está en los manuales de los otros perfiles, que vos también podés leer: están en las solapas de arriba de esta pantalla.</p>
+  <ul class="toc">
+    <li><a href="#perfil"><b>1</b>Tu perfil</a></li>
+    <li><a href="#inicio"><b>2</b>Inicio</a></li>
+    <li><a href="#usuarios"><b>3</b>Usuarios</a></li>
+    <li><a href="#roles"><b>4</b>Roles y permisos</a></li>
+    <li><a href="#cajas"><b>5</b>Cuentas de caja</a></li>
+    <li><a href="#rendicion"><b>6</b>Rendiciones de efectivo</a></li>
+    <li><a href="#corregir"><b>7</b>Corregir una venta</a></li>
+    <li><a href="#escalas"><b>8</b>Escalas de comisión</a></li>
+    <li><a href="#auditoria"><b>9</b>Auditoría</a></li>
+    <li><a href="#lumi"><b>10</b>Lumi, el asistente</a></li>
+    <li><a href="#ayuda"><b>11</b>Si algo no sale</a></li>
+  </ul>
+</section>
+
+<section>
+  <h3>Dónde está cada tema</h3>
+  <div class="tablebox"><table>
+    <thead><tr><th>Si querés saber…</th><th>Mirá el manual de</th></tr></thead>
+    <tbody>
+      <tr><td>Cómo se carga una venta y cómo la sigue el vendedor; sus comisiones</td><td>Vendedor (Call Center usa las mismas pantallas)</td></tr>
+      <tr><td>Asignar o pedir una moto, registrar la llegada, patentamiento, ingresos, cobros, gastos, patentes y seguros</td><td>Administrativa</td></tr>
+      <tr><td>Aprobar ventas por debajo de lista, compras con costos, planes de crédito, detalle del BCRA, sugerido, acuerdo y pago de comisiones</td><td>Gerente</td></tr>
+      <tr><td>Usuarios, roles, cuentas de caja, rendiciones, corregir ventas, escalas de comisión</td><td>Este manual</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Cuando otro manual diga "no podés…" o "pedíselo a un Administrador", eso no corre para vos: sos quien lo puede hacer.</p>
+</section>
+
+<!-- ============ 1 ============ -->
+<div class="chapter" id="perfil">
+  <header><span>Capítulo 1</span><h2>Tu perfil</h2><p>Tenés todo lo que tiene el Gerente y, además, ocho cosas que el Gerente no puede hacer (dos las compartís con la Administrativa).</p></header>
+
+  <section>
+    <div class="tablebox"><table>
+      <thead><tr><th>Además podés…</th><th>Dónde</th><th>Capítulo</th></tr></thead>
+      <tbody>
+        <tr><td>Ver y operar todas las sucursales</td><td>En todo el sistema</td><td>1</td></tr>
+        <tr><td>Crear usuarios, cambiarles rol o sucursal, activarlos o desactivarlos</td><td>Configuración → Usuarios</td><td>3</td></tr>
+        <tr><td>Crear y modificar roles</td><td>Configuración → Roles y permisos</td><td>4</td></tr>
+        <tr><td>Crear y modificar cuentas de caja</td><td>Administración financiera → Cuentas de caja</td><td>5</td></tr>
+        <tr><td>Recibir efectivo y confirmar que lo recibiste</td><td>Ingresos y Seguimiento de cobros</td><td>6</td></tr>
+        <tr><td>Corregir una venta ya cargada (también la Administrativa)</td><td>Ventas → Operaciones moto → Operaciones → Editar</td><td>7</td></tr>
+        <tr><td>Definir las escalas de comisión y cómo comisiona cada gerente</td><td>Comisiones → Escalas, y Usuarios</td><td>8</td></tr>
+        <tr><td>Pedir una moto al proveedor y registrar su llegada (también la Administrativa)</td><td>Ventas → Operaciones moto → Operaciones, y Stock</td><td>Manual de Administrativa</td></tr>
+      </tbody>
+    </table></div>
+    <p class="warn">Lo único que <strong>no</strong> tenés es "Mis comisiones": es una pantalla sólo para vendedores.</p>
+  </section>
+
+  <section>
+    <h3>Ver todas las sucursales</h3>
+    <p>Los demás perfiles ven sólo su sucursal y tienen los selectores de sucursal fijos. Vos no:</p>
+    <ul>
+      <li>En las listas de <strong>Operaciones</strong> ves las ventas de todas las sucursales juntas.</li>
+      <li>En <strong>Seguimiento de cobros</strong>, <strong>Ingresos</strong>, <strong>Gastos</strong>, <strong>Compras</strong> y <strong>Stock</strong> el filtro de Sucursal te deja elegir "Todas" o una en particular.</li>
+      <li>Al cargar una venta, un ingreso o una moto, <strong>tenés que elegir la sucursal</strong>: no viene fija.</li>
+    </ul>
+    <p>Arriba, debajo del nombre de la pantalla, figura la organización y, si tu usuario tiene una sucursal asignada, esa sucursal. Aunque tengas una asignada, seguís viendo todas.</p>
+  </section>
+</div>
+
+<!-- ============ 2 ============ -->
+<div class="chapter" id="inicio">
+  <header><span>Capítulo 2</span><h2>Inicio</h2><p>Tu tablero muestra el negocio completo: todas las sucursales juntas.</p></header>
+
+  <section>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Inicio del Administrador</figcaption>
+      <div class="in">
+        <div class="eyebrow">LUMA MOTOS</div>
+        <div class="mtitle">Buen día, Lucas</div>
+        <div class="callout">Sábado, 3 de octubre · Vista consolidada de la organización</div>
+        <div class="note"><span class="eyebrow">Ventas del mes · todas las sucursales</span><br><strong style="font-size:22px">$ 96.500.000</strong><br>38 vendidas este mes, frente a 31 el mes anterior (+22%).</div>
+        <div class="fgrid">
+          <div class="f ro"><span>Clientes nuevos esta semana</span><div>24</div></div>
+          <div class="f ro"><span>Stock total</span><div>57</div></div>
+          <div class="f ro"><span>Cartera de créditos personales</span><div>$ 12.300.000<small style="display:block">$ 480.000 en mora</small></div></div>
+          <div class="f ro"><span>Compras pendientes de recibir</span><div>6</div></div>
+        </div>
+      </div>
+    </figure>
+    <div class="tablebox"><table>
+      <thead><tr><th>Lo que ves</th><th>Qué te dice</th></tr></thead>
+      <tbody>
+        <tr><td>Ventas del mes · todas las sucursales</td><td>El monto vendido en el mes, cuántas unidades y la comparación con el mes anterior.</td></tr>
+        <tr><td>Clientes nuevos esta semana</td><td>Clientes cargados en los últimos 7 días, en todas las sucursales.</td></tr>
+        <tr><td>Stock total</td><td>Motos y autos en stock, sumando todas las sucursales.</td></tr>
+        <tr><td>Cartera de créditos personales</td><td>Lo financiado con crédito de la casa y cuánto de eso está en mora.</td></tr>
+        <tr><td>Compras pendientes de recibir</td><td>Pedidos a proveedores que todavía no llegaron.</td></tr>
+        <tr><td>Ventas por sucursal</td><td>Unidades y monto del mes, sucursal por sucursal.</td></tr>
+        <tr><td>Modelos más vendidos</td><td>Los 5 modelos más vendidos del mes en toda la organización.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="warn">En tu Inicio no aparecen las ventas a aprobar ni el efectivo que te tienen que rendir. Las aprobaciones están en Ventas → Aprobaciones; las rendiciones, en Seguimiento de cobros (capítulo 6).</p>
+  </section>
+</div>
+
+<!-- ============ 3 ============ -->
+<div class="chapter" id="usuarios">
+  <header><span>Capítulo 3</span><h2>Usuarios</h2><p>Acá das de alta a cada persona que usa el sistema y decidís qué perfil y qué sucursal tiene.</p></header>
+
+  <section>
+    <h3>La lista de usuarios</h3>
+    <span class="where">Configuración → Usuarios</span>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Usuarios y permisos</figcaption>
+      <div class="in">
+        <div class="row" style="justify-content:space-between"><div class="row"><span class="b p">Usuarios</span><span class="b">Roles y permisos</span></div><span class="b p">Crear usuario</span></div>
+        <div class="scroll"><table>
+          <thead><tr><th>Usuario</th><th>Sucursal</th><th>Rol</th><th>Estado</th><th>Invitación</th><th>Último acceso</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Federico Fernández<small>federico@lumamotos.com.ar</small></td><td>San Miguel</td><td>Vendedor</td><td><span class="badge ok">Activo</span></td><td><span class="badge wa">Enviada</span></td><td>Nunca</td><td>✎ &nbsp; ✉ &nbsp; 👤</td></tr>
+            <tr><td>Carla Gómez<small>carla@lumamotos.com.ar</small></td><td>Del Viso</td><td>Administrativa</td><td><span class="badge ok">Activo</span></td><td><span class="badge ok">Aceptada</span></td><td>03/10/2026</td><td>✎ &nbsp; 👤</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <ul>
+      <li>El buscador (nombre o email) se aplica con <strong>Buscar</strong>. Los filtros de sucursal, rol, estado e invitación se aplican solos.</li>
+      <li>En cada fila: el lápiz (<strong>Editar usuario</strong>), el sobre (<strong>Reenviar invitación</strong>, sólo si todavía no la aceptó) y la persona (<strong>Desactivar usuario</strong> o <strong>Activar usuario</strong>).</li>
+    </ul>
+    <div class="tablebox"><table>
+      <thead><tr><th>Invitación</th><th>Qué significa</th><th>Qué hacer</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge wa">Pendiente</span></td><td>El envío quedó a medias.</td><td>Reenviar la invitación.</td></tr>
+        <tr><td><span class="badge wa">Enviada</span></td><td>El mail se envió y la persona todavía no eligió su contraseña.</td><td>Avisarle que revise el mail.</td></tr>
+        <tr><td><span class="badge re">Fallida</span></td><td>El mail no se pudo entregar.</td><td>Revisar que el correo esté bien escrito y reenviar.</td></tr>
+        <tr><td><span class="badge ok">Aceptada</span></td><td>Ya entró y eligió su contraseña.</td><td>Nada.</td></tr>
+        <tr><td><span class="badge re">Vencida</span></td><td>La contraseña temporal venció sin usarse.</td><td>Reenviar la invitación.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h3>Crear un usuario</h3>
+    <span class="where">Configuración → Usuarios → Crear usuario</span>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Crear usuario</figcaption>
+      <div class="in">
+        <div class="mtitle">Crear usuario</div>
+        <div class="fgrid">
+          <div class="f"><span>Nombre *</span><div>Federico</div></div>
+          <div class="f"><span>Apellido *</span><div>Fernández</div></div>
+          <div class="f"><span>Correo electrónico *</span><div>federico@lumamotos.com.ar</div></div>
+          <div class="f"><span>Teléfono</span><div></div></div>
+          <div class="f"><span>Código de empleado</span><div></div></div>
+          <div class="f"><span>Rol *</span><div>Vendedor · Rol base</div></div>
+          <div class="f"><span>Sucursal *</span><div>San Miguel</div></div>
+        </div>
+        <div class="row"><span class="b">Cancelar</span><span class="b p">Crear y enviar invitación</span></div>
+      </div>
+    </figure>
+    <ol class="steps">
+      <li><span>Tocá <strong>Crear usuario</strong>.</span></li>
+      <li><span>Completá <strong>Nombre</strong>, <strong>Apellido</strong> y <strong>Correo electrónico</strong>. El correo tiene que ser real: ahí le llega la contraseña.</span></li>
+      <li><span>Elegí el <strong>Rol</strong> (el perfil).</span></li>
+      <li><span>Elegí la <strong>Sucursal</strong>. Es obligatoria para Vendedor y Call Center; para los demás podés dejar "Sin sucursal asignada".</span></li>
+      <li><span>Tocá <strong>Crear y enviar invitación</strong>.</span></li>
+    </ol>
+    <p>Si ese correo ya estaba cargado y la persona nunca había entrado, no crea otro usuario: le manda una invitación nueva.</p>
+    <p>La persona recibe un mail con una contraseña temporal que vale 24 horas. Con eso entra y elige su contraseña propia. La contraseña temporal nunca se muestra en pantalla.</p>
+    <p class="warn">Nombre, apellido, correo, teléfono y código de empleado <strong>no se pueden corregir después</strong>: revisalos antes de guardar. Un vendedor aparece en la lista "Quién hizo la venta" apenas lo creás, aunque todavía no haya entrado nunca.</p>
+    <p class="warn">Hoy no se puede crear a una persona sin correo. Todo vendedor que tenga que figurar en una venta necesita un usuario con un mail propio.</p>
+  </section>
+
+  <section>
+    <h3>Cambiar el rol o la sucursal</h3>
+    <ol class="steps">
+      <li><span>En la fila del usuario tocá el lápiz (<strong>Editar usuario</strong>).</span></li>
+      <li><span>Cambiá <strong>Rol</strong> o <strong>Sucursal</strong>.</span></li>
+      <li><span>Tocá <strong>Guardar acceso</strong>.</span></li>
+    </ol>
+    <ul>
+      <li>Al cambiarle el acceso, a esa persona se le cierra la sesión y tiene que volver a entrar.</li>
+      <li>Al cambiar la sucursal, pasa a ver sólo la sucursal nueva.</li>
+      <li>No podés cambiar tu propio rol. Sí tu sucursal.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>Si alguien se olvidó la contraseña o no le llegó el mail</h3>
+    <ol class="steps">
+      <li><span>Entrá a <strong>Editar usuario</strong>.</span></li>
+      <li><span>Tocá <strong>Reenviar invitación</strong> y confirmá.</span></li>
+    </ol>
+    <p>Se le manda una contraseña temporal nueva, la anterior deja de servir y se le cierran las sesiones. Sirve también para alguien que ya había aceptado la invitación: es la forma de reiniciarle la contraseña. (La persona también puede hacerlo sola con "¿Olvidaste tu contraseña?" en la pantalla de ingreso.)</p>
+  </section>
+
+  <section>
+    <h3>Desactivar a alguien que ya no trabaja</h3>
+    <ol class="steps">
+      <li><span>En la fila tocá el ícono de persona (<strong>Desactivar usuario</strong>) y confirmá con <strong>Desactivar</strong>.</span></li>
+    </ol>
+    <ul>
+      <li>No puede entrar más y se le cierran las sesiones.</li>
+      <li>Deja de aparecer en las listas de vendedores, contactos y "Se rinde a".</li>
+      <li>Sus ventas anteriores quedan a su nombre.</li>
+      <li>Se puede volver a activar con el mismo botón.</li>
+    </ul>
+    <p class="warn">No se borra a un usuario: se desactiva. El sistema no deja que te desactives a vos mismo ni que la empresa quede sin ningún administrador activo.</p>
+  </section>
+
+  <section>
+    <h3>Acceso global</h3>
+    <p>Algunos administradores tienen además la casilla <strong>Acceso global (todas las organizaciones)</strong>. Sólo ellos pueden modificar los roles base, crear marcas y modelos nuevos en el catálogo, operar otras organizaciones y darle acceso global a otro Administrador. La casilla la ve quien ya lo tiene, o quien edita a un usuario que lo tiene.</p>
+  </section>
+</div>
+
+<!-- ============ 4 ============ -->
+<div class="chapter" id="roles">
+  <header><span>Capítulo 4</span><h2>Roles y permisos</h2><p>Un rol es un perfil: define qué pantallas ve y qué puede hacer cada usuario.</p></header>
+
+  <section>
+    <span class="where">Configuración → Roles y permisos</span>
+    <p>El sistema trae cinco <strong>roles base</strong>: Administrador, Gerente, Administrativa, Vendedor y Call Center. Figuran con la leyenda "Rol base". Además podés crear roles propios.</p>
+    <div class="tablebox"><table>
+      <thead><tr><th>Botón de la fila</th><th>Qué hace</th></tr></thead>
+      <tbody>
+        <tr><td>Ver detalle</td><td>Muestra los permisos del rol y los usuarios que lo tienen.</td></tr>
+        <tr><td>Editar rol</td><td>Cambia nombre, descripción y permisos. En los roles base sólo aparece si tenés acceso global.</td></tr>
+        <tr><td>Clonar rol</td><td>Crea un rol nuevo con los mismos permisos, para modificarlo después.</td></tr>
+        <tr><td>Desactivar rol / Activar rol</td><td>Deja de ofrecerlo al crear usuarios. Los roles base no se pueden desactivar.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h3>Crear un rol propio</h3>
+    <p>La forma más segura es partir de uno parecido.</p>
+    <ol class="steps">
+      <li><span>En la fila del rol más parecido tocá <strong>Clonar rol</strong>, poné el <strong>Nombre del nuevo rol</strong> y confirmá.</span></li>
+      <li><span>En el rol nuevo tocá <strong>Editar rol</strong>.</span></li>
+      <li><span>En <strong>Permisos</strong>, tildá o destildá lo que corresponda. Están agrupados por módulo (Ventas, Ingresos, Caja y bancos, etc.), cada grupo con los botones <strong>Todos</strong> y <strong>Ninguno</strong>. Hay un buscador.</span></li>
+      <li><span>Tocá <strong>Guardar rol</strong>.</span></li>
+      <li><span>Asignalo desde Usuarios → Editar usuario → Rol.</span></li>
+    </ol>
+    <p>También podés usar <strong>Crear rol</strong> y armarlo de cero, con Nombre y Descripción.</p>
+    <p class="warn">Tené en cuenta, antes de crear un rol propio:</p>
+    <ul>
+      <li>Un usuario con un rol propio <strong>no tiene tablero de Inicio</strong> (ve sólo un saludo), <strong>no tiene Manual de uso</strong> y <strong>no tiene a Lumi</strong>. Esas tres cosas están preparadas sólo para los cinco roles base.</li>
+      <li>Un rol clonado de Vendedor <strong>no figura en "Quién hizo la venta"</strong>: esa lista toma sólo a los roles base Vendedor y Call Center. Y la "Comisión de gerencia" aparece sólo para el rol base Gerente. Para vendedores y gerentes usá siempre los roles base.</li>
+      <li>Al cambiar los permisos de un rol, a todos los usuarios de ese rol se les cierra la sesión.</li>
+      <li>Un rol con usuarios asignados no se puede desactivar. Primero pasalos a otro rol.</li>
+      <li>La descripción admite hasta 240 caracteres; si es más larga dice "Revisá los datos ingresados".</li>
+      <li>No se borra un rol: se desactiva.</li>
+    </ul>
+  </section>
+</div>
+
+<!-- ============ 5 ============ -->
+<div class="chapter" id="cajas">
+  <header><span>Capítulo 5</span><h2>Cuentas de caja</h2><p>Son los lugares donde entra la plata: la caja de cada socio, la de cada sucursal y las cuentas bancarias. Sin ellas no se puede cobrar.</p></header>
+
+  <section>
+    <span class="where">Administración financiera → Cuentas de caja</span>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Cuentas de caja</figcaption>
+      <div class="in">
+        <div class="row" style="justify-content:space-between"><div class="mtitle">Cuentas de caja</div><span class="b p">Nueva cuenta</span></div>
+        <div class="warn" style="font-size:13px">Todavía no tienen una cuenta propia: Juan. Creales una para poder indicar que la plata entró a su caja o a su banco.</div>
+        <div class="scroll"><table>
+          <thead><tr><th>Cuenta</th><th>Tipo</th><th>Responsable</th><th>Sucursal</th><th>Saldo</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Caja Lucas</td><td>Caja de socio</td><td>Lucas</td><td>Compartida</td><td>$ 1.240.000</td><td><span class="badge ok">Activa</span></td><td><span class="b">Editar</span> <span class="b">Desactivar</span></td></tr>
+            <tr><td>Banco Galicia</td><td>Cuenta bancaria</td><td>Nicolás</td><td>Compartida</td><td>$ 3.800.000</td><td><span class="badge ok">Activa</span></td><td><span class="b">Editar</span> <span class="b">Desactivar</span></td></tr>
+            <tr><td>Caja San Miguel</td><td>Efectivo</td><td>Sin responsable</td><td>San Miguel</td><td>$ 95.000</td><td><span class="badge ok">Activa</span></td><td><span class="b">Editar</span> <span class="b">Desactivar</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <p>La casilla <strong>Mostrar también las inactivas y las históricas importadas</strong> suma a la lista las cuentas desactivadas y las que vinieron del Excel (figuran como "Histórica: …").</p>
+  </section>
+
+  <section>
+    <h3>Qué cuentas tiene que haber</h3>
+    <div class="tablebox"><table>
+      <thead><tr><th>Para…</th><th>Hace falta</th></tr></thead>
+      <tbody>
+        <tr><td>Cada persona que recibe efectivo (cada Administrador)</td><td>Una cuenta de tipo <strong>Caja de socio</strong> con esa persona como <strong>Responsable</strong> y Sucursal <strong>Compartida (todas las sucursales)</strong>. Es obligatoria: sin ella no se le puede rendir efectivo desde Ingresos.</td></tr>
+        <tr><td>Cada cuenta de banco donde entran transferencias</td><td>Una cuenta de tipo <strong>Cuenta bancaria</strong>, con su titular como Responsable.</td></tr>
+        <tr><td>El efectivo que queda en cada local</td><td>Una cuenta de tipo <strong>Efectivo</strong>, con esa <strong>Sucursal</strong>.</td></tr>
+        <tr><td>Tarjetas o financieras, si se quieren separar</td><td>Cuentas de tipo <strong>Procesadora de tarjetas</strong> o <strong>Financiera</strong>.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="warn">Si a alguien le falta su caja, a la administrativa le sale "… todavía no tiene una caja para esta sucursal" y no puede cobrar en Ingresos. Tres cosas a tener en cuenta:</p>
+    <ul>
+      <li>Si la Caja de socio es de una sola sucursal, sirve sólo para los cobros de esa sucursal. Por eso conviene crearla "Compartida", o una por sucursal.</li>
+      <li>Una cuenta bancaria no alcanza: para el efectivo tiene que ser Caja de socio o Efectivo.</li>
+      <li>El aviso de arriba ("Todavía no tienen una cuenta propia: …") aparece sólo cuando la persona no tiene ninguna cuenta. Si tiene sólo una bancaria, el aviso no sale pero igual no puede recibir efectivo.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>Crear una cuenta</h3>
+    <ol class="steps">
+      <li><span>Tocá <strong>Nueva cuenta</strong>.</span></li>
+      <li><span>Poné el <strong>Nombre</strong> (por ejemplo "Caja Lucas" o "Banco Galicia Nicolás").</span></li>
+      <li><span>Elegí el <strong>Tipo</strong>: Efectivo, Cuenta bancaria, Caja de socio (viene elegido), Procesadora de tarjetas, Financiera u Otra.</span></li>
+      <li><span>Elegí el <strong>Responsable</strong>: a quién le entra la plata de esa cuenta.</span></li>
+      <li><span>En <strong>Sucursal</strong> elegí una, o "Compartida (todas las sucursales)" si la cuenta sirve para todos los locales.</span></li>
+      <li><span>Dejá tildada <strong>Cuenta activa</strong> y tocá <strong>Guardar cuenta</strong>.</span></li>
+    </ol>
+    <ul>
+      <li>La cuenta arranca con saldo cero. El saldo se mueve solo con cada cobro y cada pago.</li>
+      <li><strong>Desactivar</strong> y <strong>Reactivar</strong> actúan al instante, sin preguntar. Una cuenta desactivada deja de ofrecerse al cobrar o pagar.</li>
+      <li>No se borra una cuenta: se desactiva.</li>
+      <li>El sistema no impide crear dos cuentas con el mismo nombre. Antes de crear una, tildá "Mostrar también las inactivas…" y fijate que no exista; si está inactiva, reactivala.</li>
+    </ul>
+    <p class="warn">Todavía no hay pantalla para pasar plata de una cuenta a otra ni para ver el detalle de movimientos de una cuenta. Hoy se ve sólo el saldo.</p>
+  </section>
+</div>
+
+<!-- ============ 6 ============ -->
+<div class="chapter" id="rendicion">
+  <header><span>Capítulo 6</span><h2>Rendiciones de efectivo</h2><p>Cada vez que alguien cobra en efectivo indica a quién se lo entrega. Si te lo entregan a vos, tenés que confirmar que lo recibiste.</p></header>
+
+  <section>
+    <h3>Cómo funciona</h3>
+    <div class="flow">
+      <div><strong>Alguien cobra en efectivo</strong><small>La administrativa carga el cobro y elige tu nombre en "Se rinde a".</small></div>
+      <div><strong>Queda pendiente</strong><small>El cobro figura como "Pendiente de rendición: rinde a (vos)".</small></div>
+      <div><strong>Te entregan la plata</strong><small>Contala contra lo que dice el sistema.</small></div>
+      <div><strong>Confirmás</strong><small>Tocás "Confirmar recepción". Pasa a "Rendido".</small></div>
+    </div>
+    <ul>
+      <li>En "Se rinde a" aparecen los usuarios activos con perfil Administrador (y los de cualquier rol propio al que le des el permiso de recibir rendiciones).</li>
+      <li>Sólo vos podés confirmar lo que te rinden a vos. Otro administrador no puede confirmarlo por vos.</li>
+      <li>Si el cobro lo cargás vos mismo y te elegís en "Se rinde a", queda "Rendido" directamente.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>Confirmar que recibiste el efectivo</h3>
+    <span class="where">Ventas → Operaciones moto → Operaciones → solapa Seguimiento de cobros</span>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Seguimiento de cobros</figcaption>
+      <div class="in">
+        <div class="note" style="font-size:13px">Tenés <strong>2</strong> rendiciones de efectivo por confirmar ($ 650.000).</div>
+        <div class="callout">☑ Con efectivo sin rendir &nbsp; <span class="b">Buscar</span></div>
+        <div class="scroll"><table>
+          <thead><tr><th>Fecha</th><th>Concepto</th><th>Medio</th><th>Importe</th><th>Recibió</th><th>Rinde a</th><th>Rendición</th></tr></thead>
+          <tbody>
+            <tr><td>03/10/2026</td><td>Cobro efectivo · operación #1053</td><td>Efectivo</td><td>$ 500.000</td><td>Carla</td><td>Lucas</td><td><span class="badge wa">Pendiente de rendición</span><br><span class="b p">Confirmar recepción</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </figure>
+    <ol class="steps">
+      <li><span>Entrá a <strong>Seguimiento de cobros</strong>. Si tenés algo pendiente, arriba dice "Tenés N rendiciones de efectivo por confirmar" con el total.</span></li>
+      <li><span>Tildá <strong>Con efectivo sin rendir</strong> y tocá <strong>Buscar</strong>.</span></li>
+      <li><span>En la venta, tocá <strong>Ingresos (n)</strong> para ver cada cobro.</span></li>
+      <li><span>Cuando tengas la plata en la mano, tocá <strong>Confirmar recepción</strong>.</span></li>
+    </ol>
+    <p>Los cobros que no son de una venta (una seña, un seguro) se confirman en <strong>Administración financiera → Ingresos de motos</strong>: en la fila figura "Pendiente de rendición: rinde a …" y el mismo botón.</p>
+    <p>El número del aviso cuenta <strong>todo</strong> lo que te tienen que rendir: motos, autos y cobros sueltos. Si en la lista ves menos, revisá también Operaciones auto → Seguimiento de cobros y las pantallas de Ingresos. El filtro trae ventas con efectivo sin rendir a cualquier persona; el botón Confirmar recepción aparece sólo en lo tuyo.</p>
+    <p class="warn"><strong>Confirmar no se puede deshacer</strong> y no pide confirmación: tocá el botón sólo con la plata contada. Confirmar no mueve plata: sólo deja registrado que la recibiste. El aviso de rendiciones pendientes aparece sólo en Seguimiento de cobros, no en Inicio.</p>
+  </section>
+</div>
+
+<!-- ============ 7 ============ -->
+<div class="chapter" id="corregir">
+  <header><span>Capítulo 7</span><h2>Corregir una venta</h2><p>Si una venta se cargó con un dato mal, se corrige desde la lista de Operaciones. Lo pueden hacer el Administrador y la Administrativa.</p></header>
+
+  <section>
+    <span class="where">Ventas → Operaciones moto → Operaciones → botón Editar</span>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Editar venta</figcaption>
+      <div class="in">
+        <div class="eyebrow">Editar venta</div>
+        <div class="mtitle">Operación #1053 · Aprobada</div>
+        <div class="fgrid">
+          <div class="f"><span>Fecha de operación *</span><div>01/10/2026</div></div>
+          <div class="f"><span>Número de boleto</span><div>SM-0421</div></div>
+          <div class="f wide"><span>Cliente *</span><div>Actual: Pérez, Ana</div></div>
+          <div class="f"><span>Vendedor *</span><div>Federico Fernández</div></div>
+          <div class="f"><span>Contacto</span><div>Sin contacto asignado</div></div>
+          <div class="f"><span>Precio de cierre *</span><div>2500000</div></div>
+          <div class="f"><span>Forma de pago</span><div>Efectivo</div></div>
+          <div class="f"><span>Debe</span><div>No</div></div>
+          <div class="f"><span>Entrega</span><div>No programada</div></div>
+        </div>
+        <div class="row"><span class="b">Cancelar</span><span class="b p">Guardar cambios</span></div>
+      </div>
+    </figure>
+    <ol class="steps">
+      <li><span>Buscá la venta en <strong>Operaciones</strong> (no en "Mis operaciones") y tocá <strong>Editar</strong>. Está en todas las filas, en cualquier estado.</span></li>
+      <li><span>Cambiá lo que haga falta.</span></li>
+      <li><span>Tocá <strong>Guardar cambios</strong>.</span></li>
+    </ol>
+    <div class="tablebox"><table>
+      <thead><tr><th>Se puede corregir</th><th>No se corrige acá</th></tr></thead>
+      <tbody>
+        <tr><td>Fecha de operación y número de boleto</td><td>El estado de la venta (no cambia ni vuelve a pedir aprobación)</td></tr>
+        <tr><td>Cliente (buscándolo por nombre o documento)</td><td>La moto y la reserva: se manejan desde la columna Unidad</td></tr>
+        <tr><td>Vendedor y contacto</td><td>La patente: se maneja desde la columna Patentamiento</td></tr>
+        <tr><td>Precio de cierre y forma de pago</td><td>La sucursal</td></tr>
+        <tr><td>Monto del crédito, financiera y garante</td><td>La moto tomada en parte de pago (ni agregarla ni quitarla)</td></tr>
+        <tr><td>Debe, Entrega, Papeles entregados, Casco de regalo y Observaciones</td><td>Un crédito de la casa que ya tiene cuotas generadas</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>En <strong>Entrega</strong> podés marcar: No programada, Programada, Lista para entregar, Entregada o Cancelada. Es el único lugar donde se registra la entrega de la moto.</li>
+      <li>Si cambiás el <strong>precio</strong> o la <strong>forma de pago</strong>, el plan de pago se rearma solo: el crédito, la toma y el resto como efectivo. Los cobros ya cargados quedan en la venta.</li>
+      <li>Si cambiás la fecha, se recalcula la fecha estimada de la patente.</li>
+      <li>No pide motivo. El cambio queda registrado con los valores anteriores.</li>
+    </ul>
+    <p class="warn">Cambiar el vendedor de una venta cambia a quién se le asigna, y con eso a quién le cuenta para la comisión. Bajar el precio por debajo de lista acá <strong>no</strong> manda la venta a aprobación.</p>
+  </section>
+</div>
+
+<!-- ============ 8 ============ -->
+<div class="chapter" id="escalas">
+  <header><span>Capítulo 8</span><h2>Escalas de comisión</h2><p>Vos definís cuánto cobra un vendedor según cuántas ventas hizo en el mes. El sugerido, el acuerdo y el pago están en el manual del Gerente.</p></header>
+
+  <section>
+    <h3>Cómo se calcula una comisión</h3>
+    <p>Es un <strong>monto fijo por mes</strong> según el tramo que alcanzó el vendedor. No es un importe por cada moto. Motos y autos tienen escalas separadas, y los gerentes tienen las suyas.</p>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Una escala vigente</figcaption>
+      <div class="in">
+        <div class="row"><strong>Vigente desde 01/10/2026</strong> <span class="mini">sin fecha de fin</span> <span class="badge">Vendedores</span> <span class="badge ok">Activa</span></div>
+        <div class="fgrid">
+          <div class="f ro"><span>1 a 5 ventas</span><div>$ 35.000<small style="display:block">total del período</small></div></div>
+          <div class="f ro"><span>6 a 10 ventas</span><div>$ 40.000<small style="display:block">total del período</small></div></div>
+          <div class="f ro"><span>11 a 15 ventas</span><div>$ 45.000<small style="display:block">total del período</small></div></div>
+          <div class="f ro"><span>16 o más ventas</span><div>$ 50.000<small style="display:block">total del período</small></div></div>
+        </div>
+      </div>
+    </figure>
+    <p>Con esa escala, un vendedor que hizo 13 ventas cobra $ 45.000 en total por el mes.</p>
+  </section>
+
+  <section>
+    <h3>Cambiar la escala</h3>
+    <span class="where">Comisiones → Escalas</span>
+    <p>Arriba elegí <strong>Motos</strong> o <strong>Autos</strong>, y <strong>Vendedores</strong> o <strong>Gerencia</strong>. Una escala existente no se edita: se crea una <strong>nueva vigencia</strong> que la reemplaza desde una fecha.</p>
+    <ol class="steps">
+      <li><span>En <strong>Crear escala</strong>, poné <strong>Vigente desde</strong> (la fecha desde la que vale). <strong>Vigente hasta</strong> es opcional.</span></li>
+      <li><span>En el primer <strong>Tramo</strong> completá <strong>Mínimo</strong> (1) y <strong>Monto fijo total</strong>. El Máximo está bloqueado mientras sea el último.</span></li>
+      <li><span>Tocá <strong>Agregar tramo</strong>: recién ahí se habilita el <strong>Máximo</strong> del tramo anterior. Completalo, y en el tramo nuevo poné como Mínimo ese máximo más uno.</span></li>
+      <li><span>Repetí hasta el último tramo, que siempre queda sin máximo ("Sin límite").</span></li>
+      <li><span>Tocá <strong>Guardar nueva vigencia</strong>.</span></li>
+    </ol>
+    <ul>
+      <li>La escala tiene que empezar en 1 y los tramos tienen que ser seguidos, sin huecos ni superposiciones (1 a 5, 6 a 10, 11 a 15…).</li>
+      <li>La escala anterior se cierra sola el día antes de que empiece la nueva.</li>
+      <li>Las comisiones ya pagadas conservan la escala y el monto que tenían.</li>
+      <li>Si no hay escala para un tipo de vehículo, el sistema no sugiere montos y al vendedor le dice "Escalas no configuradas".</li>
+    </ul>
+    <p class="warn">Una escala guardada no se puede editar ni borrar desde la pantalla. Si te equivocaste, creá otra vigencia con la misma fecha de inicio: reemplaza a la anterior.</p>
+  </section>
+
+  <section>
+    <h3>Cómo comisiona un gerente</h3>
+    <span class="where">Configuración → Usuarios → Editar usuario (de un Gerente)</span>
+    <p>Al editar a un usuario con rol Gerente aparece el bloque <strong>Comisión de gerencia</strong>.</p>
+    <ol class="steps">
+      <li><span>Elegí la <strong>Modalidad de cálculo</strong>: "Porcentaje sobre el precio de cierre" (y cargá el <strong>Porcentaje</strong>) o "Escala por cantidad de unidades" (y elegí la <strong>Política de escala</strong> de gerencia).</span></li>
+      <li><span>Elegí el <strong>Alcance</strong>: "Solo su sucursal" o "Todas las sucursales de la organización".</span></li>
+      <li><span>Dejá tildada <strong>Configuración activa</strong> y tocá <strong>Guardar comisión de gerencia</strong>.</span></li>
+    </ol>
+    <p>Si recién le pusiste el rol Gerente, guardá primero el acceso y después configurá la comisión. Para usar la modalidad por escala tiene que existir una escala de Gerencia (Comisiones → Escalas → Gerencia).</p>
+    <p class="warn">Cada gerente tiene <strong>una sola escala elegida</strong>, que se usa tanto para motos como para autos. Si creás una vigencia nueva de Gerencia, <strong>no se le aplica sola</strong>: entrá a cada Gerente, elegí la escala nueva en "Política de escala" y tocá Guardar comisión de gerencia. (En las escalas de Vendedores sí se aplica sola.)</p>
+  </section>
+</div>
+
+<!-- ============ 9 ============ -->
+<div class="chapter" id="auditoria">
+  <header><span>Capítulo 9</span><h2>Auditoría</h2><p>El sistema guarda quién hizo cada cambio, pero la pantalla para consultarlo todavía no está.</p></header>
+  <section>
+    <span class="where">Configuración → Auditoría</span>
+    <p>Hoy la pantalla dice "Módulo pendiente de integración". Los cambios (altas, cobros, correcciones de ventas, rendiciones, cambios de usuarios y roles) sí quedan registrados; si necesitás saber quién hizo algo, pedíselo a soporte.</p>
+  </section>
+</div>
+
+<!-- ============ 10 ============ -->
+<div class="chapter" id="lumi">
+  <header><span>Capítulo 10</span><h2>Lumi, el asistente</h2><p>Lumi responde preguntas sobre cómo usar el sistema y consulta datos por vos. Está en todas las pantallas.</p></header>
+  <section>
+    <ol class="steps">
+      <li><span>Tocá el botón <strong>Preguntale a Lumi</strong>, abajo a la derecha.</span></li>
+      <li><span>Escribí la pregunta con tus palabras, o tocá una de las sugeridas.</span></li>
+    </ol>
+    <div class="tablebox"><table>
+      <thead><tr><th>Le podés preguntar</th><th>Ejemplo</th></tr></thead>
+      <tbody>
+        <tr><td>Cómo se hace algo, de cualquier perfil</td><td>"¿Cómo creo un usuario?", "¿Cómo carga una venta el vendedor?", "¿Cómo se cobra una patente?"</td></tr>
+        <tr><td>Datos del momento</td><td>"¿Qué pagos de patentes están pendientes?", "¿Cómo viene la venta de Pérez?", "¿Hay stock de Wave 110?"</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>A vos te responde con los manuales de <strong>todos los perfiles</strong>, incluido este.</li>
+      <li>Consulta clientes, clientes en rojo, operaciones, seguimiento de cobros, pagos de patentes y seguros, y stock. Muestra hasta 8 resultados y no da totales, costos ni comisiones.</li>
+      <li>Sólo consulta: nunca modifica nada.</li>
+      <li>Si no encuentra la respuesta dice "No encuentro eso en el manual". No inventa.</li>
+      <li>Admite hasta 15 preguntas por minuto.</li>
+    </ul>
+    <p class="warn">Los demás usuarios tienen a Lumi con el manual de su propio perfil. Un usuario con un rol creado por vos (no base) no tiene a Lumi.</p>
+  </section>
+</div>
+
+<!-- ============ 11 ============ -->
+<div class="chapter" id="ayuda">
+  <header><span>Capítulo 11</span><h2>Si algo no sale</h2><p>Los mensajes más comunes de las pantallas de administrador, y lo que hoy el sistema todavía no hace.</p></header>
+  <section>
+    <div class="tablebox"><table>
+      <thead><tr><th>Qué ves</th><th>Qué hacer</th></tr></thead>
+      <tbody>
+        <tr><td>"El usuario fue procesado, pero no se pudo entregar la invitación…"</td><td>El usuario quedó creado. Revisá el correo y usá Reenviar invitación.</td></tr>
+        <tr><td>"La acción entra en conflicto con el estado actual." (al crear un usuario)</td><td>Ese correo ya lo tiene otro usuario. Buscalo en la lista.</td></tr>
+        <tr><td>"La acción dejaría a la organización sin un administrador activo."</td><td>No se puede desactivar, cambiar de rol ni reenviarle la invitación al último Administrador activo.</td></tr>
+        <tr><td>"No podés quitarte tu propio acceso administrativo."</td><td>Ese cambio te lo tiene que hacer otro Administrador.</td></tr>
+        <tr><td>"El usuario no tiene un legajo de personal asociado…"</td><td>Es un usuario antiguo mal cargado. Avisá a soporte.</td></tr>
+        <tr><td>"No se puede desactivar el rol mientras tenga usuarios activos asignados."</td><td>Pasá esos usuarios a otro rol y probá de nuevo.</td></tr>
+        <tr><td>"Este rol no se puede editar"</td><td>Es un rol base y tu usuario no tiene acceso global. Cloná el rol y editá la copia.</td></tr>
+        <tr><td>"Ya existe una cuenta con ese nombre."</td><td>Cerrá, actualizá la lista y probá de nuevo con otro nombre.</td></tr>
+        <tr><td>"… todavía no tiene una caja para esta sucursal" (le sale a la administrativa)</td><td>Creale a esa persona una cuenta Caja de socio (capítulo 5).</td></tr>
+        <tr><td>"Sólo quien recibe la rendición puede confirmarla."</td><td>Ese efectivo se le rinde a otra persona. Lo confirma ella.</td></tr>
+        <tr><td>"La venta tiene un crédito propio con cuotas generadas…"</td><td>El crédito de la casa no se corrige desde Editar. El resto de los datos sí.</td></tr>
+        <tr><td>"Otra persona modificó esta venta…"</td><td>Cerrá, actualizá la lista y volvé a intentar.</td></tr>
+        <tr><td>"La vigencia se superpone con otra política."</td><td>Hay una escala que empieza después de la fecha que pusiste. Usá una fecha posterior.</td></tr>
+        <tr><td>"Hay un hueco o solapamiento entre los tramos…"</td><td>Cada tramo tiene que empezar donde termina el anterior más uno.</td></tr>
+        <tr><td>"Lumi todavía no está habilitado."</td><td>Falta configurarlo en el servidor. Avisá a soporte.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <section>
+    <h3>Lo que el sistema todavía no hace</h3>
+    <p>Para que no busques un botón que no existe, con ningún perfil:</p>
+    <ul>
+      <li>Cerrar o cancelar una venta después de salir de la pantalla de alta, y cerrar una venta de moto 0 km.</li>
+      <li>Pasar plata de una cuenta de caja a otra y ver los movimientos de una cuenta.</li>
+      <li>Trasladar una moto de una sucursal a otra.</li>
+      <li>Crear o editar proveedores de motos y financieras.</li>
+      <li>Consultar la auditoría en pantalla.</li>
+      <li>Editar el nombre o el correo de un usuario, o crear una persona sin correo.</li>
+      <li>Deshacer una rendición confirmada.</li>
+      <li>Cambiar la contraseña estando adentro (se hace con "¿Olvidaste tu contraseña?").</li>
+    </ul>
+    <p>Si alguna de estas hace falta, avisá a soporte.</p>
+  </section>
+</div>
+
+<footer>Luma Motos · Manual de uso para el perfil Administrador · Octubre 2026 · Las pantallas de ejemplo usan datos inventados.</footer>
+</div>
+</main>
+</body>
+</html>
