@@ -120,7 +120,7 @@ describe('Lumi, asistente virtual', () => {
   })
 
   it('no aparece para un perfil sin manual', () => {
-    mocks.role = { code: 'GERENTE', name: 'Gerente' }
+    mocks.role = { code: 'SOPORTE', name: 'Soporte' }
     const { container } = render(<ManualAssistant />)
 
     expect(container).toBeEmptyDOMElement()

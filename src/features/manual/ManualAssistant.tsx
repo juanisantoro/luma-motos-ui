@@ -27,18 +27,28 @@ export function hasAssistant(roleCode: string | undefined) {
 const SUGGESTIONS: Record<string, string[]> = {
   ADMINISTRATIVA: [
     '¿Cómo cargo la patente cuando llega?',
-    '¿Cómo registro el cobro de una venta?',
+    '¿Qué patentes están demoradas?',
     '¿Cómo cargo un gasto?',
   ],
   VENDEDOR: [
     '¿Cómo cargo una venta nueva?',
-    '¿Qué significa cada estado de mis ventas?',
+    '¿Cómo vienen mis últimas ventas?',
     '¿Cómo se calculan mis comisiones?',
+  ],
+  CALLCENTER: [
+    '¿Cómo cargo una venta nueva?',
+    '¿Cómo vienen mis últimas ventas?',
+    '¿Cómo se calculan mis comisiones?',
+  ],
+  GERENTE: [
+    '¿Cómo apruebo una venta por debajo de lista?',
+    '¿Qué patentes están demoradas?',
+    '¿Cómo registro el acuerdo de una comisión?',
   ],
   ADMINISTRADOR: [
     '¿Cómo carga una venta el vendedor?',
     '¿Cómo se le asigna una moto a una venta?',
-    '¿Dónde se registra el pago de una patente?',
+    '¿Qué pagos de patentes están pendientes?',
   ],
 }
 
@@ -186,8 +196,8 @@ export function ManualAssistant() {
           <div aria-live="polite" className="lumi__body" ref={bodyRef}>
             <p className="lumi__bubble lumi__bubble--assistant">
               {firstName ? `Hola ${firstName}, soy Lumi.` : 'Hola, soy Lumi.'}{' '}
-              Preguntame cómo hacer algo en el sistema y te lo explico paso a
-              paso.
+              Preguntame cómo hacer algo o por una venta, una patente o el
+              stock.
             </p>
 
             {messages.length === 0 && suggestions.length > 0 && (
@@ -247,7 +257,7 @@ export function ManualAssistant() {
             </button>
           </form>
           <p className="lumi__note">
-            Respondo con el manual de uso. No veo tus datos.
+            Respondo con el manual y con lo que vos podés ver en el sistema.
           </p>
         </section>
       )}

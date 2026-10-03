@@ -6,6 +6,10 @@ const manualLoaders: Record<string, () => Promise<string>> = {
     import('./content/administrativa.html?raw').then((module) => module.default),
   VENDEDOR: () =>
     import('./content/vendedor.html?raw').then((module) => module.default),
+  CALLCENTER: () =>
+    import('./content/callcenter.html?raw').then((module) => module.default),
+  GERENTE: () =>
+    import('./content/gerente.html?raw').then((module) => module.default),
 }
 
 export function hasManual(roleCode: string | undefined) {

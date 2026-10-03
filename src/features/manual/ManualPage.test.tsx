@@ -39,14 +39,34 @@ describe('Manual de uso por perfil', () => {
     expect(html).not.toContain('Manual de la Administrativa')
   })
 
-  it('avisa cuando el perfil todavía no tiene manual', () => {
+  it('al gerente y al call center les muestra su propio manual', async () => {
     mocks.role = { code: 'GERENTE', name: 'Gerente' }
+    const { unmount } = render(<ManualPage />)
+
+    const manager = await screen.findByTitle('Manual de uso · Gerente')
+    const managerHtml = manager.getAttribute('srcdoc') ?? ''
+    expect(managerHtml).toContain('Manual del Gerente')
+    expect(managerHtml).toContain('Aprobaciones')
+    expect(managerHtml).not.toContain('<script')
+    unmount()
+
+    mocks.role = { code: 'CALLCENTER', name: 'Call Center' }
+    render(<ManualPage />)
+
+    const callCenter = await screen.findByTitle('Manual de uso · Call Center')
+    const callCenterHtml = callCenter.getAttribute('srcdoc') ?? ''
+    expect(callCenterHtml).toContain('Manual de Call Center')
+    expect(callCenterHtml).not.toContain('Manual del Vendedor')
+  })
+
+  it('avisa cuando el perfil todavía no tiene manual', () => {
+    mocks.role = { code: 'ADMINISTRADOR', name: 'Administrador' }
     render(<ManualPage />)
 
     expect(
       screen.getByText('Todavía no hay un manual para tu perfil'),
     ).toBeInTheDocument()
-    expect(screen.getByText(/perfil Gerente/)).toBeInTheDocument()
+    expect(screen.getByText(/perfil Administrador/)).toBeInTheDocument()
     expect(screen.queryByTitle(/Manual de uso/)).not.toBeInTheDocument()
   })
 })
