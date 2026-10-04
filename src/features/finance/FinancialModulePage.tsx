@@ -1,6 +1,7 @@
 import {
   ChevronLeft,
   ChevronRight,
+  HandCoins,
   Plus,
   RefreshCw,
   WalletCards,
@@ -14,6 +15,7 @@ import { alertError, alertSuccess } from '../../shared/alerts'
 import {
   confirmCashHandover,
   listHandoverRecipients,
+  type HandoverRecipient,
 } from '../sales/tracking'
 import { listFinancialRecords } from './api'
 import { FinancialDetailsModal } from './components/FinancialDetailsModal'
@@ -94,21 +96,36 @@ export function FinancialModulePage({
   // Ingresos: quien recibe rendiciones confirma el efectivo desde la lista.
   const canConfirmHandover =
     kind === 'income' && hasPermission(permissions, 'caja.recibir_rendicion')
-  const [currentRecipientId, setCurrentRecipientId] = useState<string | null>(
-    null,
-  )
+  const [currentRecipient, setCurrentRecipient] =
+    useState<HandoverRecipient | null>(null)
+  const currentRecipientId = currentRecipient?.id ?? null
+  // Se vuelve a pedir tras cada cambio para que el aviso de pendientes baje.
   useEffect(() => {
     if (!canConfirmHandover) return
     const controller = new AbortController()
     listHandoverRecipients(controller.signal)
       .then((items) =>
-        setCurrentRecipientId(
-          items.find((item) => item.isCurrentUser)?.id ?? null,
-        ),
+        setCurrentRecipient(items.find((item) => item.isCurrentUser) ?? null),
       )
       .catch(() => undefined)
     return () => controller.abort()
-  }, [canConfirmHandover])
+  }, [canConfirmHandover, refreshKey])
+  const pendingHandovers = currentRecipient?.pendingCount ?? 0
+  const onlyMyHandovers =
+    Boolean(currentRecipientId) &&
+    query.handoverStatus === 'PENDIENTE_RENDICION' &&
+    query.handoverToId === currentRecipientId
+  const toggleMyHandovers = () =>
+    setQuery((current) => {
+      const next: FinancialListQuery = { ...current, page: 1 }
+      delete next.handoverStatus
+      delete next.handoverToId
+      if (!onlyMyHandovers && currentRecipientId) {
+        next.handoverStatus = 'PENDIENTE_RENDICION'
+        next.handoverToId = currentRecipientId
+      }
+      return next
+    })
 
   const confirmHandover = async (income: Income) => {
     try {
@@ -205,6 +222,31 @@ export function FinancialModulePage({
           })
         }
       />
+
+      {canConfirmHandover && (pendingHandovers > 0 || onlyMyHandovers) && (
+        <div className="handover-banner" role="status">
+          <HandCoins aria-hidden="true" size={20} />
+          <div>
+            <strong>
+              {pendingHandovers > 0
+                ? `Tenés ${pendingHandovers} ${pendingHandovers === 1 ? 'cobro en efectivo' : 'cobros en efectivo'} para confirmar`
+                : 'No te queda efectivo por confirmar'}
+            </strong>
+            <span>
+              {pendingHandovers > 0
+                ? `Son ${formatMoney(currentRecipient?.pendingAmount ?? '0')} que te rindieron. Cuando tengas la plata en mano, tocá Confirmar recepción en cada ingreso.`
+                : 'Ya confirmaste todo lo que te rindieron.'}
+            </span>
+          </div>
+          <button
+            className="button button--secondary button--compact"
+            type="button"
+            onClick={toggleMyHandovers}
+          >
+            {onlyMyHandovers ? 'Ver todos los ingresos' : 'Ver los que tengo que confirmar'}
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div className="form-alert financial-notice" role="status">

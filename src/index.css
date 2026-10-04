@@ -6981,3 +6981,53 @@ a {
     transition: none;
   }
 }
+
+/* Ingresos: rendición del efectivo visible para quien carga y quien confirma. */
+.financial-status-stack {
+  display: inline-grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.financial-handover-badge {
+  cursor: help;
+}
+
+.handover-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #f2d999;
+  border-radius: 9px;
+  color: #6b4500;
+  background: #fff8e6;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.handover-banner > svg {
+  flex: none;
+}
+
+.handover-banner > div {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.handover-banner .button {
+  flex: none;
+}
+
+@media (max-width: 768px) {
+  .handover-banner {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .handover-banner .button {
+    width: 100%;
+  }
+}

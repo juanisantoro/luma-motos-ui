@@ -174,6 +174,9 @@ export type FinancialListQuery = {
   recoverable?: boolean
   recovered?: boolean
   vehicleType?: FinancialVehicleType
+  // Ingresos: rendición del efectivo (estado y a quién se rinde).
+  handoverStatus?: 'PENDIENTE_RENDICION' | 'RENDIDO'
+  handoverToId?: string
 }
 
 export type CreatePurchaseInput = {

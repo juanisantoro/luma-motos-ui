@@ -8,6 +8,7 @@ import {
 } from '../format'
 import { cashAccountLabel } from '../cashAccounts'
 import {
+  handoverStatusClass,
   handoverStatusLabels,
   paymentMethodLabels,
 } from '../../sales/tracking'
@@ -82,7 +83,10 @@ function recordAmount(
 
 // Ingreso: dónde entró la plata, por qué medio, quién la recibió y a quién
 // se rinde el efectivo.
-export function incomeCollectionLines(income: Income) {
+export function incomeCollectionLines(
+  income: Income,
+  currentRecipientId?: string | null,
+) {
   const lines: string[] = []
   lines.push(
     income.account ? cashAccountLabel(income.account) : 'Sin cobro registrado',
@@ -97,18 +101,50 @@ export function incomeCollectionLines(income: Income) {
         .filter(Boolean)
         .join(' · '),
     )
-  if (income.handover)
-    lines.push(
-      income.handover.status === 'RENDIDO'
-        ? `Rendido a ${income.handover.recipient?.fullName ?? '—'}`
-        : `${handoverStatusLabels.PENDIENTE_RENDICION}: rinde a ${income.handover.recipient?.fullName ?? '—'}`,
-    )
+  if (income.handover) lines.push(handoverLine(income, currentRecipientId))
   return lines
 }
 
-function settlementMeta(kind: FinancialKind, record: FinancialRecord) {
+// Rendición en palabras de quien mira: al que recibe le dice que le toca
+// confirmar; al resto, quién tiene que confirmar.
+function handoverLine(income: Income, currentRecipientId?: string | null) {
+  const handover = income.handover
+  const recipient = handover?.recipient?.fullName ?? '—'
+  if (handover?.status === 'RENDIDO')
+    return `${recipient} confirmó que recibió el efectivo`
+  return currentRecipientId && handover?.recipient?.id === currentRecipientId
+    ? 'Te lo rinden a vos: confirmá cuando recibas el efectivo'
+    : `Falta que ${recipient} confirme que recibió el efectivo`
+}
+
+// Segunda etiqueta del ingreso en efectivo: cobrado no es lo mismo que
+// rendido, así que el estado de la rendición se muestra aparte.
+function HandoverBadge({ income }: { income: Income }) {
+  if (!income.handover) return null
+  const recipient = income.handover.recipient?.fullName ?? 'quien recibe'
+  return (
+    <span
+      className={`status-badge ${handoverStatusClass(income.handover.status)} financial-handover-badge`}
+      title={
+        income.handover.status === 'RENDIDO'
+          ? `${recipient} confirmó la recepción del efectivo`
+          : `Lo confirma ${recipient} con su usuario, desde Ingresos`
+      }
+    >
+      {handoverStatusLabels[income.handover.status]}
+    </span>
+  )
+}
+
+function settlementMeta(
+  kind: FinancialKind,
+  record: FinancialRecord,
+  currentRecipientId?: string | null,
+) {
   if (kind === 'income') {
-    return incomeCollectionLines(record as Income).join(' · ')
+    return incomeCollectionLines(record as Income, currentRecipientId).join(
+      ' · ',
+    )
   }
   if (kind === 'expense') {
     const expense = record as Expense
@@ -150,7 +186,7 @@ function RecordActions({
       {income && canConfirmHandover && onConfirmHandover && (
         <button
           aria-label={`Confirmar recepción del efectivo de ${income.description}`}
-          className="button button--secondary button--compact"
+          className="button button--primary button--compact"
           type="button"
           onClick={() => onConfirmHandover(income)}
         >
@@ -196,6 +232,7 @@ export function FinancialRecordList(props: FinancialRecordListProps) {
     kind,
     records,
     canViewCosts,
+    currentRecipientId,
   } = props
   const isCardLayout = useMediaQuery('(max-width: 768px)')
 
@@ -238,8 +275,11 @@ export function FinancialRecordList(props: FinancialRecordListProps) {
                 <strong>{recordTitle(kind, record)}</strong>
                 <span>{recordMeta(kind, record)}</span>
               </div>
-              <span className={`status-badge${statusTone(record.paymentStatus)}`}>
-                {statusLabel(record.paymentStatus)}
+              <span className="financial-status-stack">
+                <span className={`status-badge${statusTone(record.paymentStatus)}`}>
+                  {statusLabel(record.paymentStatus)}
+                </span>
+                {kind === 'income' && <HandoverBadge income={record as Income} />}
               </span>
             </header>
             <dl>
@@ -254,7 +294,7 @@ export function FinancialRecordList(props: FinancialRecordListProps) {
               {kind !== 'purchase' && (
                 <div>
                   <dt>{kind === 'income' ? 'Cuenta / cobro' : 'Cuenta / responsable'}</dt>
-                  <dd>{settlementMeta(kind, record)}</dd>
+                  <dd>{settlementMeta(kind, record, currentRecipientId)}</dd>
                 </div>
               )}
               {kind === 'expense' && (
@@ -335,7 +375,10 @@ export function FinancialRecordList(props: FinancialRecordListProps) {
               ) : null}
               {kind === 'income' && (
                 <td>
-                  {incomeCollectionLines(record as Income).map((line, index) =>
+                  {incomeCollectionLines(
+                    record as Income,
+                    currentRecipientId,
+                  ).map((line, index) =>
                     index === 0 ? (
                       <strong key={line}>{line}</strong>
                     ) : (
@@ -345,8 +388,11 @@ export function FinancialRecordList(props: FinancialRecordListProps) {
                 </td>
               )}
               <td>
-                <span className={`status-badge${statusTone(record.paymentStatus)}`}>
-                  {statusLabel(record.paymentStatus)}
+                <span className="financial-status-stack">
+                  <span className={`status-badge${statusTone(record.paymentStatus)}`}>
+                    {statusLabel(record.paymentStatus)}
+                  </span>
+                  {kind === 'income' && <HandoverBadge income={record as Income} />}
                 </span>
               </td>
               <td><RecordActions {...props} record={record} /></td>
