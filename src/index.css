@@ -7191,3 +7191,28 @@ a {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
+
+.audit-summary > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+}
+
+.audit-summary h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.audit-summary p {
+  margin: 3px 0 0;
+  color: #69727f;
+  font-size: 12px;
+}
+
+.audit-summary__actions {
+  display: flex;
+  gap: 8px;
+}

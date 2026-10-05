@@ -54,6 +54,8 @@ export function SettlementModal({
         const usable = usableCashAccounts(items, {
           branchId: record.branch?.id ?? null,
           currency: record.currency,
+          // El cobro de un ingreso sólo entra a cajas de su sucursal.
+          collection: kind === 'income' && !recovery,
         })
         setAccounts(usable)
         // Efectivo que se rinde a alguien: se propone la caja de esa persona.

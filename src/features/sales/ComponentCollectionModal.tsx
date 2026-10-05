@@ -101,6 +101,7 @@ export function ComponentCollectionModal({
         const usable = usableCashAccounts(items, {
           currency: operation.currency,
           branchId: operation.branch.id,
+          collection: true,
         })
         setAccounts(usable)
         setAccountId((current) => current || usable[0]?.id || '')

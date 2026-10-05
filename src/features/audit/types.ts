@@ -67,8 +67,10 @@ export type AuditFilters = {
     id: string
     name: string
     currency: string
+    branchId: string | null
     active: boolean
   }>
+  branches: Array<{ id: string; code: string; name: string }>
 }
 
 export type AuditLogQuery = {
@@ -130,9 +132,21 @@ export type MoneyMovement = {
   } | null
 }
 
+export type MoneySummaryRow = {
+  account: { id: string; name: string; type: string }
+  branch: { id: string; code: string; name: string } | null
+  currency: string
+  credit: string
+  debit: string
+  /** Efectivo cobrado que todavía no confirmó quien lo recibe. */
+  pendingHandover: string
+}
+
 export type MoneyPage = AuditPage<MoneyMovement> & {
   /** Un total por moneda; `null` si el perfil no ve costos de compra. */
   totals: Array<{ currency: string; credit: string; debit: string }> | null
+  /** Una fila por caja, para el cierre; `null` igual que `totals`. */
+  summary: MoneySummaryRow[] | null
 }
 
 export type MoneyQuery = {
@@ -141,6 +155,7 @@ export type MoneyQuery = {
   from?: string
   to?: string
   accountId?: string
+  branchId?: string
   direction?: MoneyDirection | ''
   actorId?: string
   operationNumber?: string

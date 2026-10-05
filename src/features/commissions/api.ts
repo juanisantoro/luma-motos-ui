@@ -1,4 +1,5 @@
 import { AUTH_TOKEN_KEY, apiRequest } from '../../shared/api/client'
+import { isImportedAccount } from '../finance/cashAccounts'
 import type {
   AgreeManagerCommissionInput,
   AgreementInput,
@@ -117,7 +118,14 @@ function listPaymentOptions(signal?: AbortSignal) {
   return request<CommissionPage<{ id: string; code: string; name: string }>>(
     '/cash/accounts?active=true&page=1&limit=100',
     signal ? { signal } : {},
-  ).then((accounts): CommissionPaymentOptions => ({ accounts: accounts.items }))
+  ).then(
+    (accounts): CommissionPaymentOptions => ({
+      // Las históricas importadas no reciben movimientos nuevos.
+      accounts: accounts.items.filter(
+        (account) => !isImportedAccount(account),
+      ),
+    }),
+  )
 }
 
 function listSuggestions(

@@ -392,8 +392,8 @@ a{color:var(--red)}
         <div class="scroll"><table>
           <thead><tr><th>Cuenta</th><th>Tipo</th><th>Responsable</th><th>Sucursal</th><th>Saldo</th><th>Estado</th><th></th></tr></thead>
           <tbody>
-            <tr><td>Caja Lucas</td><td>Caja de socio</td><td>Lucas</td><td>Compartida</td><td>$ 1.240.000</td><td><span class="badge ok">Activa</span></td><td><span class="b">Editar</span> <span class="b">Desactivar</span></td></tr>
-            <tr><td>Banco Galicia</td><td>Cuenta bancaria</td><td>Nicolás</td><td>Compartida</td><td>$ 3.800.000</td><td><span class="badge ok">Activa</span></td><td><span class="b">Editar</span> <span class="b">Desactivar</span></td></tr>
+            <tr><td>Caja Lucas San Miguel</td><td>Caja de socio</td><td>Lucas</td><td>San Miguel</td><td>$ 1.240.000</td><td><span class="badge ok">Activa</span></td><td><span class="b">Editar</span> <span class="b">Desactivar</span></td></tr>
+            <tr><td>Banco Galicia San Miguel</td><td>Cuenta bancaria</td><td>Nicolás</td><td>San Miguel</td><td>$ 3.800.000</td><td><span class="badge ok">Activa</span></td><td><span class="b">Editar</span> <span class="b">Desactivar</span></td></tr>
             <tr><td>Caja San Miguel</td><td>Efectivo</td><td>Sin responsable</td><td>San Miguel</td><td>$ 95.000</td><td><span class="badge ok">Activa</span></td><td><span class="b">Editar</span> <span class="b">Desactivar</span></td></tr>
           </tbody>
         </table></div>
@@ -407,15 +407,16 @@ a{color:var(--red)}
     <div class="tablebox"><table>
       <thead><tr><th>Para…</th><th>Hace falta</th></tr></thead>
       <tbody>
-        <tr><td>Cada persona que recibe efectivo (cada Administrador)</td><td>Una cuenta de tipo <strong>Caja de socio</strong> con esa persona como <strong>Responsable</strong> y Sucursal <strong>Compartida (todas las sucursales)</strong>. Es obligatoria: sin ella no se le puede rendir efectivo desde Ingresos.</td></tr>
-        <tr><td>Cada cuenta de banco donde entran transferencias</td><td>Una cuenta de tipo <strong>Cuenta bancaria</strong>, con su titular como Responsable.</td></tr>
+        <tr><td>Cada persona que recibe efectivo (cada Administrador)</td><td>Una cuenta de tipo <strong>Caja de socio</strong> con esa persona como <strong>Responsable</strong>, <strong>por cada sucursal</strong> y <strong>por cada moneda</strong> en la que cobre (por ejemplo: Caja Lucas San Miguel, Caja Lucas San Miguel dólares, Caja Lucas Del Viso, Caja Lucas Del Viso dólares). Es obligatoria: sin ella no se le puede rendir efectivo desde Ingresos.</td></tr>
+        <tr><td>Cada cuenta de banco donde entran transferencias</td><td>Una cuenta de tipo <strong>Cuenta bancaria</strong> por cada sucursal que cobre ahí, con su titular como Responsable.</td></tr>
         <tr><td>El efectivo que queda en cada local</td><td>Una cuenta de tipo <strong>Efectivo</strong>, con esa <strong>Sucursal</strong>.</td></tr>
         <tr><td>Tarjetas o financieras, si se quieren separar</td><td>Cuentas de tipo <strong>Procesadora de tarjetas</strong> o <strong>Financiera</strong>.</td></tr>
       </tbody>
     </table></div>
     <p class="warn">Si a alguien le falta su caja, a la administrativa le sale "… todavía no tiene una caja para esta sucursal" y no puede cobrar en Ingresos. Tres cosas a tener en cuenta:</p>
     <ul>
-      <li>Si la Caja de socio es de una sola sucursal, sirve sólo para los cobros de esa sucursal. Por eso conviene crearla "Compartida", o una por sucursal.</li>
+      <li><strong>Un cobro sólo entra a una cuenta de la sucursal del ingreso</strong>, en su misma moneda. La administrativa de San Miguel no ve ni puede elegir cuentas de Del Viso, y al revés. Las cuentas "Compartidas" no se ofrecen para cobrar: quedan sólo para pagar gastos y compras. Así el cierre de cada sucursal sale de sus propias cajas.</li>
+      <li>Las cuentas históricas importadas del Excel tampoco se ofrecen: sólo guardan los movimientos viejos.</li>
       <li>Una cuenta bancaria no alcanza: para el efectivo tiene que ser Caja de socio o Efectivo.</li>
       <li>El aviso de arriba ("Todavía no tienen una cuenta propia: …") aparece sólo cuando la persona no tiene ninguna cuenta. Si tiene sólo una bancaria, el aviso no sale pero igual no puede recibir efectivo.</li>
     </ul>
@@ -429,7 +430,7 @@ a{color:var(--red)}
       <li><span>Elegí el <strong>Tipo</strong>: Efectivo, Cuenta bancaria, Caja de socio (viene elegido), Procesadora de tarjetas, Financiera u Otra.</span></li>
       <li><span>Elegí la <strong>Moneda</strong>: Pesos (ARS), que viene elegida, o Dólares (USD).</span></li>
       <li><span>Elegí el <strong>Responsable</strong>: a quién le entra la plata de esa cuenta.</span></li>
-      <li><span>En <strong>Sucursal</strong> elegí una, o "Compartida (todas las sucursales)" si la cuenta sirve para todos los locales.</span></li>
+      <li><span>En <strong>Sucursal</strong> elegí la sucursal de la cuenta. "Compartida (todas las sucursales)" es sólo para cuentas desde las que se pagan gastos o compras: una cuenta compartida no se ofrece para cobrar.</span></li>
       <li><span>Dejá tildada <strong>Cuenta activa</strong> y tocá <strong>Guardar cuenta</strong>.</span></li>
     </ol>
     <ul>
@@ -639,8 +640,20 @@ a{color:var(--red)}
       <li><strong>Rendición del efectivo</strong>: a quién se le rinde, y cuando ya está confirmada, quién la confirmó y a qué hora.</li>
       <li><strong>Estado</strong>: Vigente, Reversado (con quién lo reversó, cuándo y el motivo) o "Es una reversa".</li>
     </ul>
-    <p>Filtros: <strong>Cargado desde / hasta</strong>, <strong>Cuenta</strong>, <strong>Sentido</strong> (entradas o salidas), <strong>Registró</strong>, <strong>N.º de operación</strong>, <strong>Buscar</strong> (cliente, concepto, referencia o quien registró) y la tilde <strong>Sólo reversados y reversas</strong>. Arriba de la tabla quedan los totales de Entradas y Salidas vigentes de lo filtrado (no suman lo reversado).</p>
+    <p>Filtros: <strong>Cargado desde / hasta</strong>, <strong>Sucursal</strong>, <strong>Cuenta</strong>, <strong>Sentido</strong> (entradas o salidas), <strong>Registró</strong>, <strong>N.º de operación</strong>, <strong>Buscar</strong> (cliente, concepto, referencia o quien registró) y la tilde <strong>Sólo reversados y reversas</strong>. Arriba de la tabla quedan los totales de Entradas y Salidas vigentes de lo filtrado (no suman lo reversado).</p>
     <p><strong>Para controlar la plata de un día:</strong> poné el mismo día en Desde y Hasta, y mirá la columna Rendición del efectivo. Lo que diga "Pendiente de rendir" todavía no llegó a quien lo tiene que recibir.</p>
+  </section>
+
+  <section>
+    <h3>Cierre por sucursal: Resumen por caja</h3>
+    <p>Arriba de la lista está el <strong>Resumen por caja</strong>: una fila por cada caja con movimientos en el filtro, con su <strong>Sucursal</strong>, <strong>Moneda</strong>, <strong>Entradas</strong>, <strong>Salidas</strong>, <strong>Neto</strong> y <strong>Pendiente de rendir</strong> (efectivo cobrado que todavía no confirmó quien lo recibe). No suma lo reversado.</p>
+    <ol class="steps">
+      <li><span>Poné el período del cierre en <strong>Cargado desde / hasta</strong>.</span></li>
+      <li><span>Elegí la <strong>Sucursal</strong> (San Miguel o Del Viso) y tocá <strong>Buscar</strong>.</span></li>
+      <li><span>Leé el resumen: qué cobró cada socio en esa sucursal, en pesos y en dólares por separado.</span></li>
+      <li><span><strong>Exportar resumen</strong> lo baja a Excel.</span></li>
+    </ol>
+    <p>Sin elegir sucursal ves las dos juntas, cada caja con su sucursal al lado.</p>
   </section>
 
   <section>

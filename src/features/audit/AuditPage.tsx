@@ -27,6 +27,8 @@ import {
   eventsCsv,
   formatDateTime,
   movementsCsv,
+  netAmount,
+  summaryCsv,
 } from './format'
 import { MoneyTable } from './MoneyTable'
 import { OperationHistoryModal } from './OperationHistoryModal'
@@ -459,6 +461,7 @@ function MoneyTab({
   filters: AuditFilters | null
   onOpenOperation: (operationId: string) => void
 }) {
+  const [showSummary, setShowSummary] = useState(true)
   const [query, setQuery] = useState<MoneyQuery>(() => ({
     page: 1,
     limit: PAGE_SIZE,
@@ -496,6 +499,10 @@ function MoneyTab({
     setQuery(next)
   }
 
+  const accounts = (filters?.accounts ?? []).filter(
+    (account) => !draft.branchId || account.branchId === draft.branchId,
+  )
+
   return (
     <>
       <section className="financial-filters audit-filters">
@@ -521,6 +528,27 @@ function MoneyTab({
             />
           </label>
           <label className="filter-field">
+            Sucursal
+            <select
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  branchId: event.target.value,
+                  // La cuenta elegida puede ser de otra sucursal.
+                  accountId: '',
+                })
+              }
+              value={draft.branchId ?? ''}
+            >
+              <option value="">Todas</option>
+              {filters?.branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="filter-field">
             Cuenta
             <select
               onChange={(event) =>
@@ -529,7 +557,7 @@ function MoneyTab({
               value={draft.accountId ?? ''}
             >
               <option value="">Todas</option>
-              {filters?.accounts.map((account) => (
+              {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}
                   {account.currency !== 'ARS' ? ` (${account.currency})` : ''}
@@ -659,6 +687,90 @@ function MoneyTab({
               Los totales no se muestran porque tu perfil no ve los costos de
               compra.
             </p>
+          )}
+        </section>
+      )}
+
+      {status === 'success' && result?.summary && result.summary.length > 0 && (
+        <section
+          aria-label="Resumen por caja"
+          className="financial-panel audit-summary"
+        >
+          <header>
+            <div>
+              <h2>Resumen por caja</h2>
+              <p>
+                Lo vigente del filtro, por sucursal, caja y moneda. No incluye
+                lo reversado.
+              </p>
+            </div>
+            <div className="audit-summary__actions">
+              <button
+                className="button button--secondary button--compact"
+                onClick={() =>
+                  downloadCsv(
+                    `cierre-por-caja-${argentinaDay()}.csv`,
+                    summaryCsv(result.summary ?? []),
+                  )
+                }
+                type="button"
+              >
+                <Download size={15} />
+                Exportar resumen
+              </button>
+              <button
+                aria-expanded={showSummary}
+                className="button button--secondary button--compact"
+                onClick={() => setShowSummary((value) => !value)}
+                type="button"
+              >
+                {showSummary ? 'Ocultar' : 'Mostrar'}
+              </button>
+            </div>
+          </header>
+          {showSummary && (
+            <div className="financial-table-wrap">
+              <table className="financial-table audit-table">
+                <thead>
+                  <tr>
+                    <th>Sucursal</th>
+                    <th>Caja</th>
+                    <th>Moneda</th>
+                    <th className="audit-table__money">Entradas</th>
+                    <th className="audit-table__money">Salidas</th>
+                    <th className="audit-table__money">Neto</th>
+                    <th className="audit-table__money">Pendiente de rendir</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.summary.map((row) => (
+                    <tr key={row.account.id}>
+                      <td>{row.branch?.name ?? 'Compartida'}</td>
+                      <td>
+                        <strong>{row.account.name}</strong>
+                      </td>
+                      <td>{row.currency}</td>
+                      <td className="audit-table__money audit-table__money--in">
+                        {formatMoney(row.credit, row.currency)}
+                      </td>
+                      <td className="audit-table__money audit-table__money--out">
+                        {formatMoney(row.debit, row.currency)}
+                      </td>
+                      <td className="audit-table__money">
+                        <strong>
+                          {formatMoney(netAmount(row), row.currency)}
+                        </strong>
+                      </td>
+                      <td className="audit-table__money">
+                        {Number(row.pendingHandover) > 0
+                          ? formatMoney(row.pendingHandover, row.currency)
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       )}

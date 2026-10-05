@@ -109,7 +109,9 @@ beforeEach(() => {
     account('other-branch', 'CAJA-DV', 'branch-2'),
     account('usd', 'CAJA-USD', 'branch-1', 'USD'),
     account('caja-centro', 'CAJA-CENTRO', 'branch-1'),
-    account('banco', 'BANCO', null),
+    account('banco', 'BANCO', 'branch-1'),
+    // Compartida: no se ofrece para cobrar.
+    account('compartida', 'COMPARTIDA', null),
   ])
 })
 
@@ -180,13 +182,13 @@ describe('Gestión de patentamiento', () => {
     const form = screen.getByRole('form', { name: 'Registrar cobro al cliente' })
     const accountSelect = within(form).getByLabelText('Cuenta de caja *')
     await within(form).findByRole('option', { name: /CAJA-CENTRO/ })
-    // Sólo cuentas de la sucursal (o sin sucursal) y en la moneda de la
-    // operación; las históricas al final.
+    // Sólo cuentas de la sucursal de la operación y en su moneda; ni las
+    // compartidas ni las históricas importadas.
     expect(
       within(accountSelect)
         .getAllByRole('option')
         .map((option) => option.getAttribute('value')),
-    ).toEqual(['', 'banco', 'caja-centro', 'hist'])
+    ).toEqual(['', 'banco', 'caja-centro'])
     expect(accountSelect).toHaveValue('banco')
     await user.selectOptions(accountSelect, 'caja-centro')
     expect(within(form).getByLabelText('Importe cobrado *')).toHaveValue(85000)

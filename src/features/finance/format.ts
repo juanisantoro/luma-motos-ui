@@ -24,7 +24,13 @@ export function financialErrorMessage(error: unknown) {
     return 'No pudimos conectar con el servidor. Revisá tu conexión e intentá nuevamente.'
   }
   if (error instanceof ApiError) {
-    if (error.status === 400) return 'Revisá los datos y el estado del registro.'
+    if (error.status === 400) {
+      if (error.details?.code === 'CASH_ACCOUNT_BRANCH_MISMATCH')
+        return 'Esa cuenta no es de la sucursal del ingreso. Un cobro entra a una caja de su misma sucursal.'
+      if (error.details?.code === 'HISTORIC_CASH_ACCOUNT')
+        return 'Esa es una cuenta histórica importada del Excel: no recibe movimientos nuevos. Elegí una cuenta de caja actual.'
+      return 'Revisá los datos y el estado del registro.'
+    }
     if (error.status === 403) return 'No tenés permiso para realizar esta acción.'
     if (error.status === 404) {
       return 'El registro no existe o no pertenece a tu organización.'

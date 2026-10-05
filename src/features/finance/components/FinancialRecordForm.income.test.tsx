@@ -73,7 +73,7 @@ const accounts = [
     code: 'CAJA_LUCAS',
     name: 'Caja Lucas',
     type: 'SOCIO',
-    branchId: null,
+    branchId: 'branch-1',
     responsiblePersonnelId: 'p-lucas',
     responsiblePersonnel: { id: 'p-lucas', fullName: 'Lucas' },
     currency: 'ARS',
@@ -85,7 +85,7 @@ const accounts = [
     code: 'BANCO_NICO',
     name: 'Banco Galicia',
     type: 'BANCO',
-    branchId: null,
+    branchId: 'branch-1',
     responsiblePersonnelId: 'p-nico',
     responsiblePersonnel: { id: 'p-nico', fullName: 'Nicolás' },
     currency: 'ARS',
@@ -260,7 +260,7 @@ describe('Alta de ingreso con medio, cobrador y rendición', () => {
       'TRANSFERENCIA_BANCARIA',
     )
     expect(screen.queryByLabelText(/Se rinde a/)).not.toBeInTheDocument()
-    // Sólo las cuentas de la sucursal y las compartidas, con nombre legible.
+    // Sólo las cuentas de la sucursal del ingreso, con nombre legible.
     const accountSelect = screen.getByLabelText('Cuenta donde entró *')
     expect(accountSelect).not.toHaveTextContent('Caja Del Viso')
     expect(accountSelect).toHaveTextContent(

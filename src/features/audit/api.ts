@@ -62,6 +62,7 @@ export function listMoneyMovements(query: MoneyQuery, signal?: AbortSignal) {
       from: query.from ? dayStart(query.from) : undefined,
       to: query.to ? dayEnd(query.to) : undefined,
       accountId: query.accountId,
+      branchId: query.branchId,
       direction: query.direction,
       actorId: query.actorId,
       operationNumber: operationNumber(query.operationNumber),

@@ -35,7 +35,24 @@ const filters = {
     { id: 'user-2', email: 'carla@luma.test', name: 'Carla Caja', active: true },
   ],
   accounts: [
-    { id: 'account-1', name: 'Caja Lucas', currency: 'ARS', active: true },
+    {
+      id: 'account-1',
+      name: 'Caja Lucas',
+      currency: 'ARS',
+      branchId: 'branch-1',
+      active: true,
+    },
+    {
+      id: 'account-2',
+      name: 'Caja Lucas Del Viso',
+      currency: 'ARS',
+      branchId: 'branch-2',
+      active: true,
+    },
+  ],
+  branches: [
+    { id: 'branch-1', code: 'SM', name: 'San Miguel' },
+    { id: 'branch-2', code: 'DV', name: 'Del Viso' },
   ],
 }
 
@@ -57,6 +74,16 @@ describe('AuditPage', () => {
       totals: [
         { currency: 'ARS', credit: '150000.5', debit: '0' },
         { currency: 'USD', credit: '800', debit: '50' },
+      ],
+      summary: [
+        {
+          account: { id: 'account-1', name: 'Caja Lucas', type: 'SOCIO' },
+          branch: { id: 'branch-1', code: 'SM', name: 'San Miguel' },
+          currency: 'ARS',
+          credit: '150000.5',
+          debit: '30000',
+          pendingHandover: '20000',
+        },
       ],
     })
     mocks.trace.mockResolvedValue(operationTrace)
@@ -154,7 +181,9 @@ describe('AuditPage', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Movimientos de dinero' }))
 
-    const table = await screen.findByRole('table')
+    const table = within(
+      await screen.findByRole('region', { name: 'Movimientos de dinero' }),
+    ).getByRole('table')
     const row = within(table).getAllByRole('row')[1]!
     expect(within(row).getByText('04/10/2026 12:30:12')).toBeInTheDocument()
     expect(within(row).getByText('Caja Lucas')).toBeInTheDocument()
@@ -167,11 +196,29 @@ describe('AuditPage', () => {
     expect(within(totals).getByText('Entradas vigentes (ARS)')).toBeInTheDocument()
     expect(within(totals).getByText('Salidas vigentes (USD)')).toBeInTheDocument()
 
+    // Resumen para el cierre: una fila por caja con su sucursal y el neto.
+    const summary = screen.getByRole('region', { name: 'Resumen por caja' })
+    const summaryRow = within(summary).getAllByRole('row')[1]!
+    expect(summaryRow).toHaveTextContent('San Miguel')
+    expect(summaryRow).toHaveTextContent('Caja Lucas')
+    expect(summaryRow).toHaveTextContent(/120\.000,50/)
+    expect(summaryRow).toHaveTextContent(/20\.000,00/)
+
+    // Al elegir sucursal, la lista de cuentas se acota a esa sucursal.
+    await user.selectOptions(screen.getByLabelText('Sucursal'), 'branch-2')
+    expect(
+      within(screen.getByLabelText('Cuenta'))
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Todas', 'Caja Lucas Del Viso'])
+    expect(screen.getByLabelText('Cuenta')).toHaveTextContent('Caja Lucas Del Viso')
+
     await user.click(screen.getByLabelText('Sólo reversados y reversas'))
     await user.click(screen.getByRole('button', { name: 'Buscar' }))
     await waitFor(() =>
       expect(mocks.movements.mock.calls.at(-1)![0]).toMatchObject({
         onlyReversals: true,
+        branchId: 'branch-2',
         page: 1,
       }),
     )

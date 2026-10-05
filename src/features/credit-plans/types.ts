@@ -86,6 +86,8 @@ export type CreditInstallment = {
   operationId: string
   operationNumber: string
   clientName: string
+  /** Sucursal de la venta (respuestas anteriores no la traían). */
+  branchId?: string
   number: number
   amount: number
   dueDate: string

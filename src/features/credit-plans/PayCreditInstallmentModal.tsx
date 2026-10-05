@@ -57,7 +57,13 @@ export function PayCreditInstallmentModal({
       listHandoverRecipients(controller.signal),
     ])
       .then(([accountItems, recipientItems]) => {
-        const usable = usableCashAccounts(accountItems, { currency: 'ARS' })
+        // La cuota se cobra en una caja de la sucursal de la venta.
+        const usable = usableCashAccounts(accountItems, {
+          currency: 'ARS',
+          ...(installment.branchId
+            ? { branchId: installment.branchId, collection: true }
+            : {}),
+        })
         setAccounts(usable)
         setAccountId((current) => current || usable[0]?.id || '')
         setRecipients(recipientItems)
@@ -69,7 +75,7 @@ export function PayCreditInstallmentModal({
           setLoadError('No pudimos cargar las cuentas de caja.')
       })
     return () => controller.abort()
-  }, [])
+  }, [installment.branchId])
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

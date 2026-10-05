@@ -124,6 +124,40 @@ describe('cuentas de caja', () => {
     ).toBe('lucas-usd')
   })
 
+  it('no ofrece las históricas importadas para cobrar o pagar', () => {
+    const historic = account({
+      id: 'hist',
+      code: 'HIST-0123456789ABCDEF01234567',
+      name: 'Cuenta historica importada: Juan Pablo Capdevilla',
+      imported: true,
+    })
+    expect(
+      usableCashAccounts([lucas, historic], {}).map((item) => item.id),
+    ).toEqual(['lucas'])
+    // Tampoco si una respuesta vieja no trae `imported`: alcanza el código.
+    expect(
+      usableCashAccounts([{ ...historic, imported: undefined } as never], {}),
+    ).toEqual([])
+  })
+
+  it('para cobrar sólo ofrece las cajas de la sucursal del ingreso', () => {
+    const sanMiguel = account({ id: 'sm', code: 'SM', branchId: 'branch-1' })
+    const delViso = account({ id: 'dv', code: 'DV', branchId: 'branch-2' })
+    const shared = account({ id: 'shared', code: 'COMP', branchId: null })
+    const all = [sanMiguel, delViso, shared]
+    expect(
+      usableCashAccounts(all, { branchId: 'branch-1', collection: true }).map(
+        (item) => item.id,
+      ),
+    ).toEqual(['sm'])
+    // Para pagar un gasto las compartidas siguen disponibles.
+    expect(
+      usableCashAccounts(all, { branchId: 'branch-1' })
+        .map((item) => item.id)
+        .sort(),
+    ).toEqual(['shared', 'sm'])
+  })
+
   it('propone la caja de quien recibe la rendición', () => {
     expect(accountForRecipient([bank, lucas, historic], 'p-lucas')?.id).toBe(
       'lucas',

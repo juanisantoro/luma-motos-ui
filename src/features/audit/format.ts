@@ -1,5 +1,10 @@
 import { formatMoney } from '../finance/format'
-import type { AuditData, AuditEvent, MoneyMovement } from './types'
+import type {
+  AuditData,
+  AuditEvent,
+  MoneyMovement,
+  MoneySummaryRow,
+} from './types'
 
 const ZONE = 'America/Argentina/Buenos_Aires'
 // Argentina no cambia la hora: el día comercial siempre es UTC-3.
@@ -297,6 +302,35 @@ export function movementsCsv(movements: MoneyMovement[]) {
       movement.notes ?? '',
     ]),
   )
+}
+
+export function summaryCsv(rows: MoneySummaryRow[]) {
+  return toCsv(
+    [
+      'Sucursal',
+      'Caja',
+      'Moneda',
+      'Entradas',
+      'Salidas',
+      'Neto',
+      'Pendiente de rendir',
+    ],
+    rows.map((row) => [
+      row.branch?.name ?? 'Compartida',
+      row.account.name,
+      row.currency,
+      csvAmount(row.credit),
+      csvAmount(row.debit),
+      csvAmount(netAmount(row)),
+      csvAmount(row.pendingHandover),
+    ]),
+  )
+}
+
+/** Entradas menos salidas de una caja, sin perder centavos. */
+export function netAmount(row: { credit: string; debit: string }) {
+  const cents = (value: string) => Math.round(Number(value) * 100)
+  return ((cents(row.credit) - cents(row.debit)) / 100).toFixed(2)
 }
 
 export function downloadCsv(filename: string, content: string) {

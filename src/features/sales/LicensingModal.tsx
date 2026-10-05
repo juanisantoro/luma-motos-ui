@@ -291,6 +291,7 @@ export function LicensingModal({
         const usable = usableCashAccounts(items, {
           currency: operation.currency,
           branchId: operation.branch.id,
+          collection: true,
         })
         setAccounts(usable)
         setCollection((current) => ({
