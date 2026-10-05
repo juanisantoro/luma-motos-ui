@@ -275,7 +275,6 @@ a{color:var(--red)}
         <div class="mtitle">Buen día, Carla</div>
         <div class="note" style="font-size:13px"><strong>$ 185.000</strong> a cobrar hoy de <strong>2</strong> clientes con cuota vencida hoy. <span class="b">Ir a cobranza</span></div>
         <div class="fgrid">
-          <div class="f ro"><span>Saldo de caja hoy</span><div>$ 1.240.000</div></div>
           <div class="f ro"><span>Cuotas a cobrar esta semana</span><div>$ 610.000 · 7 cuotas</div></div>
           <div class="f ro"><span>Pagos de vehículo sin confirmar</span><div>4 · 1 con más de 5 días</div></div>
           <div class="f ro"><span>Patentes vencidas sin cargar</span><div>3 · Ver operaciones</div></div>
@@ -288,7 +287,6 @@ a{color:var(--red)}
       <thead><tr><th>Tarjeta</th><th>Qué te dice</th><th>Qué hacer</th></tr></thead>
       <tbody>
         <tr><td>Franja roja "a cobrar hoy"</td><td>Cuotas de crédito propio que vencen hoy.</td><td>Tocá <strong>Ir a cobranza</strong> (capítulo 8).</td></tr>
-        <tr><td>Saldo de caja hoy</td><td>La plata que hay en las cuentas de tu sucursal.</td><td>Sólo para consultar.</td></tr>
         <tr><td>Cuotas a cobrar esta semana</td><td>Cuotas que vencen de hoy a 6 días.</td><td>Preparar la cobranza.</td></tr>
         <tr><td>Pagos de vehículo sin confirmar</td><td>Patentes o seguros cargados como Pendiente.</td><td>Marcarlos pagados cuando corresponda (capítulo 7).</td></tr>
         <tr><td>Patentes vencidas sin cargar</td><td>Ventas donde pasó la fecha estimada y no se cargó la patente.</td><td><strong>Ver operaciones</strong> y reclamar o cargar la patente.</td></tr>
@@ -908,7 +906,7 @@ a{color:var(--red)}
       <li><span>Completá <strong>Fecha</strong>, <strong>Motivo / categoría</strong>, <strong>TT / referencia</strong>, <strong>Detalle / descripción</strong> e <strong>Importe</strong>. Todos son obligatorios.</span></li>
       <li><span><strong>Pagado por</strong> viene con tu nombre; cambialo si lo pagó otra persona.</span></li>
       <li><span>Tocá <strong>Guardar gasto</strong>. Queda en estado <strong>Pendiente</strong>.</span></li>
-      <li><span>Para registrar la salida de plata: en la lista tocá <strong>Pagar</strong>, elegí la <strong>Cuenta</strong> de donde sale, escribí el <strong>Importe</strong> y tocá <strong>Registrar pago</strong>.</span></li>
+      <li><span>Para registrar la salida de plata: en la lista tocá <strong>Pagar</strong>, elegí la <strong>Cuenta</strong> de donde sale (sólo aparecen las de la sucursal del gasto), escribí el <strong>Importe</strong> y tocá <strong>Registrar pago</strong>.</span></li>
     </ol>
     <p>Si pagás menos que el total queda <strong>Parcial</strong>; podés volver a tocar Pagar por el resto.</p>
     <p class="warn">El campo "Recuperada" (Sí / No) sólo deja anotado si ese gasto ya se recuperó. El botón "Recuperar" de la lista no aparece en los gastos cargados desde este formulario.</p>
@@ -1037,7 +1035,8 @@ a{color:var(--red)}
         <tr><td>Crear o editar cuentas de caja</td><td>No es de tu rol.</td><td>Administrador</td></tr>
         <tr><td>Corregir, borrar o reversar un cobro, pago, ingreso o gasto</td><td>No es de tu rol.</td><td>Gerente o Administrador</td></tr>
         <tr><td>Cargar una compra o ver costos de compra</td><td>No es de tu rol.</td><td>Gerente o Administrador</td></tr>
-        <tr><td>Pasar plata de una cuenta a otra o ver los movimientos de una caja</td><td>Pasar plata no se puede con ningún usuario. Los movimientos de una caja los ve el Administrador en Auditoría.</td><td>Administrador</td></tr>
+        <tr data-flag-off="caja-operaciones"><td>Pasar plata de una cuenta a otra o ver los movimientos de una caja</td><td>Pasar plata no se puede con ningún usuario. Los movimientos de una caja los ve el Administrador en Auditoría.</td><td>Administrador</td></tr>
+        <tr data-flag="caja-operaciones" hidden><td>Ver los movimientos de una caja o registrar un retiro de un socio</td><td>Lo hace el Administrador (Auditoría y Retiros de socios). Vos sí podés pasar plata entre cuentas de tu sucursal en Administración financiera → Transferencias entre cajas.</td><td>Administrador</td></tr>
         <tr><td>Crear marcas o modelos nuevos, proveedores o financieras</td><td>No es de tu rol o no hay pantalla.</td><td>Administrador</td></tr>
         <tr><td>Trasladar una moto a otra sucursal</td><td>No hay pantalla para eso, con ningún usuario.</td><td>—</td></tr>
         <tr><td>Crear planes de crédito, ver comisiones, usuarios o auditoría</td><td>No es de tu rol.</td><td>Administrador</td></tr>

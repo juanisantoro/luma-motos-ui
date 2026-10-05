@@ -4,6 +4,12 @@ import type {
   CashAccount,
   CashAccountInput,
   CashAccountListQuery,
+  CashOperationQuery,
+  CashTransfer,
+  CashTransferInput,
+  PartnerWithdrawal,
+  PartnerWithdrawalInput,
+  PartnerWithdrawalPage,
   Expense,
   FinancialCreateInput,
   FinancialKind,
@@ -309,3 +315,69 @@ type RecordFor<K extends FinancialKind> = K extends 'purchase'
   : K extends 'income'
     ? Income
     : Expense
+
+function queryPath(base: string, query: object) {
+  const search = new URLSearchParams()
+  Object.entries(query).forEach(([key, value]) =>
+    addQueryValue(search, key, value as string | number | undefined),
+  )
+  return `${base}${search.size ? `?${search.toString()}` : ''}` as `/${string}`
+}
+
+export function listCashTransfers(
+  query: CashOperationQuery,
+  signal?: AbortSignal,
+) {
+  // La API de transferencias no filtra por sucursal: sólo por cuenta y fecha.
+  const { branchId: _branchId, from, to, ...rest } = query
+  return apiRequest<PageResponse<CashTransfer>>(
+    queryPath('/cash/transfers', {
+      ...rest,
+      ...(from ? { from: `${from}T00:00:00.000-03:00` } : {}),
+      ...(to ? { to: `${to}T23:59:59.999-03:00` } : {}),
+    }),
+    { token: authToken(), ...(signal ? { signal } : {}) },
+  )
+}
+
+export function createCashTransfer(input: CashTransferInput) {
+  return apiRequest<CashTransfer>('/cash/transfers', {
+    method: 'POST',
+    token: authToken(),
+    body: input,
+  })
+}
+
+export function reverseCashTransfer(id: string, input: ReverseInput) {
+  return apiRequest<CashTransfer>(`/cash/transfers/${id}/reverse`, {
+    method: 'POST',
+    token: authToken(),
+    body: input,
+  })
+}
+
+export function listPartnerWithdrawals(
+  query: CashOperationQuery,
+  signal?: AbortSignal,
+) {
+  return apiRequest<PartnerWithdrawalPage>(
+    queryPath('/cash/withdrawals', query),
+    { token: authToken(), ...(signal ? { signal } : {}) },
+  )
+}
+
+export function createPartnerWithdrawal(input: PartnerWithdrawalInput) {
+  return apiRequest<PartnerWithdrawal>('/cash/withdrawals', {
+    method: 'POST',
+    token: authToken(),
+    body: input,
+  })
+}
+
+export function reversePartnerWithdrawal(id: string, input: ReverseInput) {
+  return apiRequest<PartnerWithdrawal>(`/cash/withdrawals/${id}/reverse`, {
+    method: 'POST',
+    token: authToken(),
+    body: input,
+  })
+}

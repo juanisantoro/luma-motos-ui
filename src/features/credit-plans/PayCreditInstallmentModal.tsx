@@ -61,7 +61,7 @@ export function PayCreditInstallmentModal({
         const usable = usableCashAccounts(accountItems, {
           currency: 'ARS',
           ...(installment.branchId
-            ? { branchId: installment.branchId, collection: true }
+            ? { branchId: installment.branchId }
             : {}),
         })
         setAccounts(usable)

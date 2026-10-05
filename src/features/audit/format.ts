@@ -79,6 +79,7 @@ export const sourceKindLabels: Record<string, string> = {
   PURCHASE: 'Compra',
   COMMISSION: 'Comisión',
   TRANSFER: 'Transferencia',
+  WITHDRAWAL: 'Retiro de socio',
   OTHER: 'Otro',
 }
 

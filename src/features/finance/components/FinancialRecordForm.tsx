@@ -217,9 +217,8 @@ export function FinancialRecordForm({
       ? {
           branchId: payOperation?.branch.id ?? null,
           ...(payOperation ? { currency: payOperation.currency } : {}),
-          collection: true,
         }
-      : { branchId: branchId || null, currency, collection: kind === 'income' },
+      : { branchId: branchId || null, currency },
   )
   const accountCurrency = operationPayment
     ? (payOperation?.currency ?? 'ARS')

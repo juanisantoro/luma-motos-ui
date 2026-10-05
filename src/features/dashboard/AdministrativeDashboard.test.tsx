@@ -14,7 +14,6 @@ function home(overrides: Partial<AdministrativeHome> = {}): AdministrativeHome {
       date: '2026-09-30',
     },
     dueTodayAlert: null,
-    cashBalanceToday: null,
     dueThisWeek: null,
     unconfirmedVehiclePayments: null,
     payableExpensesThisWeek: null,

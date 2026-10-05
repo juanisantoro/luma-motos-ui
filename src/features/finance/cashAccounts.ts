@@ -84,31 +84,26 @@ export function sortCashAccounts<T extends AccountLike>(accounts: T[]) {
   )
 }
 
-// Cuentas que se ofrecen para un registro de esa sucursal. Las históricas
-// importadas del Excel no se ofrecen: sólo conservan los movimientos viejos.
-// - Pagos y gastos: las de la sucursal y las compartidas (sin sucursal).
-// - Cobros (`collection`): sólo las de la sucursal del ingreso, para que el
-//   cierre de cada sucursal salga de sus propias cajas.
+// Cuentas que se ofrecen para cobrar o pagar un registro. La plata entra y
+// sale por una caja de la sucursal del registro, así el cierre de cada
+// sucursal sale de sus propias cajas:
+// - `branchId` con una sucursal: sólo las cuentas de esa sucursal.
+// - `branchId: null` (registro "General", sin sucursal): sólo las compartidas.
+// - sin `branchId`: no se filtra por sucursal.
+// Las históricas importadas del Excel no se ofrecen nunca: sólo conservan
+// los movimientos viejos.
 export function usableCashAccounts(
   accounts: CashAccount[],
-  {
-    currency,
-    branchId,
-    collection = false,
-  }: { currency?: string; branchId?: string | null; collection?: boolean },
+  { currency, branchId }: { currency?: string; branchId?: string | null },
 ) {
   return sortCashAccounts(
-    accounts.filter((account) => {
-      const accountBranch = cashAccountBranchId(account)
-      return (
+    accounts.filter(
+      (account) =>
         account.active &&
         !isImportedAccount(account) &&
         (!currency || account.currency === currency) &&
-        (!branchId ||
-          accountBranch === branchId ||
-          (!collection && accountBranch === null))
-      )
-    }),
+        (branchId === undefined || cashAccountBranchId(account) === branchId),
+    ),
   )
 }
 

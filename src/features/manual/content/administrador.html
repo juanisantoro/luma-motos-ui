@@ -440,7 +440,59 @@ a{color:var(--red)}
       <li>Cada cuenta es de <strong>una sola moneda</strong> y no se puede cambiar después. Un ingreso en dólares sólo puede entrar a una cuenta en dólares: para cobrar dólares creá una cuenta aparte por cada persona o banco que los reciba (por ejemplo "Caja Lucas dólares"). Si no existe, al cargar el ingreso el sistema avisa que no hay cuentas en dólares.</li>
       <li>El sistema no impide crear dos cuentas con el mismo nombre. Antes de crear una, tildá "Mostrar también las inactivas…" y fijate que no exista; si está inactiva, reactivala.</li>
     </ul>
-    <p class="warn">Todavía no hay pantalla para pasar plata de una cuenta a otra. Acá se ve sólo el saldo; el detalle de movimientos de cada cuenta está en Configuración → Auditoría → Movimientos de dinero, filtrando por Cuenta.</p>
+    <p>Acá se ve el saldo de cada cuenta. El detalle de movimientos está en Configuración → Auditoría → Movimientos de dinero, filtrando por Cuenta.</p>
+  </section>
+  <section>
+    <h3>De qué caja sale cada pago</h3>
+    <p>La plata sale por una caja de la misma sucursal que el gasto o la compra, igual que los cobros. Al tocar <strong>Pagar</strong>, el sistema ofrece sólo las cuentas que corresponden:</p>
+    <div class="tablebox"><table>
+      <thead><tr><th>Qué se paga</th><th>Cuentas que se ofrecen</th></tr></thead>
+      <tbody>
+        <tr><td>Un gasto o una compra de San Miguel</td><td>Sólo las cuentas de San Miguel.</td></tr>
+        <tr><td>Un gasto o una compra de Del Viso</td><td>Sólo las cuentas de Del Viso.</td></tr>
+        <tr><td>Un gasto <strong>general</strong> (cargado sin sucursal: contador, sistema, publicidad de la marca)</td><td>Sólo las cuentas <strong>Compartidas</strong>.</td></tr>
+        <tr><td>Una comisión</td><td>Las cuentas de la sucursal del vendedor.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="warn">Para pagar gastos generales tiene que existir al menos una cuenta "Compartida (todas las sucursales)". Sólo un Administrador puede cargar un gasto sin sucursal y crear cuentas compartidas.<span data-flag="caja-operaciones" hidden> Si hay plata de una sucursal que tiene que pagar un gasto general, primero pasala con una transferencia.</span></p>
+  </section>
+
+  <section data-flag="caja-operaciones" hidden>
+    <h3>Transferencias entre cajas</h3>
+    <span class="where">Administración financiera → Transferencias entre cajas</span>
+    <p>Sirve para pasar plata de una caja a otra: depositar en el banco el efectivo de un socio, o mover plata de San Miguel a Del Viso. No es un cobro ni un gasto.</p>
+    <ol class="steps">
+      <li><span>Tocá <strong>Nueva transferencia</strong>.</span></li>
+      <li><span>En <strong>Sale de</strong> elegí la cuenta de origen. Abajo aparece su saldo actual.</span></li>
+      <li><span>En <strong>Entra a</strong> elegí la cuenta de destino. Sólo aparecen cuentas de la misma moneda.</span></li>
+      <li><span>Completá <strong>Importe</strong> y <strong>Fecha</strong>. <strong>Motivo o referencia</strong> es opcional.</span></li>
+      <li><span>Tocá <strong>Registrar transferencia</strong>.</span></li>
+    </ol>
+    <ul>
+      <li>No se puede transferir de pesos a dólares ni al revés.</li>
+      <li>No se puede mandar plata a una cuenta histórica importada; sí se puede sacar de una.</li>
+      <li><strong>Anular</strong> devuelve la plata a la cuenta de origen y pide el motivo. La transferencia no se borra: queda como "Anulada".</li>
+      <li>En el cierre, una transferencia entre sucursales se ve como salida de una y entrada de la otra.</li>
+    </ul>
+    <p>La Administrativa y el Gerente también pueden transferir, pero sólo entre cuentas de su sucursal. Anular lo hacen Gerente y Administrador.</p>
+  </section>
+
+  <section data-flag="caja-operaciones" hidden>
+    <h3>Retiros de socios</h3>
+    <span class="where">Administración financiera → Retiros de socios</span>
+    <p>Es la plata que un socio saca de su caja. Baja el saldo de la caja, pero <strong>no cuenta como gasto del mes</strong>: se ve aparte. Sólo lo ve y lo carga un Administrador.</p>
+    <ol class="steps">
+      <li><span>Tocá <strong>Nuevo retiro</strong>.</span></li>
+      <li><span>En <strong>Caja de la que retira</strong> elegí la caja. El retiro queda a nombre del <strong>responsable</strong> de esa caja; abajo aparece quién es y el saldo actual.</span></li>
+      <li><span>Completá <strong>Importe</strong> (en la moneda de la caja), <strong>Fecha</strong> y <strong>Motivo</strong>.</span></li>
+      <li><span>Tocá <strong>Registrar retiro</strong>.</span></li>
+    </ol>
+    <ul>
+      <li>Sólo se ofrecen cajas que tienen responsable. Si falta una, asignale el responsable en Cuentas de caja.</li>
+      <li>Arriba de la lista está el <strong>Total retirado</strong> del filtro, en pesos y en dólares por separado. Los anulados no suman.</li>
+      <li><strong>Anular</strong> devuelve la plata a la caja y pide el motivo. El retiro no se borra: queda como "Anulado", con quién lo anuló.</li>
+      <li>El sistema no impide retirar más que el saldo: mirá el saldo antes de confirmar.</li>
+    </ul>
   </section>
 </div>
 
@@ -718,8 +770,8 @@ a{color:var(--red)}
     <p>Para que no busques un botón que no existe, con ningún perfil:</p>
     <ul>
       <li>Cerrar o cancelar una venta después de salir de la pantalla de alta, y cerrar una venta de moto 0 km.</li>
-      <li>Pasar plata de una cuenta de caja a otra. (Los movimientos de una cuenta sí se ven: Auditoría → Movimientos de dinero, filtrando por Cuenta.)</li>
       <li>Trasladar una moto de una sucursal a otra.</li>
+      <li data-flag-off="caja-operaciones">Pasar plata de una cuenta de caja a otra. (Los movimientos de una cuenta sí se ven: Auditoría → Movimientos de dinero, filtrando por Cuenta.)</li>
       <li>Crear o editar proveedores de motos y financieras.</li>
       <li>Editar el nombre o el correo de un usuario, o crear una persona sin correo.</li>
       <li>Deshacer una rendición confirmada.</li>

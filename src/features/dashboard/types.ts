@@ -116,7 +116,6 @@ export type AdministrativeHome = {
   role: 'ADMINISTRATIVA'
   greeting: DashboardGreeting
   dueTodayAlert: { amount: number; clientCount: number } | null
-  cashBalanceToday: number | null
   dueThisWeek: { amount: number; count: number } | null
   unconfirmedVehiclePayments: { count: number; staleCount: number } | null
   payableExpensesThisWeek: { amount: number; count: number } | null

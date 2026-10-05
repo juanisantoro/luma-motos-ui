@@ -49,6 +49,9 @@ export type CommissionAccount = {
   id: string
   code: string
   name: string
+  /** Sucursal de la cuenta; `null` si es compartida. */
+  branchId?: string | null
+  currency?: string
 }
 
 export type CommissionSummary = {

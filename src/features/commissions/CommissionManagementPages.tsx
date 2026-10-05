@@ -314,7 +314,10 @@ function PaymentModal({
           <label className="field"><span>Cuenta / caja *</span>
             <select name="accountId" required>
               <option value="">Seleccionar cuenta</option>
-              {options.accounts.map((account) => <option key={account.id} value={account.id}>{cashAccountLabel(account)}</option>)}
+              {/* La comisión se paga en pesos, desde una caja de la sucursal del vendedor. */}
+              {options.accounts
+                .filter((account) => (account.branchId === undefined || account.branchId === commission.branch.id) && (account.currency === undefined || account.currency === 'ARS'))
+                .map((account) => <option key={account.id} value={account.id}>{cashAccountLabel(account)}</option>)}
             </select>
           </label>
           <label className="field"><span>Fecha de pago *</span><input name="paidAt" type="date" defaultValue={localIsoDate()} required /></label>

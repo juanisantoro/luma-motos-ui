@@ -49,13 +49,12 @@ export function SettlementModal({
     const controller = new AbortController()
     void listAllCashAccounts(controller.signal)
       .then((items) => {
-        // Sólo las cuentas de la sucursal del registro y las compartidas.
+        // Sólo las cuentas de la sucursal del registro; si es "General" (sin
+        // sucursal), sólo las compartidas.
         // y de la misma moneda que el registro.
         const usable = usableCashAccounts(items, {
           branchId: record.branch?.id ?? null,
           currency: record.currency,
-          // El cobro de un ingreso sólo entra a cajas de su sucursal.
-          collection: kind === 'income' && !recovery,
         })
         setAccounts(usable)
         // Efectivo que se rinde a alguien: se propone la caja de esa persona.

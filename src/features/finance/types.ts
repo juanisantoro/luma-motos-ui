@@ -328,3 +328,68 @@ export type SalesOperationOption = {
     unit: { id: string; vin: string; licensePlate: string | null } | null
   }
 }
+
+// Transferencia interna: pasa plata de una caja a otra de la misma moneda.
+export type CashTransfer = {
+  id: string
+  amount: DecimalString
+  occurredAt: string
+  reference: string | null
+  status: 'CONFIRMADA' | 'REVERSADA' | 'PENDIENTE'
+  sourceAccount: { id: string; code: string; name: string; type: string }
+  destinationAccount: { id: string; code: string; name: string; type: string }
+  createdBy: MinimalPersonnel
+  createdAt: string
+}
+
+export type CashTransferInput = {
+  idempotencyKey: string
+  sourceAccountId: string
+  destinationAccountId: string
+  amount: DecimalString
+  occurredAt?: string
+  reference?: string
+  notes?: string
+}
+
+// Retiro de un socio desde una caja de la que es responsable. No es un gasto.
+export type PartnerWithdrawal = {
+  id: string
+  date: string
+  amount: DecimalString
+  currency: string
+  reason: string
+  status: 'REGISTRADO' | 'ANULADO'
+  account: { id: string; name: string; type: string | null }
+  branch: MinimalBranch | null
+  partner: MinimalPersonnel | null
+  registeredBy: MinimalPersonnel | null
+  createdAt: string
+  reversal: {
+    at: string
+    by: MinimalPersonnel | null
+    reason: string | null
+  } | null
+}
+
+export type PartnerWithdrawalPage = PageResponse<PartnerWithdrawal> & {
+  /** Total vigente (sin anulados) por moneda. */
+  totals: Array<{ currency: string; amount: DecimalString }>
+}
+
+export type PartnerWithdrawalInput = {
+  idempotencyKey: string
+  accountId: string
+  amount: DecimalString
+  date: string
+  reason: string
+}
+
+export type CashOperationQuery = {
+  page: number
+  limit: number
+  branchId?: string
+  accountId?: string
+  from?: string
+  to?: string
+}

@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  Banknote,
   CalendarClock,
   CheckCircle2,
   FileBadge,
@@ -59,13 +58,6 @@ export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) 
       )}
 
       <div className="kpi-grid">
-        {home.cashBalanceToday !== null && (
-          <KpiCard
-            icon={Banknote}
-            label="Saldo de caja hoy"
-            value={formatCurrency(home.cashBalanceToday)}
-          />
-        )}
         {home.dueThisWeek && (
           <KpiCard
             icon={CalendarClock}
@@ -254,7 +246,6 @@ export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) 
       </div>
 
       {home.dueTodayAlert === null &&
-        home.cashBalanceToday === null &&
         home.dueThisWeek === null &&
         home.unconfirmedVehiclePayments === null &&
         home.payableExpensesThisWeek === null &&

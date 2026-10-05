@@ -115,7 +115,15 @@ async function listOptions(signal?: AbortSignal) {
 }
 
 function listPaymentOptions(signal?: AbortSignal) {
-  return request<CommissionPage<{ id: string; code: string; name: string }>>(
+  return request<
+    CommissionPage<{
+      id: string
+      code: string
+      name: string
+      branchId?: string | null
+      currency?: string
+    }>
+  >(
     '/cash/accounts?active=true&page=1&limit=100',
     signal ? { signal } : {},
   ).then(

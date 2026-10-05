@@ -15,6 +15,8 @@ const financialConflictMessages: Record<string, string> = {
   RECOVERY_EXISTS: 'El gasto ya tiene un recupero registrado.',
   EXPENSE_NOT_RECOVERABLE: 'Este gasto no está marcado como recuperable.',
   UNBALANCED_TRANSFER: 'La transferencia entre cuentas no está balanceada.',
+  BRANCH_LOCKED_BY_MOVEMENTS:
+    'No se puede cambiar la sucursal: ya tiene pagos registrados desde una caja de esa sucursal. Reversá los pagos primero.',
 }
 
 export function financialErrorMessage(error: unknown) {
@@ -26,7 +28,15 @@ export function financialErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 400) {
       if (error.details?.code === 'CASH_ACCOUNT_BRANCH_MISMATCH')
-        return 'Esa cuenta no es de la sucursal del ingreso. Un cobro entra a una caja de su misma sucursal.'
+        return 'Esa cuenta no es de la sucursal del registro. La plata entra y sale por una caja de su misma sucursal; lo "General" (sin sucursal) va por una cuenta compartida.'
+      if (error.details?.code === 'WITHDRAWAL_ACCOUNT_WITHOUT_PARTNER')
+        return 'Esa cuenta no tiene responsable: el retiro queda a nombre del responsable de la caja.'
+      if (error.details?.code === 'INVALID_TRANSFER_ACCOUNTS')
+        return 'La cuenta de origen y la de destino tienen que ser distintas.'
+      if (error.details?.code === 'CURRENCY_MISMATCH')
+        return 'La moneda no coincide: la cuenta tiene que ser de la misma moneda que el registro o que la otra cuenta.'
+      if (error.details?.code === 'WITHDRAWAL_DATE_IN_FUTURE')
+        return 'La fecha del retiro no puede ser futura.'
       if (error.details?.code === 'HISTORIC_CASH_ACCOUNT')
         return 'Esa es una cuenta histórica importada del Excel: no recibe movimientos nuevos. Elegí una cuenta de caja actual.'
       return 'Revisá los datos y el estado del registro.'

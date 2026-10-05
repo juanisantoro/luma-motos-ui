@@ -28,6 +28,11 @@ import { BcraCheckPage } from '../features/bcra'
 import { CreditInstallmentsPage } from '../features/credit-plans/CreditInstallmentsPage'
 import { CreditPlansPage } from '../features/credit-plans/CreditPlansPage'
 import { CashAccountsPage } from '../features/finance/CashAccountsPage'
+import {
+  CashTransfersPage,
+  PartnerWithdrawalsPage,
+} from '../features/finance/CashOperationsPages'
+import { CASH_OPERATIONS_ENABLED } from '../shared/features'
 import { ExpensesPage } from '../features/finance/ExpensesPage'
 import { IncomesPage } from '../features/finance/IncomesPage'
 import { VehiclePaymentsPage } from '../features/vehicle-payments/VehiclePaymentsPage'
@@ -265,6 +270,29 @@ export function App() {
               >
                 <Route path="caja/cuentas" element={<CashAccountsPage />} />
               </Route>
+              {/* Ocultas hasta habilitar CASH_OPERATIONS (ver shared/features.ts). */}
+              {CASH_OPERATIONS_ENABLED && (
+                <>
+                  <Route
+                    element={<PermissionRoute permission="caja.transferir" />}
+                  >
+                    <Route
+                      path="caja/transferencias"
+                      element={<CashTransfersPage />}
+                    />
+                  </Route>
+                  <Route
+                    element={
+                      <PermissionRoute permission="caja.retiros.gestionar" />
+                    }
+                  >
+                    <Route
+                      path="caja/retiros"
+                      element={<PartnerWithdrawalsPage />}
+                    />
+                  </Route>
+                </>
+              )}
               <Route
                 element={<PermissionRoute permission="creditos.gestionar" />}
               >

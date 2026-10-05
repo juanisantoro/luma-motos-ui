@@ -79,10 +79,11 @@ describe('cuentas de caja', () => {
     ).toEqual(['bank', 'lucas', 'hist'])
   })
 
-  it('ofrece las cuentas de la sucursal y las compartidas', () => {
+  it('ofrece sólo cuentas activas y reconoce la sucursal aunque venga en `branch`', () => {
     const ids = usableCashAccounts(
       [lucas, bank, delViso, account({ id: 'off', active: false })],
-      { branchId: 'branch-sm', currency: 'ARS' },
+      // Las dos primeras son compartidas: van con un registro "General".
+      { branchId: null, currency: 'ARS' },
     ).map((item) => item.id)
     expect(ids).toEqual(['bank', 'lucas'])
     // La API también puede traer sólo `branch` (sin `branchId`).
@@ -140,22 +141,20 @@ describe('cuentas de caja', () => {
     ).toEqual([])
   })
 
-  it('para cobrar sólo ofrece las cajas de la sucursal del ingreso', () => {
+  it('ofrece sólo las cajas de la sucursal del registro, o las compartidas si es general', () => {
     const sanMiguel = account({ id: 'sm', code: 'SM', branchId: 'branch-1' })
     const delViso = account({ id: 'dv', code: 'DV', branchId: 'branch-2' })
     const shared = account({ id: 'shared', code: 'COMP', branchId: null })
     const all = [sanMiguel, delViso, shared]
-    expect(
-      usableCashAccounts(all, { branchId: 'branch-1', collection: true }).map(
-        (item) => item.id,
-      ),
-    ).toEqual(['sm'])
-    // Para pagar un gasto las compartidas siguen disponibles.
-    expect(
-      usableCashAccounts(all, { branchId: 'branch-1' })
+    const ids = (branchId?: string | null) =>
+      usableCashAccounts(all, branchId === undefined ? {} : { branchId })
         .map((item) => item.id)
-        .sort(),
-    ).toEqual(['shared', 'sm'])
+        .sort()
+    expect(ids('branch-1')).toEqual(['sm'])
+    // Registro "General" (sin sucursal): sólo las compartidas.
+    expect(ids(null)).toEqual(['shared'])
+    // Sin indicar sucursal no se filtra.
+    expect(ids()).toEqual(['dv', 'shared', 'sm'])
   })
 
   it('propone la caja de quien recibe la rendición', () => {

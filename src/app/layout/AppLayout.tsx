@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  ArrowLeftRight,
+  BanknoteArrowDown,
   PackageSearch,
   Bike,
   BadgeDollarSign,
@@ -37,6 +39,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import { hasPermission } from '../../features/auth/PermissionRoute'
 import { ManualAssistant } from '../../features/manual/ManualAssistant'
 import { Brand } from '../../shared/components/Brand'
+import { CASH_OPERATIONS_ENABLED } from '../../shared/features'
 import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
 
 type NavItem = {
@@ -285,6 +288,25 @@ const navigationGroups: NavGroup[] = [
         icon: WalletCards,
         permissions: ['caja.cuentas.gestionar'],
       },
+      // Ocultas hasta habilitar CASH_OPERATIONS (ver shared/features.ts).
+      ...(CASH_OPERATIONS_ENABLED
+        ? [
+            {
+              label: 'Transferencias entre cajas',
+              description: 'Pasar plata de una caja a otra',
+              to: '/caja/transferencias',
+              icon: ArrowLeftRight,
+              permissions: ['caja.transferir'],
+            },
+            {
+              label: 'Retiros de socios',
+              description: 'Plata que retira cada socio',
+              to: '/caja/retiros',
+              icon: BanknoteArrowDown,
+              permissions: ['caja.retiros.gestionar'],
+            },
+          ]
+        : []),
     ],
   },
   {

@@ -885,7 +885,7 @@ a{color:var(--red)}
       <li><span>Completá <strong>Fecha</strong>, <strong>Motivo / categoría</strong>, <strong>TT / referencia</strong>, <strong>Detalle / descripción</strong> e <strong>Importe</strong>. Todos son obligatorios.</span></li>
       <li><span><strong>Pagado por</strong> viene con tu nombre; cambialo si lo pagó otra persona.</span></li>
       <li><span>Tocá <strong>Guardar gasto</strong>. Queda en estado <strong>Pendiente</strong>.</span></li>
-      <li><span>Para registrar la salida de plata: en la lista tocá <strong>Pagar</strong>, elegí la <strong>Cuenta</strong> de donde sale, escribí el <strong>Importe</strong> y tocá <strong>Registrar pago</strong>.</span></li>
+      <li><span>Para registrar la salida de plata: en la lista tocá <strong>Pagar</strong>, elegí la <strong>Cuenta</strong> de donde sale (sólo aparecen las de la sucursal del gasto), escribí el <strong>Importe</strong> y tocá <strong>Registrar pago</strong>.</span></li>
     </ol>
     <p>Si pagás menos que el total queda <strong>Parcial</strong>; podés volver a tocar Pagar por el resto.</p>
     <p class="warn">El campo "Recuperada" (Sí / No) sólo deja anotado si ese gasto ya se recuperó. El botón "Recuperar" de la lista no aparece en los gastos cargados desde este formulario.</p>
@@ -1141,7 +1141,8 @@ a{color:var(--red)}
         <tr><td>Programar o marcar la entrega de la moto</td><td>No hay pantalla para eso.</td><td>—</td></tr>
         <tr><td>Confirmar que se recibió un efectivo (rendición)</td><td>Lo confirma quien recibe la plata.</td><td>La persona elegida en "Se rinde a"</td></tr>
         <tr><td>Crear o editar cuentas de caja</td><td>No es de tu perfil: la opción no aparece en tu menú.</td><td>Administrador</td></tr>
-        <tr><td>Pasar plata de una cuenta a otra</td><td>No hay pantalla para eso, con ningún usuario. Los movimientos de una caja los ve el Administrador en Auditoría.</td><td>—</td></tr>
+        <tr data-flag-off="caja-operaciones"><td>Pasar plata de una cuenta a otra</td><td>No hay pantalla para eso, con ningún usuario. Los movimientos de una caja los ve el Administrador en Auditoría.</td><td>—</td></tr>
+        <tr data-flag="caja-operaciones" hidden><td>Ver los movimientos de una caja o registrar un retiro de un socio</td><td>Lo hace el Administrador (Auditoría y Retiros de socios). Vos sí podés pasar plata entre cuentas de tu sucursal, y anular una transferencia, en Administración financiera → Transferencias entre cajas.</td><td>Administrador</td></tr>
         <tr><td>Consultar la auditoría (quién hizo cada cambio y los movimientos de dinero)</td><td>Esa pantalla la ve sólo el Administrador.</td><td>Administrador</td></tr>
         <tr><td>Crear marcas o modelos nuevos, proveedores o financieras</td><td>No es de tu perfil o no hay pantalla.</td><td>Administrador</td></tr>
         <tr><td>Trasladar una moto a otra sucursal</td><td>No hay pantalla para eso, con ningún usuario.</td><td>—</td></tr>
