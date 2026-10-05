@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, FileCheck2, Filter, Plus, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileCheck2, Filter, Info, Plus, RefreshCw } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../shared/api/client'
@@ -197,7 +197,7 @@ export function VehiclePaymentsPage({
         <div>
           <p className="eyebrow">DOCUMENTACIÓN</p>
           <h1>Patentes, seguros y formularios de {vehicleType === 'MOTO' ? 'motos' : 'autos'}</h1>
-          <p>Seguimiento de pagos de documentación asociada a cada vehículo.</p>
+          <p>Pagos de la documentación de cada vehículo: patente, seguro y formularios.</p>
         </div>
         {canManage && (
           <button className="button button--primary" type="button" onClick={() => setShowForm(true)}>
@@ -206,6 +206,19 @@ export function VehiclePaymentsPage({
           </button>
         )}
       </header>
+
+      <div className="alert-strip alert-strip--warning" role="note">
+        <div className="alert-strip__text">
+          <span className="alert-strip__icon" aria-hidden="true">
+            <Info size={18} />
+          </span>
+          <span>
+            Esta pantalla es para PAGOS: acá se anota lo que la agencia le paga a la gestoría o a la aseguradora. El
+            cobro de la patente al cliente no se carga acá: se registra desde la operación, en Ventas → Operaciones →
+            Gestionar.
+          </span>
+        </div>
+      </div>
 
       <details className="financial-filters" open>
         <summary>
