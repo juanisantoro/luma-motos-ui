@@ -50,14 +50,22 @@ it('mantiene acciones en la última columna de la tabla', () => {
     approval: null,
   } as SalesOperation
   const onRelease = vi.fn()
+  const onHistory = vi.fn()
 
   render(
     <SalesOperationList
       operations={[operation]}
       canRelease
+      onHistory={onHistory}
       onRelease={onRelease}
     />,
   )
+
+  // Auditoría: el historial de la venta se abre desde la fila.
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Ver historial de la operación 105' }),
+  )
+  expect(onHistory).toHaveBeenCalledWith(operation)
 
   const headers = screen.getAllByRole('columnheader')
   expect(headers.at(-1)).toHaveTextContent('Acciones')

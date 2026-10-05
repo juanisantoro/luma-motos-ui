@@ -247,6 +247,7 @@ export function CashAccountsPage() {
                   <th>Tipo</th>
                   <th>Responsable</th>
                   <th>Sucursal</th>
+                  <th>Moneda</th>
                   <th>Saldo</th>
                   <th>Estado</th>
                   {canManage && (
@@ -278,6 +279,7 @@ export function CashAccountsPage() {
                           'Sin responsable'}
                       </td>
                       <td>{branch ?? 'Compartida'}</td>
+                      <td>{account.currency}</td>
                       <td>{formatMoney(account.balance, account.currency)}</td>
                       <td>
                         <span

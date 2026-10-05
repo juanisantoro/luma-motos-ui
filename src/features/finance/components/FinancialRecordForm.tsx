@@ -21,6 +21,9 @@ import {
 import {
   accountForRecipient,
   cashAccountLabel,
+  currencies,
+  currencyLabels,
+  currencyName,
   usableCashAccounts,
 } from '../cashAccounts'
 import {
@@ -169,6 +172,8 @@ export function FinancialRecordForm({
   const [handoverToId, setHandoverToId] = useState('')
   const [collectNow, setCollectNow] = useState(canCollect)
   const [accountId, setAccountId] = useState('')
+  // Moneda del registro: define en qué cuentas puede entrar el cobro.
+  const [currency, setCurrency] = useState('ARS')
   const [accounts, setAccounts] = useState<CashAccount[]>([])
   const [recipients, setRecipients] = useState<HandoverRecipient[]>([])
   const [idempotencyKey] = useState(newIdempotencyKey)
@@ -213,8 +218,11 @@ export function FinancialRecordForm({
           branchId: payOperation?.branch.id ?? null,
           ...(payOperation ? { currency: payOperation.currency } : {}),
         }
-      : { branchId: branchId || null },
+      : { branchId: branchId || null, currency },
   )
+  const accountCurrency = operationPayment
+    ? (payOperation?.currency ?? 'ARS')
+    : currency
   // Efectivo: la caja no se elige, es la de quien recibe la rendición.
   const recipientAccount =
     isCash && handoverToId
@@ -1168,7 +1176,7 @@ export function FinancialRecordForm({
                         ? 'Elegí a quién se rinde'
                         : recipientAccount
                           ? cashAccountLabel(recipientAccount)
-                          : `${recipientName} todavía no tiene una caja para ${operationPayment ? 'la sucursal de la operación' : 'esta sucursal'}`}
+                          : `${recipientName} todavía no tiene una caja${accountCurrency === 'ARS' ? '' : ` en ${currencyName(accountCurrency)}`} para ${operationPayment ? 'la sucursal de la operación' : 'esta sucursal'}`}
                     </output>
                     <small>
                       Es la caja de quien recibe el efectivo; no se elige.
@@ -1192,7 +1200,8 @@ export function FinancialRecordForm({
                     </select>
                     {!loadingOptions && branchAccounts.length === 0 && (
                       <small>
-                        No hay cuentas de caja activas para esta sucursal.
+                        No hay cuentas de caja activas en{' '}
+                        {currencyName(accountCurrency)} para esta sucursal.
                         Pedile a un administrador que las cree en Cuentas de
                         caja.
                       </small>
@@ -1203,7 +1212,22 @@ export function FinancialRecordForm({
             )}
             {kind !== 'expense' && !operationPayment && <label className="field">
               <span>Moneda *</span>
-              <input name="currency" defaultValue="ARS" maxLength={3} required />
+              <select
+                name="currency"
+                onChange={(event) => {
+                  setCurrency(event.target.value)
+                  // La cuenta elegida era de la otra moneda.
+                  setAccountId('')
+                }}
+                required
+                value={currency}
+              >
+                {currencies.map((item) => (
+                  <option key={item} value={item}>
+                    {currencyLabels[item]}
+                  </option>
+                ))}
+              </select>
             </label>}
             <label className="field field--wide">
               <span>Observaciones</span>

@@ -427,6 +427,7 @@ a{color:var(--red)}
       <li><span>Tocá <strong>Nueva cuenta</strong>.</span></li>
       <li><span>Poné el <strong>Nombre</strong> (por ejemplo "Caja Lucas" o "Banco Galicia Nicolás").</span></li>
       <li><span>Elegí el <strong>Tipo</strong>: Efectivo, Cuenta bancaria, Caja de socio (viene elegido), Procesadora de tarjetas, Financiera u Otra.</span></li>
+      <li><span>Elegí la <strong>Moneda</strong>: Pesos (ARS), que viene elegida, o Dólares (USD).</span></li>
       <li><span>Elegí el <strong>Responsable</strong>: a quién le entra la plata de esa cuenta.</span></li>
       <li><span>En <strong>Sucursal</strong> elegí una, o "Compartida (todas las sucursales)" si la cuenta sirve para todos los locales.</span></li>
       <li><span>Dejá tildada <strong>Cuenta activa</strong> y tocá <strong>Guardar cuenta</strong>.</span></li>
@@ -435,9 +436,10 @@ a{color:var(--red)}
       <li>La cuenta arranca con saldo cero. El saldo se mueve solo con cada cobro y cada pago.</li>
       <li><strong>Desactivar</strong> y <strong>Reactivar</strong> actúan al instante, sin preguntar. Una cuenta desactivada deja de ofrecerse al cobrar o pagar.</li>
       <li>No se borra una cuenta: se desactiva.</li>
+      <li>Cada cuenta es de <strong>una sola moneda</strong> y no se puede cambiar después. Un ingreso en dólares sólo puede entrar a una cuenta en dólares: para cobrar dólares creá una cuenta aparte por cada persona o banco que los reciba (por ejemplo "Caja Lucas dólares"). Si no existe, al cargar el ingreso el sistema avisa que no hay cuentas en dólares.</li>
       <li>El sistema no impide crear dos cuentas con el mismo nombre. Antes de crear una, tildá "Mostrar también las inactivas…" y fijate que no exista; si está inactiva, reactivala.</li>
     </ul>
-    <p class="warn">Todavía no hay pantalla para pasar plata de una cuenta a otra ni para ver el detalle de movimientos de una cuenta. Hoy se ve sólo el saldo.</p>
+    <p class="warn">Todavía no hay pantalla para pasar plata de una cuenta a otra. Acá se ve sólo el saldo; el detalle de movimientos de cada cuenta está en Configuración → Auditoría → Movimientos de dinero, filtrando por Cuenta.</p>
   </section>
 </div>
 
@@ -594,10 +596,56 @@ a{color:var(--red)}
 
 <!-- ============ 9 ============ -->
 <div class="chapter" id="auditoria">
-  <header><span>Capítulo 9</span><h2>Auditoría</h2><p>El sistema guarda quién hizo cada cambio, pero la pantalla para consultarlo todavía no está.</p></header>
+  <header><span>Capítulo 9</span><h2>Auditoría</h2><p>Todo lo que se hizo en el sistema, con fecha y hora, quién lo hizo y quién lo aprobó. Es la pantalla para controlar la plata.</p></header>
   <section>
     <span class="where">Configuración → Auditoría</span>
-    <p>Hoy la pantalla dice "Módulo pendiente de integración". Los cambios (altas, cobros, correcciones de ventas, rendiciones, cambios de usuarios y roles) sí quedan registrados; si necesitás saber quién hizo algo, pedíselo a soporte.</p>
+    <p>Arriba hay dos pestañas: <strong>Actividad</strong> (quién hizo qué) y <strong>Movimientos de dinero</strong> (por dónde pasó cada peso). Todas las fechas tienen hora, minutos y segundos, en hora de Argentina. No se puede modificar ni borrar nada desde acá: es sólo consulta.</p>
+  </section>
+
+  <section>
+    <h3>Actividad: quién hizo qué</h3>
+    <p>Cada renglón es una acción: <strong>Fecha y hora</strong>, <strong>Usuario</strong> (con su rol y sucursal), <strong>Módulo</strong>, <strong>Acción</strong> y <strong>Sobre qué</strong> (la venta, el ingreso, el cliente, el usuario…, con su importe cuando lo tiene).</p>
+    <ol class="steps">
+      <li><span>Elegí <strong>Desde</strong> y <strong>Hasta</strong>. Al entrar trae los últimos 7 días.</span></li>
+      <li><span>Si querés, achicá con <strong>Módulo</strong> (Ventas, Dinero y caja, Stock, Clientes, Créditos, Comisiones, Catálogo, Usuarios y roles, Ingresos al sistema), <strong>Acción</strong>, <strong>Usuario</strong> o <strong>N.º de operación</strong>.</span></li>
+      <li><span>Tocá <strong>Buscar</strong>. <strong>Limpiar</strong> vuelve a los últimos 7 días.</span></li>
+      <li><span>En un renglón, <strong>Detalle</strong> muestra quién lo hizo, desde qué dirección IP y, cuando el sistema lo guardó, el <strong>antes y el después</strong> de cada dato (lo que cambió queda resaltado).</span></li>
+      <li><span><strong>Historial</strong> abre toda la historia de la venta a la que pertenece ese renglón.</span></li>
+    </ol>
+    <p>Con <strong>N.º de operación</strong> aparecen las acciones de la venta y también las de sus ingresos, gastos, pagos de patente y cuotas.</p>
+    <p class="warn">El antes y el después se guarda en las correcciones de ventas, en las altas y cambios de ingresos, en las rendiciones y en los cambios de usuarios. En el resto de las acciones queda quién, cuándo y sobre qué registro, sin el detalle de los valores. Los ingresos cargados antes de esta versión tampoco tienen ese detalle.</p>
+  </section>
+
+  <section>
+    <h3>Historial de una venta</h3>
+    <p>Se abre con <strong>Historial</strong> desde Auditoría, o desde <strong>Ventas → Operaciones moto (o auto) → Operaciones</strong> con el ícono del reloj de cada fila.</p>
+    <ul>
+      <li><strong>Datos de la venta</strong>: vehículo, sucursal, boleto, precio acordado, quién la cargó y cuándo, última modificación y entrega.</li>
+      <li><strong>Aprobaciones</strong>: quién <strong>pidió</strong> la aprobación y cuándo, quién la <strong>aprobó o rechazó</strong> y cuándo, con los precios de lista, mínimo y acordado de ese momento y el motivo.</li>
+      <li><strong>Línea de tiempo</strong>: cada paso en orden, del más viejo al más nuevo, con fecha, hora y usuario. En las correcciones muestra qué dato cambió.</li>
+      <li><strong>Dinero de esta venta</strong>: cada cobro y cada gasto asociado.</li>
+    </ul>
+    <p>Las ventas importadas del Excel no tienen historial anterior a la importación.</p>
+  </section>
+
+  <section>
+    <h3>Movimientos de dinero</h3>
+    <p>Es el libro de todo lo que entró y salió de las cuentas de caja. Cada renglón muestra:</p>
+    <ul>
+      <li><strong>Cargado el</strong>: fecha y hora en que se registró, y debajo la fecha contable.</li>
+      <li><strong>Cuenta</strong> y su sucursal.</li>
+      <li><strong>Concepto</strong>: si es un ingreso, gasto, compra, comisión o transferencia, con la venta y el cliente.</li>
+      <li><strong>Entrada</strong> o <strong>Salida</strong>, y <strong>Registró</strong> (quién lo cargó).</li>
+      <li><strong>Rendición del efectivo</strong>: a quién se le rinde, y cuando ya está confirmada, quién la confirmó y a qué hora.</li>
+      <li><strong>Estado</strong>: Vigente, Reversado (con quién lo reversó, cuándo y el motivo) o "Es una reversa".</li>
+    </ul>
+    <p>Filtros: <strong>Cargado desde / hasta</strong>, <strong>Cuenta</strong>, <strong>Sentido</strong> (entradas o salidas), <strong>Registró</strong>, <strong>N.º de operación</strong>, <strong>Buscar</strong> (cliente, concepto, referencia o quien registró) y la tilde <strong>Sólo reversados y reversas</strong>. Arriba de la tabla quedan los totales de Entradas y Salidas vigentes de lo filtrado (no suman lo reversado).</p>
+    <p><strong>Para controlar la plata de un día:</strong> poné el mismo día en Desde y Hasta, y mirá la columna Rendición del efectivo. Lo que diga "Pendiente de rendir" todavía no llegó a quien lo tiene que recibir.</p>
+  </section>
+
+  <section>
+    <h3>Exportar a Excel</h3>
+    <p>En las dos pestañas, <strong>Exportar a Excel</strong> descarga un archivo con todo lo que trae el filtro (no sólo la página que estás viendo), hasta 5.000 filas. Si necesitás más, achicá el rango de fechas y exportá por partes.</p>
   </section>
 </div>
 
@@ -657,10 +705,9 @@ a{color:var(--red)}
     <p>Para que no busques un botón que no existe, con ningún perfil:</p>
     <ul>
       <li>Cerrar o cancelar una venta después de salir de la pantalla de alta, y cerrar una venta de moto 0 km.</li>
-      <li>Pasar plata de una cuenta de caja a otra y ver los movimientos de una cuenta.</li>
+      <li>Pasar plata de una cuenta de caja a otra. (Los movimientos de una cuenta sí se ven: Auditoría → Movimientos de dinero, filtrando por Cuenta.)</li>
       <li>Trasladar una moto de una sucursal a otra.</li>
       <li>Crear o editar proveedores de motos y financieras.</li>
-      <li>Consultar la auditoría en pantalla.</li>
       <li>Editar el nombre o el correo de un usuario, o crear una persona sin correo.</li>
       <li>Deshacer una rendición confirmada.</li>
       <li>Cambiar la contraseña estando adentro (se hace con "¿Olvidaste tu contraseña?").</li>

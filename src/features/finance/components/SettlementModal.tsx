@@ -4,6 +4,7 @@ import { addSettlement, listAllCashAccounts } from '../api'
 import {
   accountForRecipient,
   cashAccountLabel,
+  currencyName,
   usableCashAccounts,
 } from '../cashAccounts'
 import { alertError, alertSuccess } from '../../../shared/alerts'
@@ -49,8 +50,10 @@ export function SettlementModal({
     void listAllCashAccounts(controller.signal)
       .then((items) => {
         // Sólo las cuentas de la sucursal del registro y las compartidas.
+        // y de la misma moneda que el registro.
         const usable = usableCashAccounts(items, {
           branchId: record.branch?.id ?? null,
+          currency: record.currency,
         })
         setAccounts(usable)
         // Efectivo que se rinde a alguien: se propone la caja de esa persona.
@@ -132,6 +135,13 @@ export function SettlementModal({
                 </option>
               ))}
             </select>
+            {!loadingAccounts && accounts.length === 0 && (
+              <small>
+                No hay cuentas de caja activas en{' '}
+                {currencyName(record.currency)} para esta sucursal. Creala en
+                Cuentas de caja y volvé a intentar.
+              </small>
+            )}
             {lockedToRecipient && (
               <>
                 <input type="hidden" name="accountId" value={accountId} />

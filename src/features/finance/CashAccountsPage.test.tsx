@@ -143,6 +143,7 @@ describe('Cuentas de caja', () => {
         type: 'BANCO',
         branchId: null,
         responsiblePersonnelId: 'p-nico',
+        currency: 'ARS',
         active: true,
       }),
     )

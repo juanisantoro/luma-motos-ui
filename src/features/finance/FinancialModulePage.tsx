@@ -172,6 +172,9 @@ export function FinancialModulePage({
 
   const pageTotal = useMemo(() => {
     if (!result || result.items.length === 0) return null
+    // Pesos y dólares mezclados no se suman.
+    if (new Set(result.items.map((item) => item.currency)).size > 1)
+      return null
     if (kind === 'purchase') {
       if (!canViewCosts) return null
       const values = (result.items as SupplierPurchase[])

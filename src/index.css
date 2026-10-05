@@ -7031,3 +7031,163 @@ a {
     width: 100%;
   }
 }
+
+/* Auditoría */
+.audit-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.financial-filters.audit-filters summary {
+  display: none;
+}
+
+.financial-filters.audit-filters form {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  align-items: end;
+}
+
+.audit-filters__check {
+  min-height: 44px;
+  margin: 0;
+}
+
+.audit-table td {
+  vertical-align: top;
+}
+
+.audit-table td:first-child {
+  white-space: nowrap;
+}
+
+.audit-table__money {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.audit-table__money--in {
+  color: #166534;
+  font-weight: 800;
+}
+
+.audit-table__money--out {
+  color: #b42318;
+  font-weight: 800;
+}
+
+.audit-link {
+  padding: 0;
+  border: 0;
+  color: var(--red);
+  background: none;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.financial-modal.audit-history {
+  width: min(1120px, 100%);
+}
+
+.audit-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px 18px;
+  margin: 0 0 18px;
+}
+
+.audit-facts dt {
+  color: #69727f;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.audit-facts dd {
+  margin: 3px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.audit-facts dd small,
+.audit-timeline small {
+  display: block;
+  color: #69727f;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.audit-section {
+  margin: 20px 0 10px;
+  font-size: 15px;
+}
+
+.audit-note {
+  margin: 0 0 14px;
+  color: #69727f;
+  font-size: 13px;
+}
+
+.audit-diff__changed td {
+  background: #fff7e6;
+  font-weight: 700;
+}
+
+.audit-approvals {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.audit-approvals li {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.audit-approvals p {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.audit-timeline {
+  display: grid;
+  gap: 0;
+  margin: 0 0 8px;
+  padding: 0 0 0 16px;
+  border-left: 2px solid var(--line);
+  list-style: none;
+}
+
+.audit-timeline li {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: 0 0 14px 6px;
+  font-size: 13px;
+}
+
+.audit-timeline li::before {
+  position: absolute;
+  top: 5px;
+  left: -22px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--red);
+  content: '';
+}
+
+.audit-timeline time {
+  color: #69727f;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}

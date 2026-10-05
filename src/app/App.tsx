@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AuditPage } from '../features/audit'
 import { AuthProvider } from '../features/auth/AuthContext'
 import { RoleDetailPage } from '../features/access/RoleDetailPage'
 import { RoleFormPage } from '../features/access/RoleFormPage'
@@ -32,7 +33,6 @@ import { IncomesPage } from '../features/finance/IncomesPage'
 import { VehiclePaymentsPage } from '../features/vehicle-payments/VehiclePaymentsPage'
 import { PurchasesPage } from '../features/finance/PurchasesPage'
 import { ManualPage } from '../features/manual/ManualPage'
-import { ModulePlaceholder } from '../features/placeholders/ModulePlaceholder'
 import { ApprovalsPage } from '../features/sales/ApprovalsPage'
 import { OperationsPage } from '../features/sales/OperationsPage'
 import { NewOperationPage } from '../features/sales/NewOperationPage'
@@ -287,12 +287,7 @@ export function App() {
               >
                 <Route
                   path="auditoria"
-                  element={
-                    <ModulePlaceholder
-                      title="Auditoría"
-                      description="Registro de actividad del sistema."
-                    />
-                  }
+                  element={<AuditPage />}
                 />
               </Route>
               <Route element={<PermissionRoute permission="comisiones.consultar" />}>

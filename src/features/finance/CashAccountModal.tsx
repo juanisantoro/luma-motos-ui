@@ -1,7 +1,12 @@
 import { LoaderCircle, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
-import { cashAccountTypeLabels, cashAccountTypes } from './cashAccounts'
+import {
+  cashAccountTypeLabels,
+  cashAccountTypes,
+  currencies,
+  currencyLabels,
+} from './cashAccounts'
 import type {
   BranchOption,
   CashAccount,
@@ -44,6 +49,7 @@ export function CashAccountModal({
         ? ''
         : (branches[0]?.id ?? ''),
   )
+  const [currency, setCurrency] = useState(account?.currency ?? 'ARS')
   const [active, setActive] = useState(account?.active ?? true)
   const [validation, setValidation] = useState('')
   const dialogRef = useDialogFocus(onClose, submitting)
@@ -72,6 +78,8 @@ export function CashAccountModal({
       type,
       branchId: branchId || null,
       responsiblePersonnelId: responsibleId || null,
+      // La moneda se define al crear la cuenta y después no cambia.
+      ...(account ? {} : { currency }),
       active,
     })
   }
@@ -131,6 +139,29 @@ export function CashAccountModal({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="field">
+            <span>Moneda *</span>
+            <select
+              disabled={Boolean(account)}
+              onChange={(event) => setCurrency(event.target.value)}
+              required
+              value={currency}
+            >
+              {(currencies.includes(currency)
+                ? currencies
+                : [...currencies, currency]
+              ).map((item) => (
+                <option key={item} value={item}>
+                  {currencyLabels[item] ?? item}
+                </option>
+              ))}
+            </select>
+            <small>
+              {account
+                ? 'La moneda de una cuenta no se puede cambiar. Para otra moneda creá otra cuenta.'
+                : 'La cuenta sólo recibe cobros y pagos en esta moneda. Para dólares creá una cuenta aparte.'}
+            </small>
           </label>
           <label className="field">
             <span>Responsable</span>

@@ -13,6 +13,19 @@ export const cashAccountTypeLabels: Record<CashAccountType, string> = {
   OTRO: 'Otra',
 }
 
+// Monedas en las que se opera. Una cuenta es de una sola moneda y sólo
+// recibe cobros o pagos de registros en esa misma moneda.
+export const currencyLabels: Record<string, string> = {
+  ARS: 'Pesos (ARS)',
+  USD: 'Dólares (USD)',
+}
+
+export const currencies = Object.keys(currencyLabels)
+
+export function currencyName(currency: string) {
+  return { ARS: 'pesos', USD: 'dólares' }[currency] ?? currency
+}
+
 export const cashAccountTypes = Object.keys(
   cashAccountTypeLabels,
 ) as CashAccountType[]
@@ -22,6 +35,7 @@ type AccountLike = Pick<CashAccount, 'code' | 'name'> &
     Pick<
       CashAccount,
       | 'type'
+      | 'currency'
       | 'branchId'
       | 'branch'
       | 'responsiblePersonnel'
@@ -54,6 +68,8 @@ export function cashAccountLabel(account: AccountLike) {
     account.name,
     responsible && !account.name.includes(responsible) ? responsible : null,
     type,
+    // La moneda sólo se aclara cuando no es pesos.
+    account.currency && account.currency !== 'ARS' ? account.currency : null,
   ]
     .filter(Boolean)
     .join(' · ')

@@ -99,6 +99,31 @@ describe('cuentas de caja', () => {
     ).toHaveLength(0)
   })
 
+  it('sólo ofrece cuentas de la moneda del registro y aclara las que no son pesos', () => {
+    const lucasUsd = account({
+      ...lucas,
+      id: 'lucas-usd',
+      code: 'CAJA_LUCAS_USD',
+      name: 'Caja Lucas dólares',
+      currency: 'USD',
+    })
+    const all = [lucas, bank, lucasUsd]
+    expect(
+      usableCashAccounts(all, { currency: 'USD' }).map((item) => item.id),
+    ).toEqual(['lucas-usd'])
+    expect(
+      usableCashAccounts(all, { currency: 'ARS' }).map((item) => item.id),
+    ).not.toContain('lucas-usd')
+    expect(cashAccountLabel(lucasUsd)).toBe(
+      'Caja Lucas dólares · Caja de socio · USD',
+    )
+    // El efectivo en dólares va a la caja en dólares de quien lo recibe.
+    expect(
+      accountForRecipient(usableCashAccounts(all, { currency: 'USD' }), 'p-lucas')
+        ?.id,
+    ).toBe('lucas-usd')
+  })
+
   it('propone la caja de quien recibe la rendición', () => {
     expect(accountForRecipient([bank, lucas, historic], 'p-lucas')?.id).toBe(
       'lucas',
@@ -130,7 +155,7 @@ describe('cobro de un ingreso en la lista', () => {
     ).toEqual([
       'Caja Lucas · Caja de socio',
       'Efectivo · cobró Vendedor',
-      'Pendiente de rendición: rinde a Lucas',
+      'Falta que Lucas confirme que recibió el efectivo',
     ])
   })
 
@@ -145,7 +170,7 @@ describe('cobro de un ingreso en la lista', () => {
           confirmedBy: { id: 'p-lucas', fullName: 'Lucas' },
         },
       }).at(-1),
-    ).toBe('Rendido a Lucas')
+    ).toBe('Lucas confirmó que recibió el efectivo')
     expect(incomeCollectionLines({} as Income)).toEqual([
       'Sin cobro registrado',
     ])

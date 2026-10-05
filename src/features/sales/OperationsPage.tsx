@@ -10,6 +10,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { useAuth } from '../auth/AuthContext'
+import { OperationHistoryModal } from '../audit'
 import { hasPermission } from '../auth/PermissionRoute'
 import type { VehicleKind } from '../stock/types'
 import { listSalesOperations } from './api'
@@ -132,6 +133,13 @@ export function OperationsPage({
   const [editOperation, setEditOperation] = useState<SalesOperation | null>(
     null,
   )
+  // Historial de la venta para quien puede consultar la auditoría.
+  const canAudit = hasPermission(
+    user?.role.permissions,
+    'auditoria.consultar',
+  )
+  const [historyOperation, setHistoryOperation] =
+    useState<SalesOperation | null>(null)
   const showUnitFilter = showLicensing && vehicleType === 'MOTO'
   const [searchParams, setSearchParams] = useSearchParams()
   const licensingFilter = showLicensing
@@ -476,6 +484,7 @@ export function OperationsPage({
                 showLicensing={showLicensing}
                 onManageLicensing={setLicensingOperation}
                 {...(canCorrect ? { onEdit: setEditOperation } : {})}
+                {...(canAudit ? { onHistory: setHistoryOperation } : {})}
                 {...(showLicensing && canPayLicensing
                   ? { onRegisterLicensingPayment: registerLicensingPayment }
                   : {})}
@@ -527,6 +536,13 @@ export function OperationsPage({
             </footer>
           )}
         </section>
+      )}
+      {historyOperation && (
+        <OperationHistoryModal
+          key={historyOperation.id}
+          onClose={() => setHistoryOperation(null)}
+          operationId={historyOperation.id}
+        />
       )}
       {editOperation && (
         <EditOperationModal

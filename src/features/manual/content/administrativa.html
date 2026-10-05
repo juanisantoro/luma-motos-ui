@@ -845,6 +845,7 @@ a{color:var(--red)}
       <li><span>Tocá <strong>Nuevo ingreso</strong> y elegí el <strong>Tipo</strong>.</span></li>
       <li><span>Buscá la <strong>Unidad / VIN</strong> o la <strong>Operación</strong> a la que corresponde (escribí 3 letras y elegí).</span></li>
       <li><span>Completá <strong>Descripción</strong> e <strong>Importe total</strong>. <strong>TT / referencia</strong> es opcional (número de boleto o comprobante).</span></li>
+      <li><span>Si el ingreso es en dólares, cambiá <strong>Moneda</strong> (abajo, antes de Observaciones) a "Dólares (USD)" <strong>antes</strong> de elegir la cuenta: sólo se ofrecen las cuentas de esa moneda. Viene en "Pesos (ARS)".</span></li>
       <li><span>Elegí el <strong>Medio</strong>.</span></li>
       <li><span>Si es <strong>Efectivo</strong>: elegí <strong>Se rinde a</strong>. La <strong>Caja donde entra</strong> se completa sola.</span></li>
       <li><span>Si es otro medio: elegí la <strong>Cuenta donde entró</strong>.</span></li>
@@ -853,6 +854,7 @@ a{color:var(--red)}
     </ol>
     <p class="note">Unidad y Operación son opcionales, pero conviene vincular el ingreso a una de las dos cuando corresponde: así queda asociado a la moto o a la venta. Un ingreso sin ninguna aparece igual en la lista de Ingresos de motos.</p>
     <ul>
+      <li>Un ingreso en dólares sólo entra a una cuenta en dólares. Si el sistema dice que no hay cuentas en dólares, pedile al Administrador que la cree en Cuentas de caja; mientras tanto podés guardarlo como "Pendiente de cobro" y cobrarlo después con <strong>Cobrar</strong>.</li>
       <li>"Cobrado" cobra el importe completo. Para cobrar una parte, guardalo como "Pendiente de cobro" y después usá <strong>Cobrar</strong> en la lista con el importe parcial.</li>
       <li>En efectivo hay que indicar "Se rinde a" incluso si lo guardás como pendiente.</li>
       <li>En la lista, la columna <strong>Cuenta / cobro</strong> muestra en qué cuenta entró, el medio, quién cobró y a quién se rinde.</li>
@@ -1034,7 +1036,7 @@ a{color:var(--red)}
         <tr><td>Crear o editar cuentas de caja</td><td>No es de tu rol.</td><td>Administrador</td></tr>
         <tr><td>Corregir, borrar o reversar un cobro, pago, ingreso o gasto</td><td>No es de tu rol.</td><td>Gerente o Administrador</td></tr>
         <tr><td>Cargar una compra o ver costos de compra</td><td>No es de tu rol.</td><td>Gerente o Administrador</td></tr>
-        <tr><td>Pasar plata de una cuenta a otra o ver los movimientos de una caja</td><td>No hay pantalla para eso, con ningún usuario.</td><td>—</td></tr>
+        <tr><td>Pasar plata de una cuenta a otra o ver los movimientos de una caja</td><td>Pasar plata no se puede con ningún usuario. Los movimientos de una caja los ve el Administrador en Auditoría.</td><td>Administrador</td></tr>
         <tr><td>Crear marcas o modelos nuevos, proveedores o financieras</td><td>No es de tu rol o no hay pantalla.</td><td>Administrador</td></tr>
         <tr><td>Trasladar una moto a otra sucursal</td><td>No hay pantalla para eso, con ningún usuario.</td><td>—</td></tr>
         <tr><td>Crear planes de crédito, ver comisiones, usuarios o auditoría</td><td>No es de tu rol.</td><td>Administrador</td></tr>

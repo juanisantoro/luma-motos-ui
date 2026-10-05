@@ -282,6 +282,63 @@ describe('Alta de ingreso con medio, cobrador y rendición', () => {
     )
   })
 
+  it('en dólares sólo ofrece cuentas en dólares y avisa si no hay', async () => {
+    mocks.listAccounts.mockResolvedValue([
+      ...accounts,
+      {
+        ...accounts[1]!,
+        id: 'account-bank-usd',
+        code: 'BANCO_NICO_USD',
+        name: 'Banco Galicia dólares',
+        currency: 'USD',
+      },
+    ])
+    const user = userEvent.setup()
+    renderForm()
+    await fillBasics(user)
+    await user.selectOptions(
+      screen.getByLabelText('Medio *'),
+      'TRANSFERENCIA_BANCARIA',
+    )
+
+    await user.selectOptions(screen.getByLabelText('Moneda *'), 'USD')
+    const accountSelect = screen.getByLabelText('Cuenta donde entró *')
+    expect(accountSelect).toHaveTextContent('Banco Galicia dólares')
+    expect(
+      Array.from(accountSelect.querySelectorAll('option')).map(
+        (option) => option.value,
+      ),
+    ).toEqual(['', 'account-bank-usd'])
+    await user.selectOptions(accountSelect, 'account-bank-usd')
+    await user.click(screen.getByRole('button', { name: 'Guardar ingreso' }))
+
+    await waitFor(() => expect(mocks.create).toHaveBeenCalled())
+    const created = mocks.create.mock.calls[0]?.[1] as Record<string, unknown>
+    expect(created.currency).toBe('USD')
+    await waitFor(() =>
+      expect(mocks.settle).toHaveBeenCalledWith(
+        'income',
+        'income-1',
+        expect.objectContaining({ accountId: 'account-bank-usd' }),
+      ),
+    )
+  })
+
+  it('en dólares sin cuentas en dólares explica qué falta', async () => {
+    const user = userEvent.setup()
+    renderForm()
+    await fillBasics(user)
+    await user.selectOptions(
+      screen.getByLabelText('Medio *'),
+      'TRANSFERENCIA_BANCARIA',
+    )
+    await user.selectOptions(screen.getByLabelText('Moneda *'), 'USD')
+
+    expect(
+      screen.getByText(/No hay cuentas de caja activas en dólares/),
+    ).toBeInTheDocument()
+  })
+
   it('como "Pendiente de cobro" guarda el ingreso y no toca caja', async () => {
     const user = userEvent.setup()
     renderForm()

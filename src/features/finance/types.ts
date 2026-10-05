@@ -279,6 +279,8 @@ export type CashAccountInput = {
   type: CashAccountType
   branchId?: string | null
   responsiblePersonnelId?: string | null
+  /** Sólo en el alta: la moneda de una cuenta no cambia. */
+  currency?: string
   active?: boolean
 }
 

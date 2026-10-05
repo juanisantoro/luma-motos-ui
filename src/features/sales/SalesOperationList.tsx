@@ -3,6 +3,7 @@ import {
   ChevronRight,
   FileBadge,
   FileText,
+  History,
   PackageCheck,
   Pencil,
   Store,
@@ -330,6 +331,7 @@ function RowActions({
   unitActions = [],
   onUnitAction,
   onEdit,
+  onHistory,
   onManageLicensing,
   onRegisterLicensingPayment,
   canRelease,
@@ -340,6 +342,7 @@ function RowActions({
   unitActions?: UnitAction[] | undefined
   onUnitAction?: ((operation: SalesOperation, action: UnitAction) => void) | undefined
   onEdit?: ((operation: SalesOperation) => void) | undefined
+  onHistory?: ((operation: SalesOperation) => void) | undefined
   onManageLicensing?: ((operation: SalesOperation) => void) | undefined
   onRegisterLicensingPayment?: ((operation: SalesOperation) => void) | undefined
   canRelease: boolean
@@ -375,6 +378,17 @@ function RowActions({
           type="button"
         >
           <Pencil size={16} />
+        </button>
+      )}
+      {onHistory && (
+        <button
+          aria-label={`Ver historial de la operación ${operation.number}`}
+          className="row-action"
+          data-tip="Historial (auditoría)"
+          onClick={() => onHistory(operation)}
+          type="button"
+        >
+          <History size={16} />
         </button>
       )}
       {onManageLicensing && canManageLicensing(operation) && (
@@ -426,6 +440,7 @@ export function SalesOperationList({
   unitActions,
   onUnitAction,
   onEdit,
+  onHistory,
 }: {
   operations: SalesOperation[]
   canRelease?: boolean
@@ -441,6 +456,8 @@ export function SalesOperationList({
   onUnitAction?: (operation: SalesOperation, action: UnitAction) => void
   // Corrección de la venta (ventas.corregir): botón Editar por fila.
   onEdit?: (operation: SalesOperation) => void
+  // Auditoría (auditoria.consultar): historial completo de la venta.
+  onHistory?: (operation: SalesOperation) => void
 }) {
   const cards = useMediaQuery('(max-width: 768px)')
   const unitColumn =
@@ -471,6 +488,7 @@ export function SalesOperationList({
   const hasActions = Boolean(
     canRelease ||
       onEdit ||
+      onHistory ||
       onUnitAction ||
       (showLicensing && (onManageLicensing || onRegisterLicensingPayment)),
   )
@@ -578,6 +596,17 @@ export function SalesOperationList({
               >
                 <Pencil size={16} />
                 Editar
+              </button>
+            )}
+            {onHistory && (
+              <button
+                aria-label={`Ver historial de la operación ${operation.number}`}
+                className="button button--secondary sales-card__action"
+                onClick={() => onHistory(operation)}
+                type="button"
+              >
+                <History size={16} />
+                Historial
               </button>
             )}
             {canRelease && (
@@ -695,6 +724,7 @@ export function SalesOperationList({
                         busyId={busyId}
                         canRelease={canRelease}
                         onEdit={onEdit}
+                        onHistory={onHistory}
                         onManageLicensing={
                           showLicensing ? onManageLicensing : undefined
                         }
