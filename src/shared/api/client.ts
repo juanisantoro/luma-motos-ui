@@ -7,7 +7,7 @@ const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').re
 // '/api' prefix, so building an <img> URL needs the bare origin instead.
 const API_ORIGIN = API_URL.replace(/\/api$/, '')
 
-export function resolveMediaUrl(path: strinya pg | null | undefined): string | null {
+export function resolveMediaUrl(path: string | null | undefined): string | null {
   if (!path) return null
   if (/^https?:\/\//.test(path)) return path
   return `${API_ORIGIN}${path.startsWith('/') ? path : `/${path}`}`
