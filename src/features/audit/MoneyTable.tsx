@@ -1,7 +1,7 @@
 import { formatMoney } from '../finance/format'
 import {
-  formatAccountingDate,
   formatDateTime,
+  formatDay,
   handoverLabel,
   movementTypeLabels,
   paymentMethodLabels,
@@ -29,7 +29,7 @@ export function MoneyTable({
       <table className="financial-table audit-table">
         <thead>
           <tr>
-            <th>Cargado el</th>
+            <th>Fecha</th>
             <th>Cuenta</th>
             <th>Concepto</th>
             <th className="audit-table__money">Entrada</th>
@@ -45,10 +45,11 @@ export function MoneyTable({
             return (
               <tr key={movement.id}>
                 <td>
-                  <strong>{formatDateTime(movement.createdAt)}</strong>
-                  <small>
-                    Fecha contable {formatAccountingDate(movement.occurredAt)}
-                  </small>
+                  {/* La misma fecha que muestran Ingresos y Egresos: la que
+                      cargó el usuario. Por ella se filtra y se ordena; la de
+                      carga queda como dato de control. */}
+                  <strong>{formatDay(movement.date)}</strong>
+                  <small>Cargado el {formatDateTime(movement.createdAt)}</small>
                 </td>
                 <td>
                   {movement.account.name}

@@ -88,7 +88,8 @@ export function SettlementModal({
           idempotencyKey,
           accountId: String(data.get('accountId')),
           amount: Number(String(data.get('amount'))).toFixed(2),
-          ...(String(data.get('occurredAt') ?? '') ? { occurredAt: String(data.get('occurredAt')) } : {}),
+          // El campo no trae huso: se manda como hora de Argentina.
+          ...(String(data.get('occurredAt') ?? '') ? { occurredAt: `${String(data.get('occurredAt'))}:00.000-03:00` } : {}),
           ...(String(data.get('reference') ?? '').trim() ? { reference: String(data.get('reference')).trim() } : {}),
           ...(String(data.get('notes') ?? '').trim() ? { notes: String(data.get('notes')).trim() } : {}),
         },

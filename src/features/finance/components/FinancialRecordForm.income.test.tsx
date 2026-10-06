@@ -339,6 +339,47 @@ describe('Alta de ingreso con medio, cobrador y rendición', () => {
     ).toBeInTheDocument()
   })
 
+  it('el cobro entra a caja con la fecha del ingreso, no con la de carga', async () => {
+    const user = userEvent.setup()
+    renderForm()
+    await fillBasics(user)
+    const date = screen.getByLabelText('Fecha *')
+    await user.clear(date)
+    await user.type(date, '2026-10-03')
+    await user.selectOptions(
+      screen.getByLabelText('Medio *'),
+      'TRANSFERENCIA_BANCARIA',
+    )
+    await user.selectOptions(
+      screen.getByLabelText('Cuenta donde entró *'),
+      'account-bank',
+    )
+    await user.click(screen.getByRole('button', { name: 'Guardar ingreso' }))
+
+    await waitFor(() => expect(mocks.settle).toHaveBeenCalled())
+    expect(mocks.settle.mock.calls[0]?.[2]).toMatchObject({
+      occurredAt: '2026-10-03T12:00:00.000-03:00',
+    })
+  })
+
+  it('un ingreso de hoy se cobra con la hora del momento', async () => {
+    const user = userEvent.setup()
+    renderForm()
+    await fillBasics(user)
+    await user.selectOptions(
+      screen.getByLabelText('Medio *'),
+      'TRANSFERENCIA_BANCARIA',
+    )
+    await user.selectOptions(
+      screen.getByLabelText('Cuenta donde entró *'),
+      'account-bank',
+    )
+    await user.click(screen.getByRole('button', { name: 'Guardar ingreso' }))
+
+    await waitFor(() => expect(mocks.settle).toHaveBeenCalled())
+    expect(mocks.settle.mock.calls[0]?.[2]).not.toHaveProperty('occurredAt')
+  })
+
   it('como "Pendiente de cobro" guarda el ingreso y no toca caja', async () => {
     const user = userEvent.setup()
     renderForm()

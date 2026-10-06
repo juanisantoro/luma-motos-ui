@@ -33,6 +33,7 @@ export const cashMovement: MoneyMovement = {
   id: 'movement-1',
   createdAt: '2026-10-04T15:30:12.000Z',
   occurredAt: '2026-10-04T03:00:00.000Z',
+  date: '2026-10-03',
   account: {
     id: 'account-1',
     code: 'EF',

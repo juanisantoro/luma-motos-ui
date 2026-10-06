@@ -185,7 +185,10 @@ describe('AuditPage', () => {
       await screen.findByRole('region', { name: 'Movimientos de dinero' }),
     ).getByRole('table')
     const row = within(table).getAllByRole('row')[1]!
-    expect(within(row).getByText('04/10/2026 12:30:12')).toBeInTheDocument()
+    expect(within(row).getByText('03/10/2026')).toBeInTheDocument()
+    expect(
+      within(row).getByText('Cargado el 04/10/2026 12:30:12'),
+    ).toBeInTheDocument()
     expect(within(row).getByText('Caja Lucas')).toBeInTheDocument()
     expect(within(row).getByText('Vera Vendedora')).toBeInTheDocument()
     expect(within(row).getByText('Vigente')).toBeInTheDocument()

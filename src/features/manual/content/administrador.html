@@ -685,14 +685,14 @@ a{color:var(--red)}
     <h3>Movimientos de dinero</h3>
     <p>Es el libro de todo lo que entró y salió de las cuentas de caja. Cada renglón muestra:</p>
     <ul>
-      <li><strong>Cargado el</strong>: fecha y hora en que se registró, y debajo la fecha contable.</li>
+      <li><strong>Fecha</strong>: la misma que ves en Ingresos y en Egresos, es decir la que se escribió al cargar el ingreso o el gasto. Es la fecha por la que se filtra y se ordena. Las transferencias, los retiros, las compras y las comisiones usan la fecha del propio movimiento. Debajo, "Cargado el" muestra el día y la hora en que alguien lo registró en el sistema, que puede ser posterior.</li>
       <li><strong>Cuenta</strong> y su sucursal.</li>
       <li><strong>Concepto</strong>: si es un ingreso, gasto, compra, comisión o transferencia, con la venta y el cliente.</li>
       <li><strong>Entrada</strong> o <strong>Salida</strong>, y <strong>Registró</strong> (quién lo cargó).</li>
       <li><strong>Rendición del efectivo</strong>: a quién se le rinde, y cuando ya está confirmada, quién la confirmó y a qué hora.</li>
       <li><strong>Estado</strong>: Vigente, Reversado (con quién lo reversó, cuándo y el motivo) o "Es una reversa".</li>
     </ul>
-    <p>Filtros: <strong>Cargado desde / hasta</strong>, <strong>Sucursal</strong>, <strong>Cuenta</strong>, <strong>Sentido</strong> (entradas o salidas), <strong>Registró</strong>, <strong>N.º de operación</strong>, <strong>Buscar</strong> (cliente, concepto, referencia o quien registró) y la tilde <strong>Sólo reversados y reversas</strong>. Arriba de la tabla quedan los totales de Entradas y Salidas vigentes de lo filtrado (no suman lo reversado).</p>
+    <p>Filtros: <strong>Fecha desde / hasta</strong> (la fecha del ingreso o del gasto, no la de carga), <strong>Sucursal</strong>, <strong>Cuenta</strong>, <strong>Sentido</strong> (entradas o salidas), <strong>Registró</strong>, <strong>N.º de operación</strong>, <strong>Buscar</strong> (cliente, concepto, referencia o quien registró) y la tilde <strong>Sólo reversados y reversas</strong>. Arriba de la tabla quedan los totales de Entradas y Salidas vigentes de lo filtrado (no suman lo reversado).</p>
     <p><strong>Para controlar la plata de un día:</strong> poné el mismo día en Desde y Hasta, y mirá la columna Rendición del efectivo. Lo que diga "Pendiente de rendir" todavía no llegó a quien lo tiene que recibir.</p>
   </section>
 
@@ -700,12 +700,13 @@ a{color:var(--red)}
     <h3>Cierre por sucursal: Resumen por caja</h3>
     <p>Arriba de la lista está el <strong>Resumen por caja</strong>: una fila por cada caja con movimientos en el filtro, con su <strong>Sucursal</strong>, <strong>Moneda</strong>, <strong>Entradas</strong>, <strong>Salidas</strong>, <strong>Neto</strong> y <strong>Pendiente de rendir</strong> (efectivo cobrado que todavía no confirmó quien lo recibe). No suma lo reversado.</p>
     <ol class="steps">
-      <li><span>Poné el período del cierre en <strong>Cargado desde / hasta</strong>.</span></li>
+      <li><span>Poné el período del cierre en <strong>Fecha desde / hasta</strong>.</span></li>
       <li><span>Elegí la <strong>Sucursal</strong> (San Miguel o Del Viso) y tocá <strong>Buscar</strong>.</span></li>
       <li><span>Leé el resumen: qué cobró cada socio en esa sucursal, en pesos y en dólares por separado.</span></li>
       <li><span><strong>Exportar resumen</strong> lo baja a Excel.</span></li>
     </ol>
     <p>Sin elegir sucursal ves las dos juntas, cada caja con su sucursal al lado.</p>
+    <p class="warn">Un cobro figura en caja con la <strong>Fecha del ingreso</strong> y un pago con la <strong>Fecha del gasto</strong>: si el martes se carga un ingreso del sábado, en caja figura el sábado, aunque se cobre después o en partes. Por eso importa que la administrativa ponga bien la fecha al cargar.</p>
   </section>
 
   <section>

@@ -98,6 +98,8 @@ export type MoneyMovement = {
   id: string
   createdAt: string
   occurredAt: string
+  /** Fecha cargada en el ingreso o el gasto (`YYYY-MM-DD`); si no nace de uno, la del movimiento. */
+  date: string
   account: {
     id: string
     code: string

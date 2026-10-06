@@ -508,7 +508,7 @@ function MoneyTab({
       <section className="financial-filters audit-filters">
         <form aria-label="Filtros de movimientos de dinero" onSubmit={apply}>
           <label className="filter-field">
-            Cargado desde
+            Fecha desde
             <input
               onChange={(event) =>
                 setDraft({ ...draft, from: event.target.value })
@@ -518,7 +518,7 @@ function MoneyTab({
             />
           </label>
           <label className="filter-field">
-            Cargado hasta
+            Fecha hasta
             <input
               onChange={(event) =>
                 setDraft({ ...draft, to: event.target.value })

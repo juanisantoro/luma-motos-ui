@@ -59,6 +59,12 @@ export function formatAccountingDate(value: string) {
   return formatDateTime(value).slice(0, 10)
 }
 
+/** `2026-10-03` → `03/10/2026`. */
+export function formatDay(value: string) {
+  const [year, month, day] = value.slice(0, 10).split('-')
+  return `${day}/${month}/${year}`
+}
+
 export function actorName(event: AuditEvent) {
   if (!event.actor) return 'Sistema'
   return event.actor.name ?? event.actor.email
@@ -258,8 +264,8 @@ export function eventsCsv(events: AuditEvent[]) {
 export function movementsCsv(movements: MoneyMovement[]) {
   return toCsv(
     [
+      'Fecha',
       'Cargado el',
-      'Fecha contable',
       'Cuenta',
       'Moneda',
       'Sucursal',
@@ -277,8 +283,8 @@ export function movementsCsv(movements: MoneyMovement[]) {
       'Notas',
     ],
     movements.map((movement) => [
+      formatDay(movement.date),
       formatDateTime(movement.createdAt),
-      formatAccountingDate(movement.occurredAt),
       movement.account.name,
       movement.account.currency,
       movement.branch?.name ?? 'Compartida',

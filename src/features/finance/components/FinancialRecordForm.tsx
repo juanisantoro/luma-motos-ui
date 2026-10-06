@@ -41,6 +41,7 @@ import {
 } from '../../sales/tracking'
 import { componentCollectionErrorMessage } from '../../sales/ComponentCollectionModal'
 import { alertError, alertSuccess } from '../../../shared/alerts'
+import { localIsoDate } from '../../../shared/utils/date'
 import type {
   CreateExpenseInput,
   CreateIncomeInput,
@@ -595,10 +596,16 @@ export function FinancialRecordForm({
       const created = await createFinancialRecord(kind, input)
       if (kind === 'income' && collectNow) {
         try {
+          // El cobro lleva la fecha del ingreso: si se carga hoy un ingreso
+          // del lunes, en caja entra con fecha del lunes, no de hoy.
+          const incomeDate = (input as CreateIncomeInput).incomeDate
           await addSettlement('income', created.id, {
             idempotencyKey,
             accountId: collectionAccountId,
             amount: (input as CreateIncomeInput).totalAmount,
+            ...(incomeDate && incomeDate !== localIsoDate()
+              ? { occurredAt: `${incomeDate}T12:00:00.000-03:00` }
+              : {}),
             ...(reference ? { reference } : {}),
           })
         } catch (collectError) {
