@@ -10,6 +10,7 @@ import {
 import { Link } from 'react-router-dom'
 import { AlertStrip, DashboardPanel, KpiCard, PanelEmptyState, TopModelsPanel } from './components'
 import { formatCurrency, formatDateTime, greetingFirstName, todayLongLabel } from './format'
+import { PendingTasksPanel } from './PendingTasksPanel'
 import type { AdministrativeHome } from './types'
 
 const RESULT_LABEL: Record<string, string> = {
@@ -48,6 +49,8 @@ export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) 
           {greeting.branchName ?? '—'}
         </span>
       </header>
+
+      <PendingTasksPanel tasks={home.pendingTasks} mode="own" />
 
       {home.dueTodayAlert && home.dueTodayAlert.clientCount > 0 && (
         <AlertStrip icon={CalendarClock} cta={{ label: 'Ir a cobranza', to: '/creditos/cobranza' }}>
@@ -245,7 +248,8 @@ export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) 
         />
       </div>
 
-      {home.dueTodayAlert === null &&
+      {!home.pendingTasks &&
+        home.dueTodayAlert === null &&
         home.dueThisWeek === null &&
         home.unconfirmedVehiclePayments === null &&
         home.payableExpensesThisWeek === null &&

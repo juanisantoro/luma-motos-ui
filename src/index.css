@@ -1163,6 +1163,61 @@ a {
   font-weight: 550;
 }
 
+.pending-tasks {
+  margin-bottom: 27px;
+}
+
+.pending-tasks .ranking-list__stat a {
+  color: var(--red);
+}
+
+.pending-tasks .ranking-list__name {
+  white-space: normal;
+}
+
+.financial-table.pending-tasks-table {
+  min-width: 0;
+}
+
+@media (max-width: 560px) {
+  .financial-table.pending-tasks-table th,
+  .financial-table.pending-tasks-table td {
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+}
+
+.financial-table.pending-tasks-table th[scope='row'] {
+  border-top: 1px solid #eceef1;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.pending-tasks-table .pending-tasks-table__count {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pending-tasks-table td strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.pending-tasks-table__zero {
+  color: var(--muted);
+}
+
+.financial-table.pending-tasks-table tfoot th[scope='row'],
+.pending-tasks-table tfoot td {
+  border-top: 2px solid #dfe3e8;
+  font-weight: 800;
+}
+
 .quick-links {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -7215,4 +7270,74 @@ a {
 .audit-summary__actions {
   display: flex;
   gap: 8px;
+}
+
+/* --- Inicio del administrador: vista por sucursal --- */
+
+.branch-card {
+  gap: 16px;
+}
+
+.branch-card .dashboard-panel__header {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.branch-card .dashboard-panel__header h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.branch-card__label {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.branch-card__value {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 850;
+  letter-spacing: -0.5px;
+}
+
+.branch-card__meta {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.branch-card__collection {
+  display: grid;
+  gap: 8px;
+}
+
+.branch-card__collection-text {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 13px;
+}
+
+.branch-card__collection-text span {
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.branch-card__bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.branch-card__bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--dark);
 }

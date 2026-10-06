@@ -196,7 +196,7 @@ a{color:var(--red)}
 
 <!-- ============ 2 ============ -->
 <div class="chapter" id="inicio">
-  <header><span>Capítulo 2</span><h2>Inicio</h2><p>Tu tablero muestra el negocio completo: todas las sucursales juntas.</p></header>
+  <header><span>Capítulo 2</span><h2>Inicio</h2><p>Tu tablero muestra el negocio completo y, cuando querés, cada sucursal por separado.</p></header>
 
   <section>
     <figure class="mock"><figcaption><b>Ejemplo</b>Inicio del Administrador</figcaption>
@@ -221,8 +221,40 @@ a{color:var(--red)}
         <tr><td>Stock total</td><td>Motos y autos en stock, sumando todas las sucursales.</td></tr>
         <tr><td>Cartera de créditos personales</td><td>Lo financiado con crédito de la casa y cuánto de eso está en mora.</td></tr>
         <tr><td>Compras pendientes de recibir</td><td>Pedidos a proveedores que todavía no llegaron.</td></tr>
-        <tr><td>Ventas por sucursal</td><td>Unidades y monto del mes, sucursal por sucursal.</td></tr>
+        <tr><td>Tarjeta de cada sucursal</td><td>Las ventas del mes de esa sucursal, la comparación con el mes anterior y una barra con lo cobrado y lo que falta cobrar de esas ventas.</td></tr>
+        <tr><td>Vendedores de cada sucursal</td><td>Los vendedores con más unidades vendidas en el mes, sucursal por sucursal.</td></tr>
         <tr><td>Modelos más vendidos</td><td>Los 5 modelos más vendidos del mes en toda la organización.</td></tr>
+      </tbody>
+    </table></div>
+    <h4>Ver una sucursal sola</h4>
+    <p>Arriba del tablero hay un selector: <strong>Todas las sucursales</strong> y una opción por cada sucursal. Al elegir una, todo el Inicio pasa a mostrar sólo esa sucursal. También podés entrar tocando <strong>Ver sucursal</strong> en su tarjeta. Para volver, tocá <strong>Todas las sucursales</strong>.</p>
+    <div class="tablebox"><table>
+      <thead><tr><th>Lo que ves de la sucursal</th><th>Qué te dice</th></tr></thead>
+      <tbody>
+        <tr><td>Ventas del mes</td><td>Monto y unidades de esa sucursal, contra el mes anterior, y qué parte del total de la organización representa.</td></tr>
+        <tr><td>Cobrado de las ventas del mes</td><td>Lo que ya se cobró de las ventas de este mes. No cuenta la patente ni las cuotas de crédito propio.</td></tr>
+        <tr><td>Falta cobrar</td><td>El saldo de las ventas de este mes y cuántas ventas lo tienen.</td></tr>
+        <tr><td>Gastos del mes</td><td>Los gastos en pesos cargados este mes para esa sucursal. No incluye los gastos generales (sin sucursal).</td></tr>
+        <tr><td>Stock disponible</td><td>Motos y autos en stock en esa sucursal.</td></tr>
+        <tr><td>Cartera de créditos personales</td><td>Lo financiado con crédito de la casa en ventas de esa sucursal y cuánto está en mora.</td></tr>
+        <tr><td>Esperan aprobación</td><td>Ventas de esa sucursal cargadas por debajo del precio de lista.</td></tr>
+        <tr><td>Vendedores y modelos más vendidos</td><td>Los primeros 5 de cada uno en el mes.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Los números por sucursal son siempre del mes en curso. La cobranza se cuenta por la sucursal de la venta.</p>
+    <h4>Tareas pendientes de administración</h4>
+    <p>Arriba de todo, el cuadro <strong>Tareas pendientes de administración</strong> muestra lo que tienen por resolver las administrativas, con una columna por sucursal y el total. Sirve para ver de un vistazo qué sucursal viene atrasada y en qué. Los números se actualizan cada vez que entrás a Inicio; el cuadro es de consulta.</p>
+    <div class="tablebox"><table>
+      <thead><tr><th>Tarea</th><th>Qué cuenta</th><th>Dónde se resuelve</th></tr></thead>
+      <tbody>
+        <tr><td>Cuotas que vencen hoy</td><td>Cuotas de crédito propio con vencimiento hoy, sin cobrar.</td><td>Créditos → Cobranza</td></tr>
+        <tr><td>Cuotas vencidas sin cobrar</td><td>Cuotas con el vencimiento pasado, sin cobrar del todo.</td><td>Créditos → Cobranza</td></tr>
+        <tr><td>Ingresos pendientes de cobro</td><td>Ingresos cargados como Pendiente o cobrados en parte.</td><td>Ingresos</td></tr>
+        <tr><td>Efectivo cobrado sin rendir</td><td>Cobros en efectivo que quien los recibe todavía no confirmó.</td><td>Ingresos / Seguimiento de cobros</td></tr>
+        <tr><td>Pagos de vehículo sin confirmar</td><td>Patentes o seguros cargados como Pendiente.</td><td>Pagos de vehículo</td></tr>
+        <tr><td>Patentes vencidas sin cargar</td><td>Ventas con la fecha estimada pasada y la patente sin cargar.</td><td>Operaciones</td></tr>
+        <tr><td>Patentes recibidas con pago pendiente</td><td>La patente llegó y el cliente todavía no la pagó.</td><td>Operaciones</td></tr>
+        <tr><td>Gastos pendientes de pago</td><td>Gastos cargados que no se pagaron del todo.</td><td>Gastos</td></tr>
       </tbody>
     </table></div>
     <p class="warn">En tu Inicio no aparecen las ventas a aprobar ni el efectivo que te tienen que rendir. Las aprobaciones están en Ventas → Aprobaciones; las rendiciones, en Seguimiento de cobros (capítulo 6).</p>

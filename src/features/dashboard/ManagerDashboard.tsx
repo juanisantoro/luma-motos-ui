@@ -2,6 +2,7 @@ import { AlertTriangle, Banknote, CheckCircle2, HandCoins, TrendingUp } from 'lu
 import { Link } from 'react-router-dom'
 import { AlertStrip, DashboardPanel, KpiCard, PanelEmptyState, RankingList, TopModelsPanel } from './components'
 import { formatCurrency, formatMonthDelta, formatUnits, greetingFirstName, todayLongLabel } from './format'
+import { PendingTasksPanel } from './PendingTasksPanel'
 import type { ManagerHome } from './types'
 
 export function ManagerDashboard({ home }: { home: ManagerHome }) {
@@ -34,6 +35,8 @@ export function ManagerDashboard({ home }: { home: ManagerHome }) {
             : 'operaciones de tu sucursal esperan tu aprobación.'}
         </AlertStrip>
       )}
+
+      <PendingTasksPanel tasks={home.pendingTasks} mode="team" />
 
       <div className="kpi-grid">
         {home.monthlySales && (

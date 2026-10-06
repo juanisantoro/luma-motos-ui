@@ -34,11 +34,56 @@ export type CreditPortfolio = {
   overdueInstallments: number
 }
 
+// --- Tareas pendientes de administración, por sucursal -----------------------
+
+export type PendingTaskKey =
+  | 'INSTALLMENTS_DUE_TODAY'
+  | 'INSTALLMENTS_OVERDUE'
+  | 'INCOMES_PENDING_COLLECTION'
+  | 'CASH_PENDING_HANDOVER'
+  | 'VEHICLE_PAYMENTS_UNCONFIRMED'
+  | 'LICENSING_OVERDUE'
+  | 'LICENSING_PENDING_COLLECTION'
+  | 'EXPENSES_PENDING_PAYMENT'
+
+export type PendingTasks = {
+  branches: Array<{
+    branchId: string
+    branchName: string
+    total: number
+    // Sólo las tareas que el usuario tiene permiso de ver.
+    tasks: Array<{ key: PendingTaskKey; count: number; amount: number | null }>
+  }>
+}
+
 // --- ADMINISTRADOR --------------------------------------------------------
+
+// Los números de una sucursal. Cada dato vuelve en null cuando el rol no
+// tiene el permiso que lo habilita.
+export type AdminBranchSummary = {
+  branchId: string
+  branchName: string
+  monthlySales: MonthlyPerformance | null
+  // Cobranza de las ventas del mes de la sucursal.
+  collection: {
+    agreedAmount: number
+    collectedAmount: number
+    pendingAmount: number
+    pendingOperations: number
+  } | null
+  expensesThisMonth: { amount: number; count: number } | null
+  stockUnits: number | null
+  creditPortfolio: CreditPortfolio | null
+  pendingApprovals: number | null
+  sellers: Array<{ sellerId: string; sellerName: string; units: number }> | null
+  topModels: TopModel[] | null
+}
 
 export type AdminHome = {
   role: 'ADMINISTRADOR'
   greeting: DashboardGreeting
+  // Ausente en respuestas anteriores; null sin permisos sobre esas tareas.
+  pendingTasks?: PendingTasks | null
   monthlySales: MonthlyPerformance | null
   newClientsThisWeek: number | null
   stockUnitsTotal: number | null
@@ -46,6 +91,8 @@ export type AdminHome = {
   pendingPurchases: number | null
   salesByBranch: BranchSales[] | null
   topModels: TopModel[] | null
+  // Opcional: un backend anterior a la vista por sucursal no lo manda.
+  branches?: AdminBranchSummary[] | null
 }
 
 // --- GERENTE ---------------------------------------------------------------
@@ -70,6 +117,7 @@ export type TeamRankingItem = {
 export type ManagerHome = {
   role: 'GERENTE'
   greeting: DashboardGreeting
+  pendingTasks?: PendingTasks | null
   pendingApprovalsCount: number | null
   monthlySales: MonthlyPerformance | null
   ownCommission: { period: string; amount: number } | null
@@ -115,6 +163,7 @@ export type ManagementAlerts = {
 export type AdministrativeHome = {
   role: 'ADMINISTRATIVA'
   greeting: DashboardGreeting
+  pendingTasks?: PendingTasks | null
   dueTodayAlert: { amount: number; clientCount: number } | null
   dueThisWeek: { amount: number; count: number } | null
   unconfirmedVehiclePayments: { count: number; staleCount: number } | null
