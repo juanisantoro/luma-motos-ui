@@ -219,9 +219,14 @@ export function revertFinancingPayment(
   )
 }
 
-export function listHandoverRecipients(signal?: AbortSignal) {
+// Con `vehicleType`, los pendientes de cada persona son sólo los que muestra
+// la grilla de ingresos de ese tipo (motos o autos).
+export function listHandoverRecipients(
+  signal?: AbortSignal,
+  vehicleType?: 'MOTO' | 'AUTO',
+) {
   return request<HandoverRecipient[]>(
-    '/incomes/cash-handover/recipients',
+    `/incomes/cash-handover/recipients${vehicleType ? `?vehicleType=${vehicleType}` : ''}`,
     signal ? { signal } : {},
   )
 }

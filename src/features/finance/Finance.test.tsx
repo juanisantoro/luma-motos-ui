@@ -493,6 +493,24 @@ describe('administración financiera', () => {
     expect(screen.queryByText('No recuperable')).not.toBeInTheDocument()
   })
 
+  it('pide los cobros para confirmar sólo del tipo de vehículo de la pantalla', async () => {
+    openRoute('/autos/ingresos')
+    const fetchMock = mockFinanceApi(
+      authUser(['ingresos.consultar', 'caja.recibir_rendicion']),
+      { incomes: [] },
+    )
+    render(<App />)
+
+    await waitFor(() => {
+      const urls = fetchMock.mock.calls.map(([url]) => String(url))
+      // El aviso de Ingresos de autos no cuenta los cobros de motos.
+      expect(
+        urls.some((url) => url.endsWith('/incomes/cash-handover/recipients?vehicleType=AUTO')),
+      ).toBe(true)
+      expect(urls.some((url) => url.endsWith('/incomes/cash-handover/recipients'))).toBe(false)
+    })
+  })
+
   it('registra cobros parciales con cuenta e idempotencyKey', async () => {
     openRoute('/ingresos')
     vi.stubGlobal('crypto', { randomUUID: () => '11111111-1111-4111-8111-111111111111' })

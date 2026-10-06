@@ -100,16 +100,18 @@ export function FinancialModulePage({
     useState<HandoverRecipient | null>(null)
   const currentRecipientId = currentRecipient?.id ?? null
   // Se vuelve a pedir tras cada cambio para que el aviso de pendientes baje.
+  // Sólo cuenta los cobros de esta pantalla: los de motos no se avisan en
+  // Ingresos de autos, ni al revés.
   useEffect(() => {
     if (!canConfirmHandover) return
     const controller = new AbortController()
-    listHandoverRecipients(controller.signal)
+    listHandoverRecipients(controller.signal, vehicleType)
       .then((items) =>
         setCurrentRecipient(items.find((item) => item.isCurrentUser) ?? null),
       )
       .catch(() => undefined)
     return () => controller.abort()
-  }, [canConfirmHandover, refreshKey])
+  }, [canConfirmHandover, refreshKey, vehicleType])
   const pendingHandovers = currentRecipient?.pendingCount ?? 0
   const onlyMyHandovers =
     Boolean(currentRecipientId) &&
