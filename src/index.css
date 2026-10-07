@@ -1833,6 +1833,17 @@ a {
   background: white;
 }
 
+.financial-summary:has(+ .financial-summary-note) {
+  margin-bottom: 8px;
+}
+
+.financial-summary-note {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .financial-summary small {
   color: var(--muted);
   font-size: 11px;

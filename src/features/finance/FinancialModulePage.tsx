@@ -59,6 +59,16 @@ const permissionByKind = {
   },
 } as const
 
+// Qué representa el total de cada pantalla, en una línea.
+const TOTAL_NOTES: Record<FinancialKind, string> = {
+  income:
+    'El total suma el importe de todos los ingresos que cumplen los filtros, no sólo los de esta página. Incluye lo cobrado y lo que falta cobrar.',
+  expense:
+    'El total suma el importe de todos los gastos que cumplen los filtros, no sólo los de esta página. Incluye lo pagado y lo que falta pagar.',
+  purchase:
+    'El total suma el importe de todas las compras que cumplen los filtros, no sólo las de esta página. Incluye lo pagado y lo que falta pagar.',
+}
+
 export function FinancialModulePage({
   kind,
   vehicleType,
@@ -172,8 +182,12 @@ export function FinancialModulePage({
     setRefreshKey((current) => current + 1)
   }
 
+  // Total de todo lo que trae el filtro, por moneda (lo calcula el servidor).
+  const filterTotals = result?.totals ?? null
+
+  // Sin ese total (un servidor anterior), se suma sólo lo que se ve en la página.
   const pageTotal = useMemo(() => {
-    if (!result || result.items.length === 0) return null
+    if (!result || result.items.length === 0 || result.totals) return null
     // Pesos y dólares mezclados no se suman.
     if (new Set(result.items.map((item) => item.currency)).size > 1)
       return null
@@ -266,6 +280,17 @@ export function FinancialModulePage({
             <small>Registros encontrados</small>
             <strong>{result.total}</strong>
           </article>
+          {filterTotals?.map((total) => (
+            <article key={total.currency}>
+              <small>
+                {result.total === 1
+                  ? 'Total del registro encontrado'
+                  : `Total de los ${result.total} registros encontrados`}
+                {filterTotals.length > 1 ? ` · ${total.currency}` : ''}
+              </small>
+              <strong>{formatMoney(total.amount, total.currency)}</strong>
+            </article>
+          ))}
           {pageTotal !== null && (
             <article>
               <small>Total visible en esta página</small>
@@ -276,6 +301,9 @@ export function FinancialModulePage({
             <p>Los costos de compra no están disponibles para tu perfil.</p>
           )}
         </section>
+      )}
+      {status === 'success' && result && filterTotals && filterTotals.length > 0 && (
+        <p className="financial-summary-note">{TOTAL_NOTES[kind]}</p>
       )}
 
       <section className="financial-panel" aria-label={`Listado de ${labels.plural}`}>

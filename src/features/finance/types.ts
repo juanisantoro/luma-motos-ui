@@ -8,6 +8,10 @@ export type PageResponse<T> = {
   total: number
   page: number
   limit: number
+  // Ingresos, gastos y compras: suma de TODO lo que trae el filtro (no sólo la
+  // página), una entrada por moneda. Ausente en los demás listados y, en
+  // compras, sin permiso para ver costos.
+  totals?: Array<{ currency: string; amount: DecimalString }>
 }
 
 export type MinimalBranch = {

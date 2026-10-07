@@ -493,6 +493,39 @@ describe('administración financiera', () => {
     expect(screen.queryByText('No recuperable')).not.toBeInTheDocument()
   })
 
+  it('muestra el total de todo lo que trae el filtro, no sólo el de la página', async () => {
+    openRoute('/gastos')
+    const fetchMock = mockFinanceApi(authUser(['gastos.consultar']), { expenses: [expense] })
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('/expenses'))
+        return jsonResponse({
+          items: [expense],
+          total: 45,
+          page: 1,
+          limit: 20,
+          totals: [
+            { currency: 'ARS', amount: '1250000.50' },
+            { currency: 'USD', amount: '300.00' },
+          ],
+        })
+      return base(input, init)
+    })
+
+    render(<App />)
+
+    const summary = await screen.findByRole('region', { name: 'Resumen de resultados' })
+    expect(within(summary).getByText('Total de los 45 registros encontrados · ARS')).toBeInTheDocument()
+    expect(within(summary).getByText(/1\.250\.000,50/)).toBeInTheDocument()
+    expect(within(summary).getByText('Total de los 45 registros encontrados · USD')).toBeInTheDocument()
+    expect(within(summary).getByText(/300,00/)).toBeInTheDocument()
+    expect(within(summary).queryByText('Total visible en esta página')).not.toBeInTheDocument()
+    // Y aclara qué representa ese total.
+    expect(
+      screen.getByText(/suma el importe de todos los gastos que cumplen los filtros/),
+    ).toBeInTheDocument()
+  })
+
   it('pide los cobros para confirmar sólo del tipo de vehículo de la pantalla', async () => {
     openRoute('/autos/ingresos')
     const fetchMock = mockFinanceApi(
