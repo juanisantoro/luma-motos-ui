@@ -75,33 +75,63 @@ describe('Tareas pendientes del inicio', () => {
     expect(screen.getByText('No tenés tareas pendientes. Estás al día.')).toBeInTheDocument()
   })
 
-  it('discrimina las tareas por sucursal para el administrador', () => {
+  it('le muestra al administrador una tarjeta por tarea con el reparto por sucursal', () => {
     show({ branches: [delViso, sanMiguel] }, 'team')
 
     expect(screen.getByText('16 pendientes')).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(
-      screen.getAllByRole('columnheader').map((header) => header.textContent),
-    ).toEqual(['Tarea', 'Del Viso', 'San Miguel', 'Total'])
-    const overdue = screen.getByRole('row', { name: /Cuotas vencidas sin cobrar/ })
-    expect(within(overdue).getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
-      expect.stringMatching(/^1\$/),
-      expect.stringMatching(/^9\$/),
-      '10',
-    ])
-    const totals = screen.getByRole('row', { name: /Total de pendientes/ })
-    expect(within(totals).getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
-      '4',
-      '12',
-      '16',
-    ])
+      within(screen.getByRole('list', { name: 'Pendientes por sucursal' }))
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual(['4 Del Viso', '12 San Miguel'])
+    const tiles = within(
+      screen.getByRole('list', { name: 'Tareas pendientes de administración' }),
+    ).getAllByRole('listitem')
+    expect(tiles).toHaveLength(3)
+    const overdue = within(tiles[0]!)
+    expect(overdue.getByText('Cuotas vencidas sin cobrar')).toBeInTheDocument()
+    expect(overdue.getByText('10')).toBeInTheDocument()
+    expect(overdue.getByText(/1\.290\.000/)).toBeInTheDocument()
+    expect(overdue.getAllByRole('definition').map((item) => item.textContent)).toEqual(['1', '9'])
+    // Sin `links` las tarjetas no llevan a ninguna pantalla.
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  it('no agrega la columna Total cuando el gerente tiene una sola sucursal', () => {
+  it('agrega el acceso a cada pantalla cuando se piden los enlaces', () => {
+    render(
+      <MemoryRouter>
+        <PendingTasksPanel tasks={{ branches: [delViso, sanMiguel] }} mode="team" links />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('link', { name: 'Ver Cuotas vencidas sin cobrar' })).toHaveAttribute(
+      'href',
+      '/creditos/cobranza',
+    )
+  })
+
+  it('no reparte por sucursal cuando hay una sola y lista aparte lo que está al día', () => {
     show({ branches: [sanMiguel] }, 'team')
 
+    expect(screen.queryByRole('list', { name: 'Pendientes por sucursal' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('definition')).not.toBeInTheDocument()
+    expect(screen.getByText('Al día: Pagos de vehículo sin confirmar')).toBeInTheDocument()
+  })
+
+  it('avisa cuando ninguna sucursal tiene pendientes', () => {
+    show(
+      {
+        branches: [
+          { ...sanMiguel, total: 0, tasks: sanMiguel.tasks.map((task) => ({ ...task, count: 0 })) },
+        ],
+      },
+      'team',
+    )
+
     expect(
-      screen.getAllByRole('columnheader').map((header) => header.textContent),
-    ).toEqual(['Tarea', 'San Miguel'])
+      screen.getByText('No hay tareas pendientes. La administración está al día.'),
+    ).toBeInTheDocument()
   })
 
   it('no muestra nada sin permisos sobre esas tareas', () => {

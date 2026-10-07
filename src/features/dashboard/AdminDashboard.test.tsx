@@ -94,9 +94,14 @@ describe('Inicio del administrador por sucursal', () => {
     // Una tarjeta por sucursal, con su cobranza.
     expect(screen.getAllByRole('button', { name: 'Ver sucursal' })).toHaveLength(2)
     expect(screen.getAllByRole('img', { name: 'Cobrado 82% de lo vendido en el mes' })).toHaveLength(2)
-    // Las tareas pendientes, con una columna por sucursal.
+    // Las tareas pendientes, en tarjetas con el reparto por sucursal.
     expect(screen.getByText('Tareas pendientes de administración')).toBeInTheDocument()
-    expect(screen.getByRole('columnheader', { name: 'Total' })).toBeInTheDocument()
+    expect(screen.getByText('8 pendientes')).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Pendientes por sucursal' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver Patentes vencidas sin cargar' })).toHaveAttribute(
+      'href',
+      '/motos/operaciones?patente=DEMORADAS',
+    )
     expect(screen.getByText('Vendedores · Del Viso')).toBeInTheDocument()
     expect(screen.getByText('Vendedor Dos')).toBeInTheDocument()
   })
@@ -118,9 +123,8 @@ describe('Inicio del administrador por sucursal', () => {
     // 148,6 de 244,8 millones.
     expect(screen.getByText('61%')).toBeInTheDocument()
     // Las tareas pendientes quedan sólo con la sucursal elegida.
-    expect(screen.getByRole('columnheader', { name: 'Del Viso' })).toBeInTheDocument()
-    expect(screen.queryByRole('columnheader', { name: 'San Miguel' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('columnheader', { name: 'Total' })).not.toBeInTheDocument()
+    expect(screen.getByText('2 pendientes')).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Pendientes por sucursal' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Todas las sucursales' }))
     expect(screen.getByText('VENTAS DEL MES · TODAS LAS SUCURSALES')).toBeInTheDocument()

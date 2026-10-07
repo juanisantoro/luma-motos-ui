@@ -36,7 +36,7 @@ export function ManagerDashboard({ home }: { home: ManagerHome }) {
         </AlertStrip>
       )}
 
-      <PendingTasksPanel tasks={home.pendingTasks} mode="team" />
+      <PendingTasksPanel tasks={home.pendingTasks} mode="team" links />
 
       <div className="kpi-grid">
         {home.monthlySales && (

@@ -250,7 +250,7 @@ export function AdminDashboard({ home }: { home: AdminHome }) {
         </nav>
       )}
 
-      <PendingTasksPanel tasks={branch ? branchTasks : home.pendingTasks} mode="team" />
+      <PendingTasksPanel tasks={branch ? branchTasks : home.pendingTasks} mode="team" links />
 
       {branch ? (
         <BranchDetail branch={branch} shareOfTotal={shareOfTotal} />
