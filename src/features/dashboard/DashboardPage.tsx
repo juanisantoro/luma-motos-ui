@@ -1,5 +1,5 @@
 import { LayoutDashboard } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { alertError } from '../../shared/alerts'
 import { ApiError, NetworkError } from '../../shared/api/client'
 import { StatePanel } from '../../shared/components/StatePanel'
@@ -8,7 +8,7 @@ import { AdminDashboard } from './AdminDashboard'
 import { AdministrativeDashboard } from './AdministrativeDashboard'
 import { ManagerDashboard } from './ManagerDashboard'
 import { SellerDashboard } from './SellerDashboard'
-import type { DashboardHome } from './types'
+import type { DashboardHome, DashboardMonth } from './types'
 
 function dashboardErrorMessage(error: unknown) {
   if (error instanceof ApiError) return error.message
@@ -19,22 +19,33 @@ function dashboardErrorMessage(error: unknown) {
 export function DashboardPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [home, setHome] = useState<DashboardHome | null>(null)
+  // Mes del inicio del ADMINISTRADOR. Al cambiarlo se sigue mostrando el
+  // inicio anterior hasta que llegan los números nuevos.
+  const [month, setMonth] = useState<DashboardMonth>('current')
+  const [refreshing, setRefreshing] = useState(false)
+  const shownMonth = useRef<DashboardMonth | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
-    setStatus('loading')
-    getDashboardHome(controller.signal)
+    setRefreshing(true)
+    getDashboardHome(controller.signal, month)
       .then((result) => {
+        shownMonth.current = month
         setHome(result)
         setStatus('success')
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        setStatus('error')
+        // Si falla un cambio de mes, queda a la vista el mes que ya estaba.
+        if (shownMonth.current) setMonth(shownMonth.current)
+        else setStatus('error')
         void alertError(dashboardErrorMessage(error), 'No se pudo cargar el inicio')
       })
+      .finally(() => {
+        if (!controller.signal.aborted) setRefreshing(false)
+      })
     return () => controller.abort()
-  }, [])
+  }, [month])
 
   if (status === 'loading') {
     return (
@@ -59,7 +70,14 @@ export function DashboardPage() {
 
   switch (home.role) {
     case 'ADMINISTRADOR':
-      return <AdminDashboard home={home} />
+      return (
+        <AdminDashboard
+          home={home}
+          loading={refreshing}
+          month={month}
+          onMonthChange={setMonth}
+        />
+      )
     case 'GERENTE':
       return 'monthlySales' in home ? (
         <ManagerDashboard home={home} />

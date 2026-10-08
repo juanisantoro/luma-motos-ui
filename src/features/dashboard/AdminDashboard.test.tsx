@@ -1,9 +1,9 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { AdminDashboard, collectedPercent } from './AdminDashboard'
-import type { AdminBranchSummary, AdminHome } from './types'
+import type { AdminBranchSummary, AdminHome, DashboardMonth } from './types'
 
 function branch(overrides: Partial<AdminBranchSummary> = {}): AdminBranchSummary {
   return {
@@ -177,5 +177,50 @@ describe('Inicio del administrador por sucursal', () => {
     expect(collectedPercent(collection)).toBe(82)
     expect(collectedPercent({ ...collection, agreedAmount: 0 })).toBe(0)
     expect(collectedPercent({ ...collection, collectedAmount: 130 })).toBe(100)
+  })
+
+  describe('mes del inicio', () => {
+    function renderWithMonth(value: AdminHome, month: DashboardMonth, onMonthChange = vi.fn()) {
+      render(
+        <MemoryRouter>
+          <AdminDashboard home={value} month={month} onMonthChange={onMonthChange} />
+        </MemoryRouter>,
+      )
+      return onMonthChange
+    }
+
+    it('ofrece el mes en curso y el anterior', async () => {
+      const user = userEvent.setup()
+      const onMonthChange = renderWithMonth(home({ month: 'current', period: '2026-10' }), 'current')
+
+      const group = screen.getByRole('group', { name: 'Mes' })
+      expect(within(group).getByRole('button', { name: 'Octubre' })).toHaveAttribute('aria-pressed', 'true')
+      await user.click(within(group).getByRole('button', { name: 'Septiembre' }))
+
+      expect(onMonthChange).toHaveBeenCalledWith('previous')
+      expect(screen.getByText('VENTAS DEL MES · TODAS LAS SUCURSALES')).toBeInTheDocument()
+    })
+
+    it('nombra el mes elegido cuando es el anterior', async () => {
+      const user = userEvent.setup()
+      renderWithMonth(home({ month: 'previous', period: '2026-09' }), 'previous')
+
+      expect(screen.getByRole('button', { name: 'Septiembre' })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByText('VENTAS DE SEPTIEMBRE · TODAS LAS SUCURSALES')).toBeInTheDocument()
+      expect(screen.getByText(/vendidas en septiembre, frente a 66 unidades en agosto/)).toBeInTheDocument()
+      expect(
+        screen.getAllByRole('img', { name: 'Cobrado 82% de lo vendido en septiembre' }),
+      ).toHaveLength(2)
+
+      await user.click(screen.getByRole('button', { name: 'Del Viso' }))
+      expect(screen.getByText('Gastos de septiembre')).toBeInTheDocument()
+      expect(screen.getByText('Cobrado de las ventas de septiembre')).toBeInTheDocument()
+    })
+
+    it('no muestra el selector si el backend no manda el período', () => {
+      renderWithMonth(home(), 'current')
+
+      expect(screen.queryByRole('group', { name: 'Mes' })).not.toBeInTheDocument()
+    })
   })
 })

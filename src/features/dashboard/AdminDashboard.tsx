@@ -11,11 +11,57 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { DashboardPanel, KpiCard, PanelEmptyState, RankingList, TopModelsPanel } from './components'
-import { formatCurrency, formatMonthDelta, formatUnits, greetingFirstName, todayLongLabel } from './format'
+import {
+  formatCurrency,
+  formatMonthDelta,
+  formatUnits,
+  greetingFirstName,
+  monthNameOf,
+  todayLongLabel,
+} from './format'
 import { PendingTasksPanel } from './PendingTasksPanel'
-import type { AdminBranchSummary, AdminHome, PendingTasks } from './types'
+import type { AdminBranchSummary, AdminHome, DashboardMonth, PendingTasks } from './types'
 
 const ALL_BRANCHES = 'all'
+
+/** Textos que cambian según se mire el mes en curso o uno cerrado. */
+type MonthLabels = {
+  /** "este mes" / "en septiembre" */
+  inMonth: string
+  /** "el mes anterior" / "en agosto" */
+  inPreviousMonth: string
+  /** "del mes" / "de septiembre" */
+  ofMonth: string
+  /** "el mes anterior" / "agosto" */
+  previousMonth: string
+  /** "en el mes" / "en septiembre" */
+  withinMonth: string
+}
+
+const CURRENT_MONTH_LABELS: MonthLabels = {
+  inMonth: 'este mes',
+  inPreviousMonth: 'el mes anterior',
+  ofMonth: 'del mes',
+  previousMonth: 'el mes anterior',
+  withinMonth: 'en el mes',
+}
+
+function monthLabels(month: DashboardMonth, period: string | undefined): MonthLabels {
+  const name = period ? monthNameOf(period) : ''
+  if (month === 'current' || !period || !name) return CURRENT_MONTH_LABELS
+  const previousName = monthNameOf(period, -1)
+  return {
+    inMonth: `en ${name}`,
+    inPreviousMonth: `en ${previousName}`,
+    ofMonth: `de ${name}`,
+    previousMonth: previousName,
+    withinMonth: `en ${name}`,
+  }
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
 
 /** Qué parte de lo vendido en el mes ya se cobró, de 0 a 100. */
 export function collectedPercent(collection: NonNullable<AdminBranchSummary['collection']>) {
@@ -24,10 +70,10 @@ export function collectedPercent(collection: NonNullable<AdminBranchSummary['col
   return Math.min(100, Math.max(0, percent))
 }
 
-function BranchSellers({ branch }: { branch: AdminBranchSummary }) {
+function BranchSellers({ branch, labels }: { branch: AdminBranchSummary; labels: MonthLabels }) {
   if (!branch.sellers) return null
   if (branch.sellers.length === 0)
-    return <PanelEmptyState>Todavía no hay ventas computables este mes.</PanelEmptyState>
+    return <PanelEmptyState>No hay ventas computables {labels.inMonth}.</PanelEmptyState>
   return (
     <RankingList
       items={branch.sellers.map((seller) => ({
@@ -39,7 +85,15 @@ function BranchSellers({ branch }: { branch: AdminBranchSummary }) {
   )
 }
 
-function BranchCard({ branch, onOpen }: { branch: AdminBranchSummary; onOpen: () => void }) {
+function BranchCard({
+  branch,
+  labels,
+  onOpen,
+}: {
+  branch: AdminBranchSummary
+  labels: MonthLabels
+  onOpen: () => void
+}) {
   const sales = branch.monthlySales
   const collection = branch.collection
   const percent = collection ? collectedPercent(collection) : 0
@@ -55,11 +109,12 @@ function BranchCard({ branch, onOpen }: { branch: AdminBranchSummary; onOpen: ()
       </div>
       {sales && (
         <div>
-          <p className="branch-card__label">Ventas del mes</p>
+          <p className="branch-card__label">Ventas {labels.ofMonth}</p>
           <p className="branch-card__value">{formatCurrency(sales.currentMonth.amount)}</p>
           <p className="branch-card__meta">
             {formatUnits(sales.currentMonth.units)} ·{' '}
-            {formatMonthDelta(sales.currentMonth.units, sales.previousMonth.units)} contra el mes anterior
+            {formatMonthDelta(sales.currentMonth.units, sales.previousMonth.units)} contra{' '}
+            {labels.previousMonth}
           </p>
         </div>
       )}
@@ -70,7 +125,7 @@ function BranchCard({ branch, onOpen }: { branch: AdminBranchSummary; onOpen: ()
             <span>Falta cobrar {formatCurrency(collection.pendingAmount)}</span>
           </div>
           <div
-            aria-label={`Cobrado ${percent}% de lo vendido en el mes`}
+            aria-label={`Cobrado ${percent}% de lo vendido ${labels.withinMonth}`}
             className="branch-card__bar"
             role="img"
           >
@@ -82,7 +137,15 @@ function BranchCard({ branch, onOpen }: { branch: AdminBranchSummary; onOpen: ()
   )
 }
 
-function BranchDetail({ branch, shareOfTotal }: { branch: AdminBranchSummary; shareOfTotal: number | null }) {
+function BranchDetail({
+  branch,
+  labels,
+  shareOfTotal,
+}: {
+  branch: AdminBranchSummary
+  labels: MonthLabels
+  shareOfTotal: number | null
+}) {
   const sales = branch.monthlySales
   const collection = branch.collection
   const credit = branch.creditPortfolio
@@ -94,16 +157,18 @@ function BranchDetail({ branch, shareOfTotal }: { branch: AdminBranchSummary; sh
             <span className="hero-card__icon" aria-hidden="true">
               <Banknote />
             </span>
-            <p className="eyebrow">VENTAS DEL MES · {branch.branchName.toUpperCase()}</p>
+            <p className="eyebrow">
+              VENTAS {labels.ofMonth.toUpperCase()} · {branch.branchName.toUpperCase()}
+            </p>
             <h2>{formatCurrency(sales.currentMonth.amount)}</h2>
             <p>
-              {formatUnits(sales.currentMonth.units)} vendidas este mes, frente a{' '}
-              {formatUnits(sales.previousMonth.units)} el mes anterior (
+              {formatUnits(sales.currentMonth.units)} vendidas {labels.inMonth}, frente a{' '}
+              {formatUnits(sales.previousMonth.units)} {labels.inPreviousMonth} (
               {formatMonthDelta(sales.currentMonth.units, sales.previousMonth.units)}).
             </p>
           </div>
           <div className="hero-card__meta">
-            <small>Mes anterior</small>
+            <small>{capitalize(labels.inPreviousMonth)}</small>
             <strong>{formatCurrency(sales.previousMonth.amount)}</strong>
             {shareOfTotal !== null && (
               <>
@@ -119,7 +184,7 @@ function BranchDetail({ branch, shareOfTotal }: { branch: AdminBranchSummary; sh
         {collection && (
           <KpiCard
             icon={HandCoins}
-            label="Cobrado de las ventas del mes"
+            label={`Cobrado de las ventas ${labels.ofMonth}`}
             value={formatCurrency(collection.collectedAmount)}
             meta={`${collectedPercent(collection)}% de lo vendido`}
           />
@@ -140,7 +205,7 @@ function BranchDetail({ branch, shareOfTotal }: { branch: AdminBranchSummary; sh
         {branch.expensesThisMonth && (
           <KpiCard
             icon={Receipt}
-            label="Gastos del mes"
+            label={`Gastos ${labels.ofMonth}`}
             value={formatCurrency(branch.expensesThisMonth.amount)}
             meta="Sólo los de la sucursal, en pesos"
           />
@@ -174,13 +239,13 @@ function BranchDetail({ branch, shareOfTotal }: { branch: AdminBranchSummary; sh
 
       <div className="panel-grid">
         {branch.sellers && (
-          <DashboardPanel title="Vendedores" description="Unidades computables del mes">
-            <BranchSellers branch={branch} />
+          <DashboardPanel title="Vendedores" description={`Unidades computables ${labels.ofMonth}`}>
+            <BranchSellers branch={branch} labels={labels} />
           </DashboardPanel>
         )}
         <TopModelsPanel
           title="Modelos más vendidos"
-          description={`Top 5 por unidades, ${branch.branchName}`}
+          description={`Top 5 por unidades ${labels.ofMonth}, ${branch.branchName}`}
           models={branch.topModels}
         />
       </div>
@@ -188,8 +253,57 @@ function BranchDetail({ branch, shareOfTotal }: { branch: AdminBranchSummary; sh
   )
 }
 
-export function AdminDashboard({ home }: { home: AdminHome }) {
+function MonthSwitch({
+  today,
+  month,
+  loading,
+  onChange,
+}: {
+  today: string
+  month: DashboardMonth
+  loading: boolean
+  onChange: (month: DashboardMonth) => void
+}) {
+  const currentPeriod = today.slice(0, 7)
+  const options: Array<{ value: DashboardMonth; label: string }> = [
+    { value: 'current', label: capitalize(monthNameOf(currentPeriod)) },
+    { value: 'previous', label: capitalize(monthNameOf(currentPeriod, -1)) },
+  ]
+  return (
+    <div aria-busy={loading} aria-label="Mes" className="month-switch" role="group">
+      {options.map((option) => (
+        <button
+          aria-pressed={option.value === month}
+          className={`month-switch__option${option.value === month ? ' month-switch__option--active' : ''}`}
+          disabled={loading}
+          key={option.value}
+          onClick={() => onChange(option.value)}
+          type="button"
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export function AdminDashboard({
+  home,
+  month = 'current',
+  loading = false,
+  onMonthChange,
+}: {
+  home: AdminHome
+  month?: DashboardMonth
+  loading?: boolean
+  /** Sin esto (o con un backend que no manda `period`) no hay selector de mes. */
+  onMonthChange?: (month: DashboardMonth) => void
+}) {
   const { greeting } = home
+  // Lo que se ve es el mes que trajo el backend; mientras carga otro, el
+  // selector ya marca el nuevo.
+  const shownMonth = home.month ?? 'current'
+  const labels = monthLabels(shownMonth, home.period ?? home.monthlySales?.period)
   const branches = home.branches ?? []
   const [selected, setSelected] = useState<string>(ALL_BRANCHES)
   const branch = branches.find((item) => item.branchId === selected) ?? null
@@ -218,12 +332,23 @@ export function AdminDashboard({ home }: { home: AdminHome }) {
           <p>
             {todayLongLabel(greeting.date)} ·{' '}
             {branch ? `Sucursal ${branch.branchName}` : 'Vista consolidada de la organización'}
+            {loading && ' · Actualizando…'}
           </p>
         </div>
-        <span className="status-badge status-badge--success">
-          <CheckCircle2 size={15} aria-hidden="true" />
-          {greeting.organizationName}
-        </span>
+        <div className="page-heading__actions">
+          {onMonthChange && home.period && (
+            <MonthSwitch
+              loading={loading}
+              month={month}
+              onChange={onMonthChange}
+              today={greeting.date}
+            />
+          )}
+          <span className="status-badge status-badge--success">
+            <CheckCircle2 size={15} aria-hidden="true" />
+            {greeting.organizationName}
+          </span>
+        </div>
       </header>
 
       {branches.length > 0 && (
@@ -253,7 +378,7 @@ export function AdminDashboard({ home }: { home: AdminHome }) {
       <PendingTasksPanel tasks={branch ? branchTasks : home.pendingTasks} mode="team" links />
 
       {branch ? (
-        <BranchDetail branch={branch} shareOfTotal={shareOfTotal} />
+        <BranchDetail branch={branch} labels={labels} shareOfTotal={shareOfTotal} />
       ) : (
         <>
           {home.monthlySales && (
@@ -262,11 +387,11 @@ export function AdminDashboard({ home }: { home: AdminHome }) {
                 <span className="hero-card__icon" aria-hidden="true">
                   <Banknote />
                 </span>
-                <p className="eyebrow">VENTAS DEL MES · TODAS LAS SUCURSALES</p>
+                <p className="eyebrow">VENTAS {labels.ofMonth.toUpperCase()} · TODAS LAS SUCURSALES</p>
                 <h2>{formatCurrency(home.monthlySales.currentMonth.amount)}</h2>
                 <p>
-                  {formatUnits(home.monthlySales.currentMonth.units)} vendidas este mes, frente a{' '}
-                  {formatUnits(home.monthlySales.previousMonth.units)} el mes anterior (
+                  {formatUnits(home.monthlySales.currentMonth.units)} vendidas {labels.inMonth}, frente a{' '}
+                  {formatUnits(home.monthlySales.previousMonth.units)} {labels.inPreviousMonth} (
                   {formatMonthDelta(
                     home.monthlySales.currentMonth.units,
                     home.monthlySales.previousMonth.units,
@@ -275,7 +400,7 @@ export function AdminDashboard({ home }: { home: AdminHome }) {
                 </p>
               </div>
               <div className="hero-card__meta">
-                <small>Mes anterior</small>
+                <small>{capitalize(labels.inPreviousMonth)}</small>
                 <strong>{formatCurrency(home.monthlySales.previousMonth.amount)}</strong>
                 <small>Variación en monto</small>
                 <strong>
@@ -291,7 +416,12 @@ export function AdminDashboard({ home }: { home: AdminHome }) {
           {branches.length > 0 && (
             <div className="panel-grid">
               {branches.map((item) => (
-                <BranchCard branch={item} key={item.branchId} onOpen={() => setSelected(item.branchId)} />
+                <BranchCard
+                  branch={item}
+                  key={item.branchId}
+                  labels={labels}
+                  onOpen={() => setSelected(item.branchId)}
+                />
               ))}
             </div>
           )}
@@ -337,11 +467,11 @@ export function AdminDashboard({ home }: { home: AdminHome }) {
                 .filter((item) => item.sellers)
                 .map((item) => (
                   <DashboardPanel
-                    description="Unidades computables del mes"
+                    description={`Unidades computables ${labels.ofMonth}`}
                     key={item.branchId}
                     title={`Vendedores · ${item.branchName}`}
                   >
-                    <BranchSellers branch={item} />
+                    <BranchSellers branch={item} labels={labels} />
                   </DashboardPanel>
                 ))}
             </div>
@@ -351,7 +481,7 @@ export function AdminDashboard({ home }: { home: AdminHome }) {
             {branches.length === 0 && home.salesByBranch && (
               <DashboardPanel
                 title="Ventas por sucursal"
-                description="Unidades y monto del mes, por sucursal"
+                description={`Unidades y monto ${labels.ofMonth}, por sucursal`}
               >
                 {home.salesByBranch.length === 0 ? (
                   <PanelEmptyState>No hay sucursales activas.</PanelEmptyState>
@@ -370,7 +500,7 @@ export function AdminDashboard({ home }: { home: AdminHome }) {
 
             <TopModelsPanel
               title="Modelos más vendidos"
-              description="Top 5 por unidades, toda la organización"
+              description={`Top 5 por unidades ${labels.ofMonth}, toda la organización`}
               models={home.topModels}
             />
           </div>

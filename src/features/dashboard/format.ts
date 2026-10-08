@@ -60,3 +60,12 @@ export function todayLongLabel(isoDate: string) {
   }).format(date)
   return label.charAt(0).toUpperCase() + label.slice(1)
 }
+
+/** Nombre del mes de un período "AAAA-MM", en minúscula: "septiembre". */
+export function monthNameOf(period: string, offset = 0) {
+  const [year, month] = period.split('-').map(Number)
+  if (!year || !month) return ''
+  return new Intl.DateTimeFormat('es-AR', { month: 'long', timeZone: 'UTC' }).format(
+    new Date(Date.UTC(year, month - 1 + offset, 1)),
+  )
+}

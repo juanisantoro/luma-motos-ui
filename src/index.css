@@ -7505,3 +7505,44 @@ a {
   border-radius: 999px;
   background: var(--dark);
 }
+
+/* Selector de mes del inicio del administrador. */
+.month-switch {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.month-switch__option {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.month-switch__option--active {
+  color: #fff;
+  background: var(--red);
+}
+
+.month-switch__option:disabled {
+  cursor: progress;
+}
+
+.month-switch__option:focus-visible {
+  outline: 2px solid var(--red-dark);
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .month-switch {
+    align-self: flex-start;
+  }
+}

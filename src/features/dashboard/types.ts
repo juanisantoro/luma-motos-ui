@@ -79,9 +79,15 @@ export type AdminBranchSummary = {
   topModels: TopModel[] | null
 }
 
+export type DashboardMonth = 'current' | 'previous'
+
 export type AdminHome = {
   role: 'ADMINISTRADOR'
   greeting: DashboardGreeting
+  // Mes de los números "del mes" y su período "AAAA-MM". Un backend
+  // anterior al selector de mes no los manda.
+  month?: DashboardMonth
+  period?: string
   // Ausente en respuestas anteriores; null sin permisos sobre esas tareas.
   pendingTasks?: PendingTasks | null
   monthlySales: MonthlyPerformance | null
