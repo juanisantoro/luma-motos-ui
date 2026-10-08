@@ -1,7 +1,22 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { StockWorkspace } from './StockWorkspace'
+const excel = vi.hoisted(() => ({ download: vi.fn(() => Promise.resolve()) }))
+vi.mock('../../shared/export/excel', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../shared/export/excel')>()),
+  downloadExcel: excel.download,
+}))
+
+type ExcelCall = {
+  title: string
+  fileName: string
+  filters: unknown[]
+  rows: unknown[]
+  total?: number
+  columns: Array<{ header: string; value: (row: never) => unknown }>
+}
+const excelCall = () => excel.download.mock.calls[0] as unknown as [ExcelCall]
 import type {
   CatalogModel,
   PhysicalUnit,
@@ -142,6 +157,10 @@ function renderWorkspace(overrides?: {
 }
 
 describe('workspace de stock', () => {
+  beforeEach(() => {
+    excel.download.mockClear()
+  })
+
   it('fija la sucursal en filtros y altas para un usuario de una sola sucursal', async () => {
     const user = userEvent.setup()
     renderWorkspace({ branchLocked: true })
@@ -588,5 +607,39 @@ describe('workspace de stock', () => {
     expect(
       screen.queryByRole('button', { name: 'Informar proveedor' }),
     ).not.toBeInTheDocument()
+  })
+  it('exporta a Excel la vista actual con lo que deja el filtro', async () => {
+    const user = userEvent.setup()
+    const otherUnit: PhysicalUnit = {
+      ...unit,
+      id: 'unit-2',
+      vin: 'VIN-USADO-002',
+      condition: 'USADO',
+      mileage: 12500,
+    }
+    renderWorkspace({ data: { ...data, units: [unit, otherUnit] } })
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Condición' }), 'USADO')
+    await user.click(screen.getByRole('button', { name: 'Exportar a Excel' }))
+
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    const [options] = excelCall()
+    expect(options.title).toBe('Stock de motos - Unidades físicas')
+    expect(options.rows).toEqual([otherUnit])
+    expect(options.filters).toContain('Condición: Usado')
+    expect(options.columns.map((column) => column.header)).toEqual(
+      expect.arrayContaining(['Marca', 'Modelo', 'VIN / chasis', 'Sucursal', 'Estado', 'Kilometraje']),
+    )
+
+    // En el catálogo exporta el precio efectivo como número, con su moneda.
+    await user.click(screen.getByRole('tab', { name: 'Catálogo de modelos' }))
+    await user.click(screen.getByRole('button', { name: 'Exportar a Excel' }))
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(2))
+    const [catalogOptions] = excel.download.mock.calls[1] as unknown as [ExcelCall]
+    expect(catalogOptions.title).toBe('Stock de motos - Catálogo de modelos')
+    expect(catalogOptions.rows).toHaveLength(2)
+    const price = catalogOptions.columns.find((column) => column.header === 'Precio sugerido')!
+    expect(price.value(catalogOptions.rows[0] as never)).toBe(1500000)
+    expect(catalogOptions.columns.map((column) => column.header)).not.toContain('Acciones')
   })
 })

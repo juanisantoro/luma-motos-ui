@@ -10,7 +10,26 @@ const mocks = vi.hoisted(() => ({
   movements: vi.fn(),
   trace: vi.fn(),
   alertError: vi.fn(),
+  download: vi.fn(() => Promise.resolve()),
 }))
+
+vi.mock('../../shared/export/excel', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../shared/export/excel')>()),
+  downloadExcel: mocks.download,
+}))
+
+type ExportCall = {
+  title: string
+  fileName: string
+  filters: unknown[]
+  rows: Array<{ id?: string }>
+  total?: number
+  columns: Array<{ header: string; type?: string }>
+}
+
+function exported(index = 0) {
+  return (mocks.download.mock.calls[index] as unknown as [ExportCall])[0]
+}
 
 vi.mock('./api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api')>()),
@@ -225,6 +244,125 @@ describe('AuditPage', () => {
         page: 1,
       }),
     )
+  })
+
+  it('exporta a Excel toda la actividad del filtro, pidiendo todas las páginas', async () => {
+    const user = userEvent.setup()
+    render(<AuditPage />)
+    await screen.findByRole('table')
+
+    await user.selectOptions(await screen.findByLabelText('Módulo'), 'DINERO')
+    await user.click(screen.getByRole('button', { name: 'Buscar' }))
+    await waitFor(() =>
+      expect(mocks.events.mock.calls.at(-1)![0]).toMatchObject({ category: 'DINERO' }),
+    )
+    await screen.findByRole('table')
+
+    const second = { ...handoverEvent, id: 'event-2' }
+    mocks.events.mockImplementation(({ page }: { page: number }) =>
+      Promise.resolve({
+        items: page === 1 ? Array.from({ length: 100 }, () => handoverEvent) : [second],
+        total: 101,
+        page,
+        limit: 100,
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Exportar a Excel' }))
+
+    await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(1))
+    const pages = mocks.events.mock.calls.slice(-2).map(([query]) => query)
+    expect(pages).toEqual([
+      expect.objectContaining({ page: 1, limit: 100, category: 'DINERO' }),
+      expect.objectContaining({ page: 2, limit: 100, category: 'DINERO' }),
+    ])
+    const options = exported()
+    expect(options.title).toBe('Auditoría · Actividad')
+    expect(options.rows).toHaveLength(101)
+    expect(options.rows.at(-1)).toBe(second)
+    expect(options.total).toBe(101)
+    expect(options.filters).toContain('Módulo: Dinero y caja')
+    expect(options.columns.map((column) => column.header)).toEqual([
+      'Fecha y hora',
+      'Usuario',
+      'Correo',
+      'Rol',
+      'Sucursal',
+      'Módulo',
+      'Acción',
+      'Sobre qué',
+      'Detalle',
+      'Importe',
+      'N.º operación',
+      'IP',
+    ])
+  })
+
+  it('exporta a Excel los movimientos de dinero y el resumen por caja', async () => {
+    const user = userEvent.setup()
+    render(<AuditPage />)
+    await user.click(screen.getByRole('tab', { name: 'Movimientos de dinero' }))
+    await screen.findByRole('region', { name: 'Movimientos de dinero' })
+
+    const first = await (mocks.movements.mock.results[0]!.value as Promise<{
+      summary: unknown[]
+    }>)
+    mocks.movements.mockImplementation(({ page }: { page: number }) =>
+      Promise.resolve({
+        ...first,
+        items: page === 1 ? Array.from({ length: 100 }, () => cashMovement) : [cashMovement],
+        total: 101,
+        page,
+        limit: 100,
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Exportar a Excel' }))
+    await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(1))
+    expect(mocks.movements.mock.calls.slice(-2).map(([query]) => query.page)).toEqual([1, 2])
+    expect(exported().title).toBe('Auditoría · Movimientos de dinero')
+    expect(exported().rows).toHaveLength(101)
+    expect(
+      exported()
+        .columns.filter((column) => column.type === 'money')
+        .map((column) => column.header),
+    ).toEqual(['Entrada', 'Salida'])
+
+    await user.click(screen.getByRole('button', { name: 'Exportar resumen' }))
+    await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(2))
+    expect(exported(1).title).toBe('Auditoría · Resumen por caja')
+    expect(exported(1).rows).toEqual(first.summary)
+    expect(exported(1).columns.map((column) => column.header)).toEqual([
+      'Sucursal',
+      'Caja',
+      'Moneda',
+      'Entradas',
+      'Salidas',
+      'Neto',
+      'Pendiente de rendir',
+    ])
+  })
+
+  it('exporta a Excel el dinero de una venta desde su historial', async () => {
+    const user = userEvent.setup()
+    render(<AuditPage />)
+    await user.click(
+      await screen.findByRole('button', { name: 'Ver historial de la venta 120' }),
+    )
+    const dialog = await screen.findByRole('dialog')
+    await within(dialog).findByRole('heading', { name: 'Venta N.º 120 · Juan Pérez' })
+
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Exportar dinero a Excel' }),
+    )
+    await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(1))
+    expect(exported().title).toBe('Dinero de la venta N.º 120')
+    expect(exported().rows).toEqual(operationTrace.movements)
+  })
+
+  it('disables the export when there is nothing to export', async () => {
+    mocks.events.mockResolvedValue({ items: [], total: 0, page: 1, limit: 50 })
+    render(<AuditPage />)
+    await screen.findByText('No hay registros para esos filtros')
+    expect(screen.getByRole('button', { name: 'Exportar a Excel' })).toBeDisabled()
   })
 
   it('offers a retry when the audit cannot be loaded', async () => {

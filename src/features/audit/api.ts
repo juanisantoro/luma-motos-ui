@@ -79,21 +79,3 @@ export function getOperationTrace(operationId: string, signal?: AbortSignal) {
     signal,
   )
 }
-
-const EXPORT_PAGE = 100
-export const EXPORT_MAX_ROWS = 5000
-
-/** Trae todas las páginas del filtro (hasta `EXPORT_MAX_ROWS`) para exportar. */
-export async function fetchAllPages<T>(
-  load: (page: number, limit: number) => Promise<AuditPage<T>>,
-) {
-  const items: T[] = []
-  let total = 0
-  for (let page = 1; items.length < EXPORT_MAX_ROWS; page += 1) {
-    const result = await load(page, EXPORT_PAGE)
-    total = result.total
-    items.push(...result.items)
-    if (result.items.length < EXPORT_PAGE || items.length >= total) break
-  }
-  return { items: items.slice(0, EXPORT_MAX_ROWS), total }
-}

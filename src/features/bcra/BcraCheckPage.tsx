@@ -12,10 +12,13 @@ import type { LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { alertError } from '../../shared/alerts'
+import { downloadExcel } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { getBcraSituacion } from './api'
 import './bcra-check.css'
+import { bcraExcelColumns, bcraExcelRows } from './export'
 import {
   bcraErrorMessage,
   formatConsultadoEn,
@@ -69,6 +72,24 @@ export function BcraCheckPage() {
   const detalle = state.status === 'success' ? state.data.detalle : undefined
   const Icon = resumen ? veredictoIcon[resumen.veredicto] : null
   const montoLine = resumen ? montoIrregularLine(resumen) : null
+  const excelRows = canSeeDetail ? bcraExcelRows(detalle) : []
+
+  // Excel: la tabla de deudas por entidad del CUIT consultado.
+  const exportExcel = async () => {
+    if (!resumen) return
+    await downloadExcel({
+      fileName: `Consulta BCRA ${resumen.identificacion}`,
+      title: 'Consulta BCRA',
+      filters: [
+        `CUIT: ${formatCuit(resumen.identificacion)}`,
+        resumen.denominacion && `Nombre: ${resumen.denominacion}`,
+        `Resultado: ${veredictoLabels[resumen.veredicto]}`,
+        `Consultado: ${formatConsultadoEn(resumen.consultadoEn)}`,
+      ],
+      columns: bcraExcelColumns,
+      rows: excelRows,
+    })
+  }
 
   return (
     <>
@@ -81,6 +102,14 @@ export function BcraCheckPage() {
             Deudores del BCRA antes de avanzar con un crédito personal.
           </p>
         </div>
+        {canSeeDetail && (
+          <div className="page-heading__actions">
+            <ExportExcelButton
+              disabled={state.status !== 'success' || excelRows.length === 0}
+              onExport={exportExcel}
+            />
+          </div>
+        )}
       </header>
 
       <form className="bcra-search" onSubmit={(event) => void submit(event)}>

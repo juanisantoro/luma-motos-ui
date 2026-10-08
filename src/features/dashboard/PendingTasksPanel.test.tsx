@@ -116,7 +116,7 @@ describe('Tareas pendientes del inicio', () => {
 
     expect(screen.queryByRole('list', { name: 'Pendientes por sucursal' })).not.toBeInTheDocument()
     expect(screen.queryByRole('definition')).not.toBeInTheDocument()
-    expect(screen.getByText('Al día: Pagos de vehículo sin confirmar')).toBeInTheDocument()
+    expect(screen.getByText('Al día: Gastos de motos y autos sin pagar')).toBeInTheDocument()
   })
 
   it('avisa cuando ninguna sucursal tiene pendientes', () => {

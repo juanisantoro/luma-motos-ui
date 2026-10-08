@@ -72,7 +72,7 @@ export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) 
         {home.unconfirmedVehiclePayments && (
           <KpiCard
             icon={FileWarning}
-            label="Pagos de vehículo sin confirmar"
+            label="Gastos de motos y autos sin pagar"
             value={String(home.unconfirmedVehiclePayments.count)}
             meta={
               home.unconfirmedVehiclePayments.staleCount > 0
@@ -213,7 +213,7 @@ export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) 
                       <AlertTriangle size={13} />
                     </span>
                     <span className="ranking-list__name">
-                      Pagos de vehículo sin confirmar hace más de 5 días
+                      Gastos de motos y autos sin pagar hace más de 5 días
                     </span>
                     <span className="ranking-list__stat">
                       {alerts.staleVehiclePayments.count}

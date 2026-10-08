@@ -14,6 +14,8 @@ import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { ApiError } from '../../shared/api/client'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
 import { useAuth } from '../auth/AuthContext'
 import {
   branchScopeKey,
@@ -26,6 +28,7 @@ import type { VehicleKind } from '../stock/types'
 import { ComponentCollectionModal } from './ComponentCollectionModal'
 import { FinancingPaymentModal } from './FinancingPaymentModal'
 import { salesErrorMessage } from './errors'
+import { trackingExcelColumns } from './export'
 import { fulfillmentLabel, fulfillmentStatusClass } from './fulfillment'
 import { licensingStatusClass, licensingStatusLabels } from './licensing'
 import {
@@ -98,6 +101,29 @@ export function trackingQuery(
     ...(filters.withPendingCash ? { withPendingCash: true } : {}),
     ...(filters.withFinancingPending ? { withFinancingPending: true } : {}),
   }
+}
+
+function displayDate(value: string) {
+  const [year, month, day] = value.split('-')
+  return `${day}/${month}/${year}`
+}
+
+/** Filtros aplicados, en texto, para el encabezado del Excel. */
+function describeTrackingFilters(
+  filters: Filters,
+  branches: Array<{ id: string; name: string }>,
+) {
+  return [
+    filters.search.trim() && `Búsqueda: ${filters.search.trim()}`,
+    filters.branchId &&
+      `Sucursal: ${branches.find((branch) => branch.id === filters.branchId)?.name ?? filters.branchId}`,
+    filters.status && `Estado: ${operationStatusLabels[filters.status]}`,
+    filters.from && `Desde: ${displayDate(filters.from)}`,
+    filters.to && `Hasta: ${displayDate(filters.to)}`,
+    filters.withBalance && 'Con saldo',
+    filters.withPendingCash && 'Con efectivo sin rendir',
+    filters.withFinancingPending && 'Financiera pendiente de pago',
+  ]
 }
 
 function handoverErrorMessage(error: unknown) {
@@ -436,6 +462,25 @@ export function OperationTrackingPanel({
   const rows = result?.items ?? []
   const myPending = recipients.find((recipient) => recipient.isCurrentUser)
 
+  // Excel: todo lo que trae el filtro aplicado, no sólo la página visible.
+  const exportExcel = async () => {
+    const title = `Seguimiento de cobros de ${vehicleType === 'MOTO' ? 'motos' : 'autos'}`
+    const { items, total } = await fetchAllPages((nextPage, limit) =>
+      listOperationTracking({
+        ...trackingQuery(filters, vehicleType, nextPage),
+        limit,
+      }),
+    )
+    await downloadExcel({
+      fileName: title,
+      title,
+      filters: describeTrackingFilters(filters, branches),
+      columns: trackingExcelColumns,
+      rows: items,
+      total,
+    })
+  }
+
   return (
     <section className="sales-panel" aria-label="Seguimiento de operaciones">
       {canConfirm && myPending && myPending.pendingCount > 0 && (
@@ -537,6 +582,10 @@ export function OperationTrackingPanel({
         <button className="button button--secondary" type="submit">
           Buscar
         </button>
+        <ExportExcelButton
+          disabled={status !== 'success' || !result || result.total === 0}
+          onExport={exportExcel}
+        />
       </form>
 
       <div className="sales-content" aria-live="polite">

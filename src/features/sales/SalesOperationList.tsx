@@ -35,7 +35,7 @@ import {
 } from './presentation'
 import type { SalesOperation } from './types'
 
-function clientDocument(operation: SalesOperation) {
+export function clientDocument(operation: SalesOperation) {
   const documentType = operation.client.documentType
   const documentNumber = operation.client.documentNumber
   return documentType && documentNumber
@@ -43,7 +43,7 @@ function clientDocument(operation: SalesOperation) {
     : 'Documento no informado'
 }
 
-function sourceAndDestination(operation: SalesOperation) {
+export function sourceAndDestination(operation: SalesOperation) {
   if (operation.vehicle.unit) {
     return `Stock físico · ${operation.branch.name}`
   }
@@ -152,7 +152,7 @@ function UnitStatus({
   )
 }
 
-function observation(operation: SalesOperation) {
+export function observation(operation: SalesOperation) {
   return (
     operation.approval?.reason ??
     operation.reservation?.releaseReason ??
@@ -317,7 +317,7 @@ function LicensingBadge({ operation }: { operation: SalesOperation }) {
   )
 }
 
-function unitSummary(operation: SalesOperation) {
+export function unitSummary(operation: SalesOperation) {
   return isAuto(operation)
     ? supplyStatus(operation)
     : fulfillmentLabel(operationFulfillment(operation))

@@ -12,6 +12,8 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { alertSuccess } from '../../shared/alerts'
 import { ApiError } from '../../shared/api/client'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { localIsoDate } from '../../shared/utils/date'
 import { useAuth } from '../auth/AuthContext'
@@ -30,6 +32,11 @@ import {
   cashAccountLabel,
   isImportedAccount,
 } from './cashAccounts'
+import {
+  cashTransferColumns,
+  cashTransferStatusLabel,
+  partnerWithdrawalColumns,
+} from './cashExport'
 import {
   financialErrorMessage,
   formatDate,
@@ -60,6 +67,17 @@ function validAmount(value: string) {
 /** Cuenta con su sucursal al lado, para no confundir cajas de dos locales. */
 function accountOption(account: CashAccount) {
   return `${cashAccountLabel(account)} — ${account.branch?.name ?? 'Compartida'}`
+}
+
+/** Filtros aplicados (no el borrador del formulario), en texto para el Excel. */
+function describeQuery(query: CashOperationQuery, accounts: CashAccount[]) {
+  const account = accounts.find((item) => item.id === query.accountId)
+  return [
+    query.from && `Desde: ${formatDate(query.from)}`,
+    query.to && `Hasta: ${formatDate(query.to)}`,
+    query.accountId &&
+      `Cuenta: ${account ? accountOption(account) : query.accountId}`,
+  ]
 }
 
 /** Cuentas con su saldo; se recargan después de cada movimiento. */
@@ -580,6 +598,20 @@ export function CashTransfersPage() {
     )
   }
 
+  const exportExcel = async () => {
+    const { items, total } = await fetchAllPages((page, limit) =>
+      listCashTransfers({ ...list.query, page, limit }),
+    )
+    await downloadExcel({
+      fileName: 'Transferencias entre cajas',
+      title: 'Transferencias entre cajas',
+      filters: describeQuery(list.query, accounts),
+      columns: cashTransferColumns(accounts, branchOf),
+      rows: items,
+      total,
+    })
+  }
+
   return (
     <>
       <header className="page-heading">
@@ -591,16 +623,22 @@ export function CashTransfersPage() {
             banco, o de una sucursal a la otra. No es un cobro ni un gasto.
           </p>
         </div>
-        {canCreate && (
-          <button
-            className="button button--primary"
-            onClick={() => setShowForm(true)}
-            type="button"
-          >
-            <Plus size={18} />
-            Nueva transferencia
-          </button>
-        )}
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={list.status !== 'success' || !list.result?.total}
+            onExport={exportExcel}
+          />
+          {canCreate && (
+            <button
+              className="button button--primary"
+              onClick={() => setShowForm(true)}
+              type="button"
+            >
+              <Plus size={18} />
+              Nueva transferencia
+            </button>
+          )}
+        </div>
       </header>
 
       <Filters
@@ -667,11 +705,7 @@ export function CashTransfersPage() {
                             : 'status-badge--warning'
                         }`}
                       >
-                        {transfer.status === 'CONFIRMADA'
-                          ? 'Vigente'
-                          : transfer.status === 'REVERSADA'
-                            ? 'Anulada'
-                            : 'Pendiente'}
+                        {cashTransferStatusLabel(transfer.status)}
                       </span>
                     </td>
                     {canReverse && (
@@ -878,6 +912,20 @@ export function PartnerWithdrawalsPage() {
   const [reversing, setReversing] = useState<PartnerWithdrawal | null>(null)
   const [reverseKey, setReverseKey] = useState(newIdempotencyKey)
 
+  const exportExcel = async () => {
+    const { items, total } = await fetchAllPages((page, limit) =>
+      listPartnerWithdrawals({ ...list.query, page, limit }),
+    )
+    await downloadExcel({
+      fileName: 'Retiros de socios',
+      title: 'Retiros de socios',
+      filters: describeQuery(list.query, accounts),
+      columns: partnerWithdrawalColumns,
+      rows: items,
+      total,
+    })
+  }
+
   return (
     <>
       <header className="page-heading">
@@ -889,14 +937,20 @@ export function PartnerWithdrawalsPage() {
             no cuenta como gasto del mes.
           </p>
         </div>
-        <button
-          className="button button--primary"
-          onClick={() => setShowForm(true)}
-          type="button"
-        >
-          <Plus size={18} />
-          Nuevo retiro
-        </button>
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={list.status !== 'success' || !list.result?.total}
+            onExport={exportExcel}
+          />
+          <button
+            className="button button--primary"
+            onClick={() => setShowForm(true)}
+            type="button"
+          >
+            <Plus size={18} />
+            Nuevo retiro
+          </button>
+        </div>
       </header>
 
       <Filters

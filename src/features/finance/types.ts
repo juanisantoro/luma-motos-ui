@@ -173,7 +173,10 @@ export type FinancialListQuery = {
   type?: string
   operationId?: string
   accountId?: string
+  // Varias cuentas separadas por coma: todas las cajas de un socio.
+  accountIds?: string
   collectorId?: string
+  paymentMethod?: IncomePaymentMethod
   category?: string
   recoverable?: boolean
   recovered?: boolean

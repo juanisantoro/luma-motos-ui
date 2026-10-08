@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
@@ -22,6 +24,7 @@ import {
 } from './api'
 import { CreditInquiryList } from './CreditInquiryList'
 import { CreditInquiryModal } from './CreditInquiryModal'
+import { creditInquiryExcelColumns } from './export'
 import {
   creditInquiryErrorMessage,
   isForbiddenError,
@@ -55,6 +58,27 @@ const emptyFilters: FilterValues = {
   dateTo: '',
   branchId: '',
   registeredById: '',
+}
+
+// Query de la grilla a partir de los filtros aplicados (sin página).
+function appliedQuery(filters: FilterValues): RejectedInquiryQuery {
+  return {
+    ...(filters.search ? { search: filters.search } : {}),
+    ...(filters.financialEntityId
+      ? { financialEntityId: filters.financialEntityId }
+      : {}),
+    ...(filters.dateFrom ? { dateFrom: filters.dateFrom } : {}),
+    ...(filters.dateTo ? { dateTo: filters.dateTo } : {}),
+    ...(filters.branchId ? { branchId: filters.branchId } : {}),
+    ...(filters.registeredById
+      ? { registeredById: filters.registeredById }
+      : {}),
+  }
+}
+
+function formatFilterDate(value: string) {
+  const [year, month, day] = value.split('-')
+  return year && month && day ? `${day}/${month}/${year}` : value
 }
 
 export function CreditInquiriesPage() {
@@ -108,16 +132,7 @@ export function CreditInquiriesPage() {
     const query: RejectedInquiryQuery = {
       page,
       limit: PAGE_SIZE,
-      ...(filters.search ? { search: filters.search } : {}),
-      ...(filters.financialEntityId
-        ? { financialEntityId: filters.financialEntityId }
-        : {}),
-      ...(filters.dateFrom ? { dateFrom: filters.dateFrom } : {}),
-      ...(filters.dateTo ? { dateTo: filters.dateTo } : {}),
-      ...(filters.branchId ? { branchId: filters.branchId } : {}),
-      ...(filters.registeredById
-        ? { registeredById: filters.registeredById }
-        : {}),
+      ...appliedQuery(filters),
     }
 
     void listRejectedInquiries(query, controller.signal)
@@ -132,6 +147,35 @@ export function CreditInquiriesPage() {
       })
     return () => controller.abort()
   }, [filters, page, refreshKey])
+
+  // Excel: todas las consultas del filtro aplicado (no el borrador del panel).
+  const exportExcel = async () => {
+    const { items, total } = await fetchAllPages((nextPage, limit) =>
+      listRejectedInquiries({ ...appliedQuery(filters), page: nextPage, limit }),
+    )
+    const nameOf = <T extends { id: string }>(list: T[], id: string, name: (item: T) => string) => {
+      const found = list.find((item) => item.id === id)
+      return found ? name(found) : id
+    }
+    await downloadExcel({
+      fileName: 'Clientes en rojo',
+      title: 'Clientes en rojo',
+      filters: [
+        filters.search && `Documento o nombre: ${filters.search}`,
+        filters.financialEntityId &&
+          `Financiera: ${nameOf(financialInstitutions, filters.financialEntityId, (item) => item.name)}`,
+        filters.dateFrom && `Desde: ${formatFilterDate(filters.dateFrom)}`,
+        filters.dateTo && `Hasta: ${formatFilterDate(filters.dateTo)}`,
+        filters.branchId &&
+          `Sucursal: ${nameOf(branches, filters.branchId, (item) => item.name)}`,
+        filters.registeredById &&
+          `Vendedor: ${nameOf(registrants, filters.registeredById, (item) => item.fullName)}`,
+      ],
+      columns: creditInquiryExcelColumns,
+      rows: items,
+      total,
+    })
+  }
 
   const applyFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -181,16 +225,22 @@ export function CreditInquiriesPage() {
             Antecedentes de consultas crediticias rechazadas e historial de intentos.
           </p>
         </div>
-        {canRegister && (
-          <button
-            className="button button--primary"
-            onClick={() => setModalOpen(true)}
-            type="button"
-          >
-            <Plus size={18} aria-hidden="true" />
-            Registrar rechazo
-          </button>
-        )}
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={status !== 'success' || !result || result.total === 0}
+            onExport={exportExcel}
+          />
+          {canRegister && (
+            <button
+              className="button button--primary"
+              onClick={() => setModalOpen(true)}
+              type="button"
+            >
+              <Plus size={18} aria-hidden="true" />
+              Registrar rechazo
+            </button>
+          )}
+        </div>
       </header>
 
       <section

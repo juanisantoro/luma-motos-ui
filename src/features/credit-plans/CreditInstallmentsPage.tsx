@@ -3,9 +3,12 @@ import { useEffect, useState } from 'react'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { ApiError } from '../../shared/api/client'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { listCreditInstallments, payCreditInstallment } from './api'
+import { creditInstallmentExcelColumns } from './export'
 import {
   creditPlansErrorMessage,
   formatDate,
@@ -105,6 +108,24 @@ export function CreditInstallmentsPage() {
     }
   }
 
+  // Excel: todas las cuotas del filtro aplicado (no el borrador del panel).
+  const exportExcel = async () => {
+    const { items, total } = await fetchAllPages((page, limit) =>
+      listCreditInstallments({ ...query, page, limit }),
+    )
+    await downloadExcel({
+      fileName: 'Cobranza de cuotas',
+      title: 'Cobranza de cuotas',
+      filters: [
+        query.search && `Buscar: ${query.search}`,
+        query.status && `Estado: ${installmentStatusLabels[query.status]}`,
+      ],
+      columns: creditInstallmentExcelColumns,
+      rows: items,
+      total,
+    })
+  }
+
   return (
     <>
       <header className="page-heading">
@@ -112,6 +133,12 @@ export function CreditInstallmentsPage() {
           <p className="eyebrow">CRÉDITOS PERSONALES</p>
           <h1>Cobranza de cuotas</h1>
           <p>Seguimiento de cuotas pendientes, vencidas y pagadas de créditos personales.</p>
+        </div>
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={status !== 'success' || !result || result.total === 0}
+            onExport={exportExcel}
+          />
         </div>
       </header>
 

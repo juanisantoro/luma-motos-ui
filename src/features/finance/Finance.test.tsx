@@ -5,6 +5,12 @@ import { App } from '../../app/App'
 import { ApiError, AUTH_TOKEN_KEY } from '../../shared/api/client'
 import type { AuthUser } from '../auth/types'
 import { financialErrorMessage } from './format'
+
+const excel = vi.hoisted(() => ({ download: vi.fn(() => Promise.resolve()) }))
+vi.mock('../../shared/export/excel', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../shared/export/excel')>()),
+  downloadExcel: excel.download,
+}))
 import type {
   Expense,
   FinancialMovement,
@@ -524,6 +530,46 @@ describe('administración financiera', () => {
     expect(
       screen.getByText(/suma el importe de todos los gastos que cumplen los filtros/),
     ).toBeInTheDocument()
+  })
+
+  it('exporta a Excel todo lo que trae el filtro, pidiendo todas las páginas', async () => {
+    openRoute('/gastos')
+    const fetchMock = mockFinanceApi(authUser(['gastos.consultar']), { expenses: [expense] })
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/expenses')) {
+        const page = Number(new URL(url, 'http://x').searchParams.get('page'))
+        const limit = Number(new URL(url, 'http://x').searchParams.get('limit'))
+        const count = limit === 100 ? (page === 1 ? 100 : 30) : 1
+        return jsonResponse({
+          items: Array.from({ length: count }, (_, index) => ({ ...expense, id: `e-${page}-${index}` })),
+          total: limit === 100 ? 130 : 130,
+          page,
+          limit,
+        })
+      }
+      return base(input, init)
+    })
+
+    render(<App />)
+
+    const button = await screen.findByRole('button', { name: 'Exportar a Excel' })
+    await waitFor(() => expect(button).toBeEnabled())
+    fireEvent.click(button)
+
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    const pages = fetchMock.mock.calls
+      .map(([input]) => String(input))
+      .filter((url) => url.includes('/expenses') && url.includes('limit=100'))
+    expect(pages).toHaveLength(2)
+    const [options] = excel.download.mock.calls[0] as unknown as [
+      { title: string; rows: unknown[]; total: number; columns: Array<{ header: string }> },
+    ]
+    expect(options.title).toBe('Gastos generales')
+    expect(options.rows).toHaveLength(130)
+    expect(options.total).toBe(130)
+    expect(options.columns.map((column) => column.header)).toContain('Pagado por')
   })
 
   it('pide los cobros para confirmar sólo del tipo de vehículo de la pantalla', async () => {

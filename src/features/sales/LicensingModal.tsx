@@ -701,8 +701,8 @@ export function LicensingModal({
             ) : (
               <>
                 <p className="modal-description">
-                  Se registra en pagos de vehículo, con el formulario precargado
-                  con esta operación.
+                  Se registra en Gastos de {operation.vehicle.model.vehicleType === 'AUTO' ? 'autos' : 'motos'}, con el
+                  formulario precargado con esta operación.
                 </p>
                 <div className="client-modal__actions">
                   <button

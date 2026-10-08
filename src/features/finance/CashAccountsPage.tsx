@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { ApiError } from '../../shared/api/client'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { branchScopeKey, filterAllowedBranches } from '../auth/branchScope'
@@ -17,6 +19,7 @@ import {
   updateCashAccount,
 } from './api'
 import { CashAccountModal } from './CashAccountModal'
+import { cashAccountColumns } from './cashExport'
 import {
   cashAccountBranchId,
   cashAccountLabel,
@@ -116,6 +119,25 @@ export function CashAccountsPage() {
 
   const reload = () => setRefreshKey((current) => current + 1)
 
+  const branchName = (account: CashAccount) =>
+    account.branch?.name ??
+    branches.find((item) => item.id === cashAccountBranchId(account))?.name ??
+    'Compartida'
+
+  // La grilla filtra en memoria: se exporta lo mismo que se ve.
+  const exportExcel = () =>
+    downloadExcel({
+      fileName: 'Cuentas de caja',
+      title: 'Cuentas de caja',
+      filters: [
+        showAll
+          ? 'Incluye inactivas e históricas importadas'
+          : 'Sólo cuentas activas',
+      ],
+      columns: cashAccountColumns(branchName),
+      rows: visible,
+    })
+
   const open = (account: CashAccount | null) => {
     setEditing(account)
     setFormError(null)
@@ -169,16 +191,22 @@ export function CashAccountsPage() {
             sucursal y las cuentas bancarias.
           </p>
         </div>
-        {canManage && (
-          <button
-            className="button button--primary"
-            onClick={() => open(null)}
-            type="button"
-          >
-            <Plus size={18} />
-            Nueva cuenta
-          </button>
-        )}
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={status !== 'success' || visible.length === 0}
+            onExport={exportExcel}
+          />
+          {canManage && (
+            <button
+              className="button button--primary"
+              onClick={() => open(null)}
+              type="button"
+            >
+              <Plus size={18} />
+              Nueva cuenta
+            </button>
+          )}
+        </div>
       </header>
 
       {status === 'success' && recipientsWithoutAccount.length > 0 && (
@@ -260,11 +288,7 @@ export function CashAccountsPage() {
               <tbody>
                 {visible.map((account) => {
                   const imported = isImportedAccount(account)
-                  const branch =
-                    account.branch?.name ??
-                    branches.find(
-                      (item) => item.id === cashAccountBranchId(account),
-                    )?.name
+                  const branch = branchName(account)
                   return (
                     <tr key={account.id}>
                       <td>
@@ -278,7 +302,7 @@ export function CashAccountsPage() {
                         {account.responsiblePersonnel?.fullName ??
                           'Sin responsable'}
                       </td>
-                      <td>{branch ?? 'Compartida'}</td>
+                      <td>{branch}</td>
                       <td>{account.currency}</td>
                       <td>{formatMoney(account.balance, account.currency)}</td>
                       <td>

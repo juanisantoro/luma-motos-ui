@@ -1,6 +1,13 @@
 import { LoaderCircle, Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { listAllSalesOperations } from '../finance/api'
+import { useAuth } from '../auth/AuthContext'
+import {
+  defaultBranchId,
+  filterAllowedBranches,
+  isBranchSelectionLocked,
+} from '../auth/branchScope'
+import { listAllSalesOperations, listInventoryBranches } from '../finance/api'
+import { formatMoney } from '../finance/format'
 import type { SalesOperationOption } from '../finance/types'
 import { getSalesOperation, listSalesOperations } from '../sales/api'
 import { fulfillmentLabel, operationFulfillment } from '../sales/fulfillment'
@@ -16,11 +23,17 @@ import {
   createVehiclePayment,
   createVehiclePaymentConcept,
   createVehiclePaymentProvider,
+  listVehiclePaymentAccounts,
   listVehiclePaymentConcepts,
   listVehiclePaymentProviders,
 } from './api'
 import { alertError, alertSuccess } from '../../shared/alerts'
-import type { CatalogOption, VehiclePaymentStatus, VehiclePaymentVehicleType } from './types'
+import type {
+  CatalogOption,
+  PayerAccount,
+  VehiclePaymentStatus,
+  VehiclePaymentVehicleType,
+} from './types'
 import { displayVersion } from '../../shared/utils/vehicleVersion'
 
 function today() {
@@ -63,18 +76,28 @@ function errorMessage(error: unknown) {
   return 'Ocurrió un error inesperado. Intentá nuevamente.'
 }
 
+export function payerAccountLabel(account: Pick<PayerAccount, 'name' | 'responsible'> & { currency?: string }) {
+  const owner = account.responsible ? ` · ${account.responsible}` : ''
+  const currency = account.currency && account.currency !== 'ARS' ? ` (${account.currency})` : ''
+  return `${account.name}${owner}${currency}`
+}
+
 function CatalogSelect({
   label,
   options,
   value,
   onChange,
   onAdd,
+  required = true,
+  emptyLabel = 'Seleccionar',
 }: {
   label: string
   options: CatalogOption[]
   value: string
   onChange: (id: string) => void
   onAdd: (name: string) => Promise<CatalogOption>
+  required?: boolean
+  emptyLabel?: string
 }) {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
@@ -103,7 +126,7 @@ function CatalogSelect({
   if (adding) {
     return (
       <label className="field">
-        <span>{label} *</span>
+        <span>{label}{required ? ' *' : ''}</span>
         <div className="vehicle-payment-inline-add">
           <input
             autoFocus
@@ -141,14 +164,14 @@ function CatalogSelect({
 
   return (
     <label className="field">
-      <span>{label} *</span>
+      <span>{label}{required ? ' *' : ''}</span>
       <div className="vehicle-payment-inline-add">
         <select
           onChange={(event) => onChange(event.target.value)}
-          required
+          required={required}
           value={value}
         >
-          <option value="" disabled>Seleccionar</option>
+          <option value="" disabled={required}>{emptyLabel}</option>
           {options.map((option) => (
             <option key={option.id} value={option.id}>{option.name}</option>
           ))}
@@ -189,6 +212,14 @@ export function VehiclePaymentForm({
   const [paymentDate, setPaymentDate] = useState(today)
   const [status, setStatus] = useState<VehiclePaymentStatus>('PENDIENTE')
   const [notes, setNotes] = useState('')
+  const { user } = useAuth()
+  // Caja (de un administrador) desde la que se paga.
+  const [accounts, setAccounts] = useState<PayerAccount[]>([])
+  const [accountsLoaded, setAccountsLoaded] = useState(false)
+  const [accountId, setAccountId] = useState('')
+  // Sin unidad, el gasto queda en esta sucursal.
+  const [branches, setBranches] = useState<CatalogOption[]>([])
+  const [branchId, setBranchId] = useState('')
 
   const [unitSearch, setUnitSearch] = useState('')
   const [debouncedUnitSearch, setDebouncedUnitSearch] = useState('')
@@ -216,6 +247,28 @@ export function VehiclePaymentForm({
     document.body.classList.add('drawer-active')
     return () => document.body.classList.remove('drawer-active')
   }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    Promise.all([
+      listVehiclePaymentAccounts(controller.signal),
+      listInventoryBranches(controller.signal),
+    ])
+      .then(([accountRows, branchRows]) => {
+        // Sólo se paga desde una caja propia.
+        const own = accountRows.filter((account) => account.own)
+        setAccounts(own)
+        setAccountsLoaded(true)
+        if (own.length === 1) setAccountId(own[0]?.id ?? '')
+        const allowed = filterAllowedBranches(user, branchRows)
+        setBranches(allowed.map((branch) => ({ id: branch.id, name: branch.name })))
+        setBranchId((current) => current || defaultBranchId(user, branchRows))
+      })
+      .catch((loadError: unknown) => {
+        if (!controller.signal.aborted) setError(errorMessage(loadError))
+      })
+    return () => controller.abort()
+  }, [user])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -412,15 +465,13 @@ export function VehiclePaymentForm({
     ? plateStatusOf(ticketOperation.licensing)
     : null
   const ticketWithoutUnit = ticketOperation !== null && !ticketOperation.vehicle.unit
+  const branchLocked = isBranchSelectionLocked(user, branches)
+  const selectedAccount = accounts.find((account) => account.id === accountId)
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (ticketWithoutUnit) {
-      setError('La operación del boleto todavía no tiene unidad asignada.')
-      return
-    }
-    if (!selectedUnit) {
-      setError('Elegí un vehículo por VIN/chasis o buscá el boleto.')
+    if (!selectedUnit && !branchId) {
+      setError('Elegí la sucursal del gasto.')
       return
     }
     setError('')
@@ -428,16 +479,22 @@ export function VehiclePaymentForm({
     try {
       await createVehiclePayment({
         conceptId,
-        unitId: selectedUnit.id,
+        vehicleType,
+        ...(accountId ? { accountId } : {}),
+        ...(selectedUnit ? { unitId: selectedUnit.id } : { branchId }),
         ...(operationId ? { operationId } : {}),
-        providerId,
+        ...(providerId ? { providerId } : {}),
         amount: Number(amount),
         paymentDate,
         status,
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       })
       onSaved()
-      void alertSuccess('El pago se registró correctamente.')
+      void alertSuccess(
+        status === 'PAGADO' && selectedAccount
+          ? `El gasto se registró y se descontó de ${selectedAccount.name}.`
+          : 'El gasto se registró correctamente.',
+      )
     } catch (submitError) {
       const message = errorMessage(submitError)
       setError(message)
@@ -458,9 +515,9 @@ export function VehiclePaymentForm({
       >
         <header className="client-modal__header">
           <div>
-            <p className="eyebrow">DOCUMENTACIÓN</p>
+            <p className="eyebrow">GASTOS</p>
             <h2 id="vehicle-payment-form-title">
-              Nuevo pago de {vehicleType === 'MOTO' ? 'moto' : 'auto'}
+              Nuevo gasto de {vehicleType === 'MOTO' ? 'motos' : 'autos'}
             </h2>
           </div>
           <button
@@ -510,8 +567,8 @@ export function VehiclePaymentForm({
                 )}
               </div>
               <small>
-                Al elegir el boleto se precargan la operación y la unidad (por
-                ejemplo, para el pago de patente).
+                Opcional. Al elegir el boleto se precargan la operación y la
+                unidad (por ejemplo, para el pago de patente).
               </small>
               {ticketLoading && (
                 <div className="vehicle-payment-unit-status">
@@ -562,7 +619,7 @@ export function VehiclePaymentForm({
                   {ticketWithoutUnit ? (
                     <span className="status-badge status-badge--warning">
                       {fulfillmentLabel(operationFulfillment(ticketOperation))}: todavía
-                      no tiene unidad para asignar el pago
+                      no tiene unidad; el gasto queda asociado sólo a la operación
                     </span>
                   ) : (
                     ticketPlateStatus &&
@@ -601,7 +658,7 @@ export function VehiclePaymentForm({
             />
 
             <label className="field field--wide">
-              <span>VIN / Chasis *</span>
+              <span>Vehículo (VIN / chasis)</span>
               <input
                 autoComplete="off"
                 disabled={ticketOperation !== null}
@@ -611,9 +668,11 @@ export function VehiclePaymentForm({
                 }}
                 placeholder="Buscá por chasis, patente, marca, modelo o versión"
                 value={unitSearch}
-                required={!ticketOperation}
               />
-              <small>Ingresá al menos 3 letras para buscar.</small>
+              <small>
+                Opcional: dejalo vacío si el gasto no es de una unidad en
+                particular. Ingresá al menos 3 letras para buscar.
+              </small>
               {unitLoading && (
                 <div className="vehicle-payment-unit-status">
                   <LoaderCircle className="spin" size={16} aria-hidden="true" /> Buscando…
@@ -653,8 +712,26 @@ export function VehiclePaymentForm({
               </select>
             </label>
 
+            {!selectedUnit && !branchLocked && (
+              <label className="field">
+                <span>Sucursal *</span>
+                <select
+                  onChange={(event) => setBranchId(event.target.value)}
+                  required
+                  value={branchId}
+                >
+                  <option value="" disabled>Seleccionar</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+
             <CatalogSelect
               label="Proveedor"
+              required={false}
+              emptyLabel="Sin proveedor"
               options={providers}
               value={providerId}
               onChange={setProviderId}
@@ -664,6 +741,37 @@ export function VehiclePaymentForm({
                 return created
               }}
             />
+
+            {accounts.length > 0 ? (
+              <label className="field field--wide">
+                <span>Pagado desde mi caja</span>
+                <select
+                  aria-describedby="vehicle-payment-account-help"
+                  onChange={(event) => setAccountId(event.target.value)}
+                  value={accountId}
+                >
+                  <option value="">Sin caja (no descuenta plata)</option>
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {payerAccountLabel(account)}
+                    </option>
+                  ))}
+                </select>
+                <small id="vehicle-payment-account-help">
+                  {!selectedAccount
+                    ? 'Opcional. Si elegís una de tus cajas, el gasto pagado se descuenta de ella.'
+                    : status === 'PAGADO' && Number(amount) > 0
+                      ? `Al guardar se descuentan ${formatMoney(Number(amount).toFixed(2), selectedAccount.currency)} de esta caja.`
+                      : 'Cuando el gasto esté pagado se descuenta de esta caja.'}
+                </small>
+              </label>
+            ) : (
+              accountsLoaded && (
+                <p className="field field--wide vehicle-payment-unit-status" role="note">
+                  No tenés cajas a tu nombre: el gasto se guarda sin caja y no descuenta plata.
+                </p>
+              )
+            )}
 
             <label className="field">
               <span>Importe *</span>
@@ -704,11 +812,11 @@ export function VehiclePaymentForm({
             </button>
             <button
               className="button button--primary"
-              disabled={submitting || initialLoading || ticketWithoutUnit}
+              disabled={submitting || initialLoading}
               type="submit"
             >
               {submitting && <LoaderCircle className="spin" size={17} />}
-              {submitting ? 'Guardando…' : 'Guardar pago'}
+              {submitting ? 'Guardando…' : 'Guardar gasto'}
             </button>
           </footer>
         </form>

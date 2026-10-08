@@ -6,7 +6,13 @@ import {
   listInventoryBranches,
 } from '../api'
 import { financialErrorMessage } from '../format'
-import { cashAccountLabel } from '../cashAccounts'
+import {
+  cashAccountLabel,
+  cashAccountPartners,
+  filterCashAccounts,
+  isImportedAccount,
+} from '../cashAccounts'
+import { paymentMethodLabels } from '../../sales/tracking'
 import { useAuth } from '../../auth/AuthContext'
 import {
   branchScopeKey,
@@ -19,6 +25,7 @@ import type {
   FinancialKind,
   FinancialListQuery,
   FinancialStatus,
+  IncomePaymentMethod,
   SupplierOption,
 } from '../types'
 
@@ -50,6 +57,9 @@ export function FinancialFilters({
   const [accounts, setAccounts] = useState<CashAccount[]>([])
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
   const [optionsError, setOptionsError] = useState('')
+  // Socio elegido: filtra las cuentas que se ofrecen y, si no se elige una
+  // cuenta puntual, busca en todas las suyas.
+  const [partnerId, setPartnerId] = useState('')
   // Scoped users only see their branches; with one the filter stays fixed
   // (the API already limits every list to it).
   const branchLocked = isBranchSelectionLocked(user, branches)
@@ -77,6 +87,41 @@ export function FinancialFilters({
     return () => controller.abort()
   }, [kind, scopeKey])
 
+  const branchId = branchLocked ? branches[0]?.id : draft.branchId
+  const partners = cashAccountPartners(accounts)
+  const accountOptions = filterCashAccounts(accounts, {
+    branchId,
+    partnerId: partnerId || undefined,
+  })
+  const ownAccounts = accountOptions.filter((account) => !isImportedAccount(account))
+  const historicAccounts = accountOptions.filter(isImportedAccount)
+  const partnerName = partners.find((partner) => partner.id === partnerId)?.name
+
+  // Una cuenta elegida que ya no corresponde a la sucursal o al socio se
+  // descarta, para no filtrar por algo que no se ve en pantalla.
+  const keepAccountIfListed = (nextBranchId: string | undefined, nextPartnerId: string) => {
+    if (!draft.accountId) return
+    const listed = filterCashAccounts(accounts, {
+      branchId: nextBranchId,
+      partnerId: nextPartnerId || undefined,
+    }).some((account) => account.id === draft.accountId)
+    if (!listed)
+      setDraft((current) => {
+        const updated = { ...current }
+        delete updated.accountId
+        return updated
+      })
+  }
+
+  const accountFilter = (): Pick<FinancialListQuery, 'accountId' | 'accountIds'> => {
+    if (draft.accountId) return { accountId: draft.accountId }
+    if (!partnerId) return {}
+    // Todas las cuentas del socio (en la sucursal elegida, si hay una). Si no
+    // tiene ninguna, se busca igual por las suyas: no debe traer las de otros.
+    const ids = accountOptions.map((account) => account.id)
+    return { accountIds: ids.length ? ids.join(',') : partnerId }
+  }
+
   const change = <K extends keyof FinancialListQuery>(
     key: K,
     next: FinancialListQuery[K],
@@ -84,12 +129,16 @@ export function FinancialFilters({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    onApply({ ...draft, ...monthBounds(month), page: 1 })
+    const next = { ...draft }
+    delete next.accountId
+    delete next.accountIds
+    onApply({ ...next, ...accountFilter(), ...monthBounds(month), page: 1 })
   }
 
   const clear = () => {
     setDraft({})
     setMonth('')
+    setPartnerId('')
     onApply({ page: 1 })
   }
 
@@ -174,7 +223,10 @@ export function FinancialFilters({
           <span>Sucursal</span>
           <select
             value={branchLocked ? (branches[0]?.id ?? '') : (draft.branchId ?? '')}
-            onChange={(event) => change('branchId', event.target.value)}
+            onChange={(event) => {
+              change('branchId', event.target.value)
+              keepAccountIfListed(event.target.value || undefined, partnerId)
+            }}
             disabled={branchLocked}
           >
             {!branchLocked && <option value="">Todas</option>}
@@ -185,14 +237,58 @@ export function FinancialFilters({
         </label>
         {kind !== 'purchase' && (
           <label className="filter-field">
+            <span>Socio</span>
+            <select
+              value={partnerId}
+              onChange={(event) => {
+                setPartnerId(event.target.value)
+                keepAccountIfListed(branchId, event.target.value)
+              }}
+            >
+              <option value="">Todos</option>
+              {partners.map((partner) => (
+                <option key={partner.id} value={partner.id}>{partner.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        {kind !== 'purchase' && (
+          <label className="filter-field">
             <span>Cuenta</span>
             <select
               value={draft.accountId ?? ''}
               onChange={(event) => change('accountId', event.target.value)}
             >
-              <option value="">Todas</option>
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>{cashAccountLabel(account)}</option>
+              <option value="">{partnerName ? `Todas las de ${partnerName}` : 'Todas'}</option>
+              {ownAccounts.length > 0 && (
+                <optgroup label="Cajas y cuentas">
+                  {ownAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>{cashAccountLabel(account)}</option>
+                  ))}
+                </optgroup>
+              )}
+              {historicAccounts.length > 0 && (
+                <optgroup label="Históricas (Excel)">
+                  {historicAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>{cashAccountLabel(account)}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </label>
+        )}
+        {kind === 'income' && (
+          <label className="filter-field">
+            <span>Medio de pago</span>
+            <select
+              value={draft.paymentMethod ?? ''}
+              onChange={(event) =>
+                change('paymentMethod', event.target.value as IncomePaymentMethod | undefined)
+              }
+            >
+              <option value="">Todos</option>
+              {(Object.keys(paymentMethodLabels) as IncomePaymentMethod[]).map((method) => (
+                <option key={method} value={method}>{paymentMethodLabels[method]}</option>
               ))}
             </select>
           </label>

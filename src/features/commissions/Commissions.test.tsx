@@ -14,16 +14,25 @@ import {
   SellerMeetingPage,
 } from './CommissionManagementPages'
 import { SuggestedCommissionsPage } from './SuggestedCommissionsPage'
+import { MyCommissionsPage } from './MyCommissionsPage'
 import { validateScalePolicy } from './format'
 import type {
   CommissionDetail,
   CommissionGateway,
+  CommissionListQuery,
   CommissionScalePolicy,
   CommissionSettlement,
   CommissionSummary,
   MyCommissions,
   PaidCommission,
+  PaidCommissionQuery,
 } from './types'
+
+const excel = vi.hoisted(() => ({ download: vi.fn(() => Promise.resolve()) }))
+vi.mock('../../shared/export/excel', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../shared/export/excel')>()),
+  downloadExcel: excel.download,
+}))
 
 const scale = {
   id: 'scale-3',
@@ -402,5 +411,144 @@ describe('integración HTTP del sugerido', () => {
       .find((url) => url.includes('/commissions/suggestions?'))
     expect(suggestionUrl).not.toContain('branchId')
     expect(suggestionUrl).not.toContain('Todas')
+  })
+})
+
+describe('exportación a Excel', () => {
+  type ExportOptions = {
+    title: string
+    rows: Array<{ id: string }>
+    total?: number
+    filters: unknown[]
+    columns: Array<{ header: string }>
+  }
+
+  // Responde de a páginas con el tamaño pedido, como la API.
+  function paged<T extends { id: string }, Q extends { page?: number; limit?: number }>(item: T, total: number) {
+    return vi.fn((query: Q) => {
+      const page = query.page ?? 1
+      const limit = query.limit ?? 50
+      const count = Math.max(0, Math.min(limit, total - (page - 1) * limit))
+      return Promise.resolve({
+        items: Array.from({ length: count }, (_, index) => ({ ...item, id: `${item.id}-${page}-${index}` })),
+        total,
+        page,
+        limit,
+      })
+    })
+  }
+
+  function lastExport() {
+    const [options] = excel.download.mock.calls.at(-1) as unknown as [ExportOptions]
+    return options
+  }
+
+  afterEach(() => excel.download.mockClear())
+
+  it('exporta el sugerido con el filtro aplicado, pidiendo todas las páginas', async () => {
+    const listSuggestions = paged<CommissionSummary, CommissionListQuery>(summary, 130)
+    const api = gateway({ listSuggestions })
+    const user = userEvent.setup()
+    renderRoute(<SuggestedCommissionsPage vehicleType="MOTO" gateway={api} />)
+    await screen.findAllByText('Martín Suárez')
+    await user.selectOptions(screen.getByLabelText('Sucursal'), summary.branch.id)
+    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }))
+    await waitFor(() => expect(listSuggestions).toHaveBeenCalledTimes(2))
+    const button = screen.getByRole('button', { name: 'Exportar a Excel' })
+    await waitFor(() => expect(button).toBeEnabled())
+    await user.click(button)
+
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    const pages = listSuggestions.mock.calls.map(([query]) => query).filter((query) => query.limit === 100)
+    expect(pages).toHaveLength(2)
+    expect(pages.every((query) => query.branchId === summary.branch.id && query.vehicleType === 'MOTO')).toBe(true)
+    const options = lastExport()
+    expect(options.title).toBe('Sugerido de comisiones')
+    expect(options.rows).toHaveLength(130)
+    expect(options.total).toBe(130)
+    expect(options.filters).toContain('Sucursal: San Miguel')
+    expect(options.columns.map((column) => column.header)).toEqual([
+      'Vendedor', 'Período', 'Sucursal', 'Ventas computables', 'Escala', 'Comisión sugerida fija total', 'Estado',
+    ])
+  })
+
+  it('exporta todas las comisiones a pagar del período', async () => {
+    const listPayable = paged<CommissionSettlement, CommissionListQuery>(settlement, 120)
+    const api = gateway({ listPayable })
+    const user = userEvent.setup()
+    renderRoute(<CommissionPaymentsPage vehicleType="AUTO" gateway={api} />)
+    await screen.findAllByText('Martín Suárez')
+    await user.click(screen.getByRole('button', { name: 'Exportar a Excel' }))
+
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    const pages = listPayable.mock.calls.map(([query]) => query).filter((query) => query.limit === 100)
+    expect(pages).toHaveLength(2)
+    expect(pages.every((query) => query.vehicleType === 'AUTO')).toBe(true)
+    const options = lastExport()
+    expect(options.title).toBe('Pagar comisiones')
+    expect(options.rows).toHaveLength(120)
+    expect(options.columns.map((column) => column.header)).toContain('Acordado')
+  })
+
+  it('exporta todas las comisiones pagadas del filtro aplicado', async () => {
+    const listPaid = paged<PaidCommission, PaidCommissionQuery>(paid, 101)
+    const api = gateway({ listPaid })
+    const user = userEvent.setup()
+    renderRoute(<PaidCommissionsPage vehicleType="MOTO" gateway={api} />)
+    await screen.findAllByText('Martín Suárez')
+    await user.type(screen.getByLabelText('Año'), '2026')
+    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }))
+    await waitFor(() => expect(listPaid).toHaveBeenCalledTimes(2))
+    const button = screen.getByRole('button', { name: 'Exportar a Excel' })
+    await waitFor(() => expect(button).toBeEnabled())
+    await user.click(button)
+
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    const pages = listPaid.mock.calls.map(([query]) => query).filter((query) => query.limit === 100)
+    expect(pages).toHaveLength(2)
+    expect(pages.every((query) => query.year === 2026)).toBe(true)
+    const options = lastExport()
+    expect(options.title).toBe('Comisiones pagadas')
+    expect(options.rows).toHaveLength(101)
+    expect(options.filters).toContain('Año: 2026')
+    expect(options.columns.map((column) => column.header)).toEqual(expect.arrayContaining(['Fecha pago', 'Cuenta', 'Referencia']))
+  })
+
+  it('exporta las operaciones del vendedor en la reunión', async () => {
+    const api = gateway()
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/comisiones/reunion/motos?suggestion=suggestion-1']}>
+        <AuthProvider>
+          <SellerMeetingPage vehicleType="MOTO" gateway={api} />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'Martín Suárez' })
+    await user.click(screen.getByRole('button', { name: 'Exportar a Excel' }))
+
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    const options = lastExport()
+    expect(options.title).toBe('Visualizar con vendedor')
+    expect(options.rows).toEqual(detail.operations)
+    expect(options.filters).toContain('Vendedor: Martín Suárez')
+    expect(options.columns.map((column) => column.header)).toEqual(expect.arrayContaining(['Cliente', 'Vehículo', 'Computable']))
+  })
+
+  it('exporta en Mis comisiones las operaciones y los pagos de cada tipo', async () => {
+    const api = gateway()
+    const user = userEvent.setup()
+    renderRoute(<MyCommissionsPage gateway={api} />)
+    const motos = await screen.findByRole('region', { name: 'Motos' })
+    const [operations, payments] = within(motos).getAllByRole('button', { name: 'Exportar a Excel' })
+    await user.click(operations!)
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    expect(lastExport().title).toBe('Mis comisiones - Operaciones de motos')
+    expect(lastExport().rows).toEqual(detail.operations)
+
+    await user.click(payments!)
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(2))
+    expect(lastExport().title).toBe('Mis comisiones - Comisiones pagadas de motos')
+    expect(lastExport().rows).toEqual([paid])
   })
 })

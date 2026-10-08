@@ -1,9 +1,12 @@
 import { RefreshCw, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { financialErrorMessage, formatDate, formatMoney } from '../finance/format'
 import { getOperationTrace } from './api'
+import { movementColumns } from './export'
 import { actorName, auditChanges, formatDateTime } from './format'
 import { MoneyTable } from './MoneyTable'
 import type { OperationTrace } from './types'
@@ -251,6 +254,21 @@ export function OperationHistoryModal({
         )}
 
         <footer className="financial-modal__actions">
+          {/* El dinero de la venta viene completo en el historial. */}
+          <ExportExcelButton
+            disabled={!trace?.movements.length}
+            label="Exportar dinero a Excel"
+            onExport={async () => {
+              if (!trace) return
+              await downloadExcel({
+                fileName: `Dinero de la venta N.º ${trace.operation.number}`,
+                title: `Dinero de la venta N.º ${trace.operation.number}`,
+                filters: [`Cliente: ${trace.operation.client}`],
+                columns: movementColumns,
+                rows: trace.movements,
+              })
+            }}
+          />
           <button
             className="button button--primary"
             onClick={onClose}

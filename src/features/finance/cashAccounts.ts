@@ -125,3 +125,91 @@ export function accountForRecipient(
     null
   )
 }
+
+function nameStems(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token.length >= 3)
+    .map((token) => token.slice(0, 5))
+}
+
+// Palabras del nombre histórico que coinciden con las de la persona: una
+// coincide si empieza como la otra, mirando hasta 5 letras ("Capdevilla" /
+// "Capdevila", "Nico" / "Nicolás"). Mismo criterio que el script que pasó los
+// cobros de las históricas a las cajas activas.
+function nameScore(historic: string, person: string) {
+  const personStems = nameStems(person)
+  return new Set(
+    nameStems(historic).filter((stem) =>
+      personStems.some((other) => other.startsWith(stem) || stem.startsWith(other)),
+    ),
+  ).size
+}
+
+export type CashAccountPartner = { id: string; name: string }
+
+function responsibleOf(account: CashAccount) {
+  const id = account.responsiblePersonnelId ?? account.responsiblePersonnel?.id ?? null
+  return id ? { id, name: account.responsiblePersonnel?.fullName ?? '' } : null
+}
+
+// Responsables de las cajas activas (los socios), para filtrar "sus cajas".
+export function cashAccountPartners(accounts: CashAccount[]): CashAccountPartner[] {
+  const partners = new Map<string, CashAccountPartner>()
+  for (const account of accounts) {
+    if (isImportedAccount(account)) continue
+    const responsible = responsibleOf(account)
+    if (responsible && responsible.name && !partners.has(responsible.id))
+      partners.set(responsible.id, responsible)
+  }
+  return [...partners.values()].sort((left, right) =>
+    left.name.localeCompare(right.name, 'es-AR'),
+  )
+}
+
+/**
+ * De qué socio es una cuenta. Una histórica importada del Excel puede no
+ * tener responsable cargado ("Histórica: LUCAS"): se reconoce por el nombre
+ * cuando coincide con un único socio.
+ */
+export function cashAccountPartnerId(
+  account: CashAccount,
+  partners: CashAccountPartner[],
+): string | null {
+  const responsible = responsibleOf(account)
+  if (responsible) return responsible.id
+  if (!isImportedAccount(account)) return null
+  const owner = cashAccountLabel(account).replace(/^Histórica:\s*/, '')
+  const scores = partners.map((partner) => ({
+    id: partner.id,
+    score: nameScore(owner, partner.name),
+  }))
+  const best = Math.max(0, ...scores.map((item) => item.score))
+  const winners = scores.filter((item) => item.score === best)
+  return best > 0 && winners.length === 1 ? (winners[0]?.id ?? null) : null
+}
+
+/**
+ * Cuentas para el filtro de las grillas de ingresos y gastos. Con una
+ * sucursal elegida quedan las de esa sucursal y las que no tienen sucursal
+ * (compartidas e históricas, que pueden tener cobros de cualquiera); con un
+ * socio, sólo las suyas (incluidas sus históricas).
+ */
+export function filterCashAccounts(
+  accounts: CashAccount[],
+  { branchId, partnerId }: { branchId?: string | undefined; partnerId?: string | undefined },
+) {
+  const partners = cashAccountPartners(accounts)
+  return sortCashAccounts(
+    accounts.filter((account) => {
+      const accountBranch = cashAccountBranchId(account)
+      if (branchId && accountBranch && accountBranch !== branchId) return false
+      if (partnerId && cashAccountPartnerId(account, partners) !== partnerId) return false
+      return true
+    }),
+  )
+}

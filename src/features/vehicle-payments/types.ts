@@ -14,19 +14,26 @@ export type VehiclePayment = {
   year: number
   notes: string | null
   concept: CatalogOption
-  provider: CatalogOption
+  // Gastos de motos / autos: proveedor y unidad son opcionales.
+  provider: CatalogOption | null
   amount: number
+  currency: string
+  vehicleType: VehiclePaymentVehicleType
+  branch: CatalogOption
+  // Caja (de un administrador) desde la que se paga; null en los cargados
+  // antes de exigirla.
+  account: PayerAccountRef | null
   unit: {
     id: string
     vin: string
     licensePlate: string | null
-  }
+  } | null
   vehicle: {
     vehicleType: VehiclePaymentVehicleType
     brand: string
     model: string
     version: string
-  }
+  } | null
   operation: {
     id: string
     number: string
@@ -54,11 +61,25 @@ export type VehiclePayment = {
   updatedAt: string
 }
 
+export type PayerAccountRef = {
+  id: string
+  name: string
+  responsible: string | null
+}
+
+export type PayerAccount = PayerAccountRef & {
+  currency: string
+  branchId: string | null
+  // Es del usuario: puede pagar (y devolver) desde ella.
+  own: boolean
+}
+
 export type VehiclePaymentQuery = {
   page: number
   limit: number
   conceptId?: string
   providerId?: string
+  accountId?: string
   status?: VehiclePaymentStatus
   month?: number
   year?: number
@@ -68,9 +89,12 @@ export type VehiclePaymentQuery = {
 
 export type CreateVehiclePaymentInput = {
   conceptId: string
-  unitId: string
+  vehicleType: VehiclePaymentVehicleType
+  accountId?: string
+  unitId?: string
+  branchId?: string
   operationId?: string
-  providerId: string
+  providerId?: string
   amount: number
   paymentDate: string
   status?: VehiclePaymentStatus
@@ -81,7 +105,8 @@ export type CreateVehiclePaymentInput = {
 export type UpdateVehiclePaymentInput = {
   conceptId?: string
   operationId?: string | null
-  providerId?: string
+  providerId?: string | null
+  accountId?: string
   amount?: number
   paymentDate?: string
   status?: VehiclePaymentStatus

@@ -10,10 +10,12 @@ import {
   UserRoundX,
   UsersRound,
 } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { accessApiGateway } from './api'
@@ -25,6 +27,7 @@ import {
   managedUserName,
 } from './components'
 import { accessErrorMessage } from './errors'
+import { invitationLabels, userExcelColumns } from './export'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import type {
   AccessGateway,
@@ -32,20 +35,13 @@ import type {
   InvitationStatus,
   ManagedRole,
   ManagedUser,
+  UserListQuery,
   UserListResponse,
 } from './types'
 
 const PAGE_SIZE = 20
 type LoadStatus = 'loading' | 'success' | 'error'
 type Action = { type: 'status' | 'resend'; user: ManagedUser }
-
-const invitationLabels: Record<InvitationStatus, string> = {
-  PENDING: 'Pendiente',
-  DELIVERED: 'Enviada',
-  FAILED: 'Fallida',
-  ACCEPTED: 'Aceptada',
-  EXPIRED: 'Vencida',
-}
 
 function invitationTone(status: InvitationStatus) {
   if (status === 'ACCEPTED') return 'status-badge--success'
@@ -225,24 +221,26 @@ export function UsersPage({
     return () => controller.abort()
   }, [gateway, user])
 
+  const organizationId = user?.organization.id
+  // Filtro aplicado: el mismo para la grilla y para exportar.
+  const appliedQuery = useMemo<UserListQuery>(() => ({
+    ...(organizationId ? { organizationId } : {}),
+    ...(search ? { search } : {}),
+    ...(branchId ? { branchId } : {}),
+    ...(roleCode ? { roleCode } : {}),
+    ...(active ? { active: active === 'true' } : {}),
+    ...(invitationStatus
+      ? { invitationStatus: invitationStatus as InvitationStatus }
+      : {}),
+  }), [active, branchId, invitationStatus, organizationId, roleCode, search])
+
   useEffect(() => {
     if (!user) return
     const controller = new AbortController()
     setStatus('loading')
     setError('')
     void gateway.listUsers(
-      {
-        page,
-        limit: PAGE_SIZE,
-        organizationId: user.organization.id,
-        ...(search ? { search } : {}),
-        ...(branchId ? { branchId } : {}),
-        ...(roleCode ? { roleCode } : {}),
-        ...(active ? { active: active === 'true' } : {}),
-        ...(invitationStatus
-          ? { invitationStatus: invitationStatus as InvitationStatus }
-          : {}),
-      },
+      { ...appliedQuery, page, limit: PAGE_SIZE },
       controller.signal,
     ).then((response) => {
       setResult(response)
@@ -253,17 +251,7 @@ export function UsersPage({
       setStatus('error')
     })
     return () => controller.abort()
-  }, [
-    active,
-    branchId,
-    gateway,
-    invitationStatus,
-    page,
-    refreshKey,
-    roleCode,
-    search,
-    user,
-  ])
+  }, [appliedQuery, gateway, page, refreshKey, user])
 
   const submitFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -305,6 +293,26 @@ export function UsersPage({
       setActionBusy(false)
     }
   }
+  const pageTitle = 'Usuarios y permisos'
+  const exportExcel = async () => {
+    const { items, total } = await fetchAllPages((nextPage, limit) =>
+      gateway.listUsers({ ...appliedQuery, page: nextPage, limit }),
+    )
+    await downloadExcel({
+      fileName: pageTitle,
+      title: pageTitle,
+      filters: [
+        search && `Búsqueda: ${search}`,
+        branchId && `Sucursal: ${branches.find((branch) => branch.id === branchId)?.name ?? branchId}`,
+        roleCode && `Rol: ${roles.find((role) => role.code === roleCode)?.name ?? roleCode}`,
+        active && `Estado: ${active === 'true' ? 'Activos' : 'Inactivos'}`,
+        invitationStatus && `Invitación: ${invitationLabels[invitationStatus as InvitationStatus]}`,
+      ],
+      columns: userExcelColumns,
+      rows: items,
+      total,
+    })
+  }
   const totalPages = result ? Math.max(1, Math.ceil(result.total / result.limit)) : 1
 
   return (
@@ -315,11 +323,17 @@ export function UsersPage({
           <h1>Usuarios y permisos</h1>
           <p>Administrá accesos asignados por la organización.</p>
         </div>
-        {canManage && (
-          <Link className="button button--primary" to="/usuarios/nuevo">
-            <Plus size={18} /> Crear usuario
-          </Link>
-        )}
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={status !== 'success' || !result || result.total === 0}
+            onExport={exportExcel}
+          />
+          {canManage && (
+            <Link className="button button--primary" to="/usuarios/nuevo">
+              <Plus size={18} /> Crear usuario
+            </Link>
+          )}
+        </div>
       </header>
       <AccessTabs />
       {notice && <AccessNotice message={notice} onClose={() => setNotice('')} />}

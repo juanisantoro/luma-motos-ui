@@ -11,20 +11,24 @@ import {
   ShieldCheck,
   ShieldOff,
 } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { accessApiGateway } from './api'
 import { AccessNotice, AccessTabs, ConfirmDialog } from './components'
 import { accessErrorMessage } from './errors'
+import { roleExcelColumns, roleModules } from './export'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import type {
   AccessGateway,
   ManagedRole,
   PermissionGroup,
+  RoleListQuery,
   RoleListResponse,
 } from './types'
 
@@ -72,13 +76,7 @@ function CloneDialog({
 }
 
 function permissionSummary(role: ManagedRole, groups: PermissionGroup[]) {
-  const modules = groups
-    .filter((group) =>
-      group.permissions.some((permission) =>
-        role.permissions.some(({ code }) => code === permission.code),
-      ),
-    )
-    .map((group) => group.label)
+  const modules = roleModules(role, groups)
   if (!modules.length) return 'Sin permisos'
   return modules.slice(0, 3).join(', ') + (modules.length > 3 ? ` +${modules.length - 3}` : '')
 }
@@ -117,20 +115,18 @@ export function RolesPage({
     return () => controller.abort()
   }, [gateway])
 
+  // Filtro aplicado: el mismo para la grilla y para exportar.
+  const appliedQuery = useMemo<RoleListQuery>(() => ({
+    ...(search ? { search } : {}),
+    ...(active ? { active: active === 'true' } : {}),
+  }), [active, search])
+
   useEffect(() => {
     const controller = new AbortController()
     setStatus('loading')
     setError('')
     void gateway
-      .listRoles(
-        {
-          page,
-          limit: PAGE_SIZE,
-          ...(search ? { search } : {}),
-          ...(active ? { active: active === 'true' } : {}),
-        },
-        controller.signal,
-      )
+      .listRoles({ ...appliedQuery, page, limit: PAGE_SIZE }, controller.signal)
       .then((response) => {
         setResult(response)
         setStatus('success')
@@ -141,7 +137,7 @@ export function RolesPage({
         setStatus('error')
       })
     return () => controller.abort()
-  }, [active, gateway, page, refreshKey, search])
+  }, [appliedQuery, gateway, page, refreshKey])
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -190,6 +186,23 @@ export function RolesPage({
       setBusy(false)
     }
   }
+  const pageTitle = 'Roles y permisos'
+  const exportExcel = async () => {
+    const { items, total } = await fetchAllPages((nextPage, limit) =>
+      gateway.listRoles({ ...appliedQuery, page: nextPage, limit }),
+    )
+    await downloadExcel({
+      fileName: pageTitle,
+      title: pageTitle,
+      filters: [
+        search && `Búsqueda: ${search}`,
+        active && `Estado: ${active === 'true' ? 'Activos' : 'Inactivos'}`,
+      ],
+      columns: roleExcelColumns(groups),
+      rows: items,
+      total,
+    })
+  }
   const totalPages = result ? Math.max(1, Math.ceil(result.total / result.limit)) : 1
 
   return (
@@ -200,7 +213,13 @@ export function RolesPage({
           <h1>Roles y permisos</h1>
           <p>Configurá autorizaciones usando el catálogo vigente del backend.</p>
         </div>
-        {canManage && <Link className="button button--primary" to="/usuarios/roles/nuevo"><Plus size={18} /> Crear rol</Link>}
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={status !== 'success' || !result || result.total === 0}
+            onExport={exportExcel}
+          />
+          {canManage && <Link className="button button--primary" to="/usuarios/roles/nuevo"><Plus size={18} /> Crear rol</Link>}
+        </div>
       </header>
       <AccessTabs />
       {notice && <AccessNotice message={notice} onClose={() => setNotice('')} />}

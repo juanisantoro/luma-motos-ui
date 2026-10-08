@@ -6,9 +6,11 @@ import {
   Search,
   ShoppingCart,
 } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
 import { useAuth } from '../auth/AuthContext'
 import { OperationHistoryModal } from '../audit'
 import { hasPermission } from '../auth/PermissionRoute'
@@ -22,6 +24,8 @@ import { LicensingModal } from './LicensingModal'
 import { OperationTrackingPanel } from './OperationTrackingPanel'
 import { SalesDecisionModal } from './SalesDecisionModal'
 import { SalesOperationList } from './SalesOperationList'
+import { operationExcelColumns } from './export'
+import { operationStatusLabels } from './presentation'
 import {
   availableUnitActions,
   unitActionPermissions,
@@ -52,6 +56,13 @@ const LICENSING_FILTERS: readonly LicensingFilter[] = [
   'DEMORADAS',
   'COBRO_PENDIENTE',
 ]
+const LICENSING_FILTER_LABELS: Record<Exclude<LicensingFilter, 'TODAS'>, string> = {
+  BONIFICADA: 'Patente bonificada',
+  PAGA_CLIENTE: 'Patente paga el cliente',
+  SIN_DEFINIR: 'Patentamiento sin definir',
+  DEMORADAS: 'Patente demorada',
+  COBRO_PENDIENTE: 'Patente recibida, cobro pendiente',
+}
 // Fase 5: el filtro de patentamiento vive en la URL (?patente=...) para que
 // los contadores del inicio de la administrativa abran esta grilla filtrada.
 export const LICENSING_FILTER_PARAM = 'patente'
@@ -85,6 +96,13 @@ const UNIT_FILTERS: readonly UnitFilter[] = [
   'PENDIENTE_INGRESO',
   'RECIBIDA',
 ]
+const UNIT_FILTER_LABELS: Record<UnitFilter, string> = {
+  SIN_ASIGNAR: 'Sin unidad',
+  PENDIENTE_ASIGNACION: 'Pendientes de asignar unidad',
+  PEDIDA: 'Pedidas a proveedor',
+  PENDIENTE_INGRESO: 'Pendientes de ingreso del proveedor',
+  RECIBIDA: 'Recibidas, falta asignar',
+}
 export const UNIT_FILTER_PARAM = 'unidad'
 // Fase 4: solapa de seguimiento (?vista=seguimiento).
 export const VIEW_PARAM = 'vista'
@@ -192,26 +210,36 @@ export function OperationsPage({
     SalesOperationPage['items'][number] | null
   >(null)
 
+  // Filtro aplicado (sin paginar): lo usan la grilla y el Excel.
+  const filterQuery = useMemo<Omit<SalesOperationQuery, 'page' | 'limit'>>(
+    () => ({
+      vehicleType,
+      ...(search ? { search } : {}),
+      ...(operationStatus === 'TODOS' ? {} : { status: operationStatus }),
+      ...periodRange(period),
+      ...(showLicensing ? licensingQuery(licensingFilter) : {}),
+      ...(unitFilter ? { fulfillmentStatus: unitFilter } : {}),
+      ...(effectiveMine ? { mine: true } : {}),
+    }),
+    [
+      effectiveMine,
+      licensingFilter,
+      operationStatus,
+      period,
+      search,
+      showLicensing,
+      unitFilter,
+      vehicleType,
+    ],
+  )
+
   useEffect(() => {
     if (trackingView) return
     const controller = new AbortController()
     setStatus('loading')
     setError('')
-    const range = periodRange(period)
     void listSalesOperations(
-      {
-        page,
-        limit: PAGE_SIZE,
-        vehicleType,
-        ...(search ? { search } : {}),
-        ...(operationStatus === 'TODOS'
-          ? {}
-          : { status: operationStatus }),
-        ...range,
-        ...(showLicensing ? licensingQuery(licensingFilter) : {}),
-        ...(unitFilter ? { fulfillmentStatus: unitFilter } : {}),
-        ...(effectiveMine ? { mine: true } : {}),
-      },
+      { ...filterQuery, page, limit: PAGE_SIZE },
       controller.signal,
     )
       .then((response) => {
@@ -224,19 +252,7 @@ export function OperationsPage({
         setStatus('error')
       })
     return () => controller.abort()
-  }, [
-    effectiveMine,
-    licensingFilter,
-    operationStatus,
-    showLicensing,
-    page,
-    period,
-    refreshKey,
-    search,
-    trackingView,
-    unitFilter,
-    vehicleType,
-  ])
+  }, [filterQuery, page, refreshKey, trackingView])
 
   // El atajo del menú puede cambiar el filtro estando en otra página.
   useEffect(() => {
@@ -271,6 +287,30 @@ export function OperationsPage({
     'reservas_stock.gestionar',
   )
 
+  // Excel: todo lo que trae el filtro aplicado, no sólo la página visible.
+  const pageTitle = `${effectiveMine ? 'Mis operaciones' : 'Operaciones'} de ${vehicleNoun}`
+  const exportExcel = async () => {
+    const { items, total } = await fetchAllPages((nextPage, limit) =>
+      listSalesOperations({ ...filterQuery, page: nextPage, limit }),
+    )
+    await downloadExcel({
+      fileName: pageTitle,
+      title: pageTitle,
+      filters: [
+        search && `Búsqueda: ${search}`,
+        operationStatus !== 'TODOS' &&
+          `Estado: ${operationStatusLabels[operationStatus]}`,
+        licensingFilter !== 'TODAS' &&
+          `Patentamiento: ${LICENSING_FILTER_LABELS[licensingFilter]}`,
+        unitFilter && `Unidad: ${UNIT_FILTER_LABELS[unitFilter]}`,
+        period && `Período: ${period.slice(5)}/${period.slice(0, 4)}`,
+      ],
+      columns: operationExcelColumns(showLicensing),
+      rows: items,
+      total,
+    })
+  }
+
   const confirmRelease = async (reason: string) => {
     if (!release) return
     setBusyId(release.id)
@@ -297,25 +337,32 @@ export function OperationsPage({
       <header className="page-heading">
         <div>
           <p className="eyebrow">VENTAS</p>
-          <h1>
-            {effectiveMine ? 'Mis operaciones' : 'Operaciones'} de {vehicleNoun}
-          </h1>
+          <h1>{pageTitle}</h1>
           <p>
             {effectiveMine
               ? 'Tus ventas, reservas y estados de aprobación.'
               : 'Historial comercial, reservas y estados de aprobación.'}
           </p>
         </div>
-        {effectiveMine &&
-          hasPermission(user?.role.permissions, 'ventas.gestionar') && (
-          <Link
-            className="button button--primary"
-            to={`/${vehicleNoun}/operaciones/nueva`}
-          >
-            <Plus size={18} />
-            Nueva operación
-          </Link>
-        )}
+        <div className="page-heading__actions">
+          {/* En la solapa de seguimiento, el Excel va en su barra de filtros. */}
+          {!trackingView && (
+            <ExportExcelButton
+              disabled={status !== 'success' || !result || result.total === 0}
+              onExport={exportExcel}
+            />
+          )}
+          {effectiveMine &&
+            hasPermission(user?.role.permissions, 'ventas.gestionar') && (
+            <Link
+              className="button button--primary"
+              to={`/${vehicleNoun}/operaciones/nueva`}
+            >
+              <Plus size={18} />
+              Nueva operación
+            </Link>
+          )}
+        </div>
       </header>
 
       {canTrack && (
@@ -384,13 +431,11 @@ export function OperationsPage({
                   }}
                 >
                   <option value="TODAS">Todo patentamiento</option>
-                  <option value="BONIFICADA">Patente bonificada</option>
-                  <option value="PAGA_CLIENTE">Patente paga el cliente</option>
-                  <option value="SIN_DEFINIR">Patentamiento sin definir</option>
-                  <option value="DEMORADAS">Patente demorada</option>
-                  <option value="COBRO_PENDIENTE">
-                    Patente recibida, cobro pendiente
-                  </option>
+                  {LICENSING_FILTERS.map((value) => (
+                    <option key={value} value={value}>
+                      {LICENSING_FILTER_LABELS[value as Exclude<LicensingFilter, 'TODAS'>]}
+                    </option>
+                  ))}
                 </select>
               </label>
             )}
@@ -404,15 +449,11 @@ export function OperationsPage({
                   }
                 >
                   <option value="TODAS">Toda situación de unidad</option>
-                  <option value="SIN_ASIGNAR">Sin unidad</option>
-                  <option value="PENDIENTE_ASIGNACION">
-                    Pendientes de asignar unidad
-                  </option>
-                  <option value="PEDIDA">Pedidas a proveedor</option>
-                  <option value="PENDIENTE_INGRESO">
-                    Pendientes de ingreso del proveedor
-                  </option>
-                  <option value="RECIBIDA">Recibidas, falta asignar</option>
+                  {UNIT_FILTERS.map((value) => (
+                    <option key={value} value={value}>
+                      {UNIT_FILTER_LABELS[value]}
+                    </option>
+                  ))}
                 </select>
               </label>
             )}

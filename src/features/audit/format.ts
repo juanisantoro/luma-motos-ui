@@ -3,7 +3,6 @@ import type {
   AuditData,
   AuditEvent,
   MoneyMovement,
-  MoneySummaryRow,
 } from './types'
 
 const ZONE = 'America/Argentina/Buenos_Aires'
@@ -86,6 +85,7 @@ export const sourceKindLabels: Record<string, string> = {
   COMMISSION: 'Comisión',
   TRANSFER: 'Transferencia',
   WITHDRAWAL: 'Retiro de socio',
+  VEHICLE_EXPENSE: 'Gasto de moto o auto',
   OTHER: 'Otro',
 }
 
@@ -206,149 +206,8 @@ export function auditChanges(
   })
 }
 
-function csvCell(value: string | null | undefined) {
-  // Un texto que empieza con = + - @ Excel lo ejecuta como fórmula: se lo
-  // desarma con un apóstrofo adelante.
-  const raw = value ?? ''
-  const text = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw
-  return /[";\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
-}
-
-/** CSV con `;` y BOM para que Excel en castellano lo abra bien. */
-export function toCsv(headers: string[], rows: Array<Array<string | null>>) {
-  return `﻿${[headers, ...rows]
-    .map((row) => row.map(csvCell).join(';'))
-    .join('\r\n')}`
-}
-
-/** Importe con coma decimal, como lo lee el Excel en castellano. */
-function csvAmount(value: string | null | undefined) {
-  return value ? value.replace('.', ',') : ''
-}
-
-export function eventsCsv(events: AuditEvent[]) {
-  return toCsv(
-    [
-      'Fecha y hora',
-      'Usuario',
-      'Correo',
-      'Rol',
-      'Sucursal',
-      'Módulo',
-      'Acción',
-      'Sobre qué',
-      'Detalle',
-      'Importe',
-      'N.º operación',
-      'IP',
-    ],
-    events.map((event) => [
-      formatDateTime(event.createdAt),
-      actorName(event),
-      event.actor?.email ?? '',
-      event.actor?.role ?? '',
-      event.branch?.name ?? '',
-      event.categoryLabel,
-      event.actionLabel,
-      event.restricted
-        ? 'Registro de otra sucursal'
-        : (event.subject?.title ?? ''),
-      event.subject?.detail ?? '',
-      csvAmount(event.subject?.amount),
-      event.subject?.operationNumber ?? '',
-      event.ipAddress ?? '',
-    ]),
-  )
-}
-
-export function movementsCsv(movements: MoneyMovement[]) {
-  return toCsv(
-    [
-      'Fecha',
-      'Cargado el',
-      'Cuenta',
-      'Moneda',
-      'Sucursal',
-      'Movimiento',
-      'Concepto',
-      'N.º operación',
-      'Cliente',
-      'Medio',
-      'Entrada',
-      'Salida',
-      'Registró',
-      'Rendición',
-      'Reversado',
-      'Referencia',
-      'Notas',
-    ],
-    movements.map((movement) => [
-      formatDay(movement.date),
-      formatDateTime(movement.createdAt),
-      movement.account.name,
-      movement.account.currency,
-      movement.branch?.name ?? 'Compartida',
-      movementTypeLabels[movement.type],
-      movement.source.title,
-      movement.operation?.number ?? '',
-      movement.operation?.client ?? movement.client ?? '',
-      movement.paymentMethod
-        ? (paymentMethodLabels[movement.paymentMethod] ??
-          movement.paymentMethod)
-        : '',
-      movement.direction === 'CREDITO' ? csvAmount(movement.amount) : '',
-      movement.direction === 'DEBITO' ? csvAmount(movement.amount) : '',
-      movement.registeredBy?.fullName ?? '',
-      handoverLabel(movement) ?? '',
-      movement.reversal
-        ? `Sí, ${movement.reversal.by?.fullName ?? ''} el ${formatDateTime(movement.reversal.at)}`
-        : movement.reversalOfId
-          ? 'Es una reversa'
-          : '',
-      movement.reference ?? '',
-      movement.notes ?? '',
-    ]),
-  )
-}
-
-export function summaryCsv(rows: MoneySummaryRow[]) {
-  return toCsv(
-    [
-      'Sucursal',
-      'Caja',
-      'Moneda',
-      'Entradas',
-      'Salidas',
-      'Neto',
-      'Pendiente de rendir',
-    ],
-    rows.map((row) => [
-      row.branch?.name ?? 'Compartida',
-      row.account.name,
-      row.currency,
-      csvAmount(row.credit),
-      csvAmount(row.debit),
-      csvAmount(netAmount(row)),
-      csvAmount(row.pendingHandover),
-    ]),
-  )
-}
-
 /** Entradas menos salidas de una caja, sin perder centavos. */
 export function netAmount(row: { credit: string; debit: string }) {
   const cents = (value: string) => Math.round(Number(value) * 100)
   return ((cents(row.credit) - cents(row.debit)) / 100).toFixed(2)
-}
-
-export function downloadCsv(filename: string, content: string) {
-  const url = URL.createObjectURL(
-    new Blob([content], { type: 'text/csv;charset=utf-8' }),
-  )
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.append(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
 }

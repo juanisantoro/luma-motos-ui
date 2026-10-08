@@ -6,9 +6,11 @@ import {
   RefreshCw,
   WalletCards,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '../../shared/api/client'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { describeFilters, downloadExcel, fetchAllPages } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { alertError, alertSuccess } from '../../shared/alerts'
@@ -18,6 +20,7 @@ import {
   type HandoverRecipient,
 } from '../sales/tracking'
 import { listFinancialRecords } from './api'
+import { financialExcelColumns } from './export'
 import { FinancialDetailsModal } from './components/FinancialDetailsModal'
 import { FinancialFilters } from './components/FinancialFilters'
 import { FinancialRecordForm } from './components/FinancialRecordForm'
@@ -209,6 +212,23 @@ export function FinancialModulePage({
     ? Math.max(1, Math.ceil(result.total / result.limit))
     : 1
 
+  // Excel: todo lo que trae el filtro aplicado, no sólo la página visible.
+  const filtersRef = useRef<HTMLDivElement>(null)
+  const pageTitle = `${kind === 'expense' ? 'Gastos generales' : labels.title}${vehicleType ? ` de ${vehicleType === 'MOTO' ? 'motos' : 'autos'}` : ''}`
+  const exportExcel = async () => {
+    const { items, total } = await fetchAllPages((page, limit) =>
+      listFinancialRecords(kind, { ...effectiveQuery, page, limit }) as Promise<PageResponse<FinancialRecord>>,
+    )
+    await downloadExcel({
+      fileName: pageTitle,
+      title: pageTitle,
+      filters: describeFilters(filtersRef.current),
+      columns: financialExcelColumns(kind, canViewCosts),
+      rows: items,
+      total,
+    })
+  }
+
   return (
     <>
       <header className="page-heading">
@@ -220,14 +240,21 @@ export function FinancialModulePage({
           </h1>
           <p>{labels.description}</p>
         </div>
-        {canCreate && (
-          <button className="button button--primary" type="button" onClick={() => setShowForm(true)}>
-            <Plus size={18} />
-            Nuevo {labels.singular}
-          </button>
-        )}
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={status !== 'success' || !result || result.total === 0}
+            onExport={exportExcel}
+          />
+          {canCreate && (
+            <button className="button button--primary" type="button" onClick={() => setShowForm(true)}>
+              <Plus size={18} />
+              Nuevo {labels.singular}
+            </button>
+          )}
+        </div>
       </header>
 
+      <div className="export-filters-scope" ref={filtersRef}>
       <FinancialFilters
         kind={kind}
         {...(vehicleType ? { vehicleType } : {})}
@@ -241,6 +268,7 @@ export function FinancialModulePage({
           })
         }
       />
+      </div>
 
       {canConfirmHandover && (pendingHandovers > 0 || onlyMyHandovers) && (
         <div className="handover-banner" role="status">

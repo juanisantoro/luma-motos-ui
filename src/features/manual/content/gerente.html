@@ -234,7 +234,7 @@ a{color:var(--red)}
             <b>Clientes</b><span>Clientes</span><span>Clientes en rojo</span>
             <b>Stock y abastecimiento</b><span>Stock de motos</span><span>Stock de autos</span>
             <b>Catálogo</b><span>Catálogo de motos</span><span>Catálogo de autos</span>
-            <b>Administración financiera</b><span>Compras de motos / autos</span><span>Ingresos de motos / autos</span><span>Gastos generales</span><span>Patentes/seguros de motos / autos</span>
+            <b>Administración financiera</b><span>Compras de motos / autos</span><span>Ingresos de motos / autos</span><span>Gastos generales</span><span>Gastos de motos / autos</span>
             <b>Créditos personales</b><span>Planes de crédito</span><span>Cobranza de cuotas</span><span>Consulta BCRA</span>
             <b>Comisiones</b><span>Sugerido</span><span>Visualizar con vendedor</span><span>Pagar</span><span>Pagadas</span>
             <b>Configuración</b><span>Usuarios</span><span>Roles y permisos</span>
@@ -261,6 +261,7 @@ a{color:var(--red)}
         <tr><td>Cartel "Ocurrió un error"</td><td>No se guardó. Leé el mensaje, corregí y volvé a intentar.</td></tr>
         <tr><td>Etiqueta de color en una fila</td><td>El estado de ese registro. Verde: listo. Amarillo: a medias. Rojo: requiere atención.</td></tr>
         <tr><td>"Página 1 de 5" con flechas</td><td>Las listas muestran 20 filas por página. Usá las flechas o el buscador.</td></tr>
+        <tr><td>Botón <strong>Exportar a Excel</strong> arriba de una lista</td><td>Descarga un archivo de Excel con <strong>todo lo que trae el filtro</strong>, de todas las páginas (no sólo las 20 filas que ves). Arriba del archivo figuran la fecha y los filtros aplicados. Antes de exportar, aplicá los filtros que quieras.</td></tr>
         <tr><td>Buscadores "Ingresá al menos 3 letras"</td><td>Escribí parte del nombre, chasis o número y elegí de la lista que aparece debajo.</td></tr>
       </tbody>
     </table></div>
@@ -307,7 +308,7 @@ a{color:var(--red)}
         <tr><td>Cuotas vencidas sin cobrar</td><td>Cuotas con el vencimiento pasado, sin cobrar del todo.</td><td>Créditos → Cobranza</td></tr>
         <tr><td>Ingresos pendientes de cobro</td><td>Ingresos cargados como Pendiente o cobrados en parte.</td><td>Ingresos</td></tr>
         <tr><td>Efectivo cobrado sin rendir</td><td>Cobros en efectivo que quien los recibe todavía no confirmó.</td><td>Ingresos / Seguimiento de cobros</td></tr>
-        <tr><td>Pagos de vehículo sin confirmar</td><td>Patentes o seguros cargados como Pendiente.</td><td>Pagos de vehículo</td></tr>
+        <tr><td>Gastos de motos y autos sin pagar</td><td>Gastos de motos o autos cargados como Pendiente.</td><td>Gastos de motos</td></tr>
         <tr><td>Patentes vencidas sin cargar</td><td>Ventas con la fecha estimada pasada y la patente sin cargar.</td><td>Operaciones</td></tr>
         <tr><td>Patentes recibidas con pago pendiente</td><td>La patente llegó y el cliente todavía no la pagó.</td><td>Operaciones</td></tr>
         <tr><td>Gastos pendientes de pago</td><td>Gastos cargados que no se pagaron del todo.</td><td>Gastos</td></tr>
@@ -564,7 +565,7 @@ a{color:var(--red)}
     <p>En el bloque <strong>Modalidad</strong> elegí Bonificada o Paga el cliente y tocá <strong>Guardar modalidad</strong>. No deja pasar a bonificada si ya hay un cobro de patente registrado.</p>
 
     <h4>Lo que la agencia le paga a la gestoría</h4>
-    <p>Tocá <strong>Pago de patente</strong> en la fila, o <strong>Registrar pago de patente</strong> dentro de Gestionar. Abre el formulario de Patentes/seguros ya completo con la venta (capítulo 7). En una venta bonificada, la etiqueta pasa de "Pago pendiente" a "Pagado" cuando ese pago queda marcado como pagado.</p>
+    <p>Tocá <strong>Pago de patente</strong> en la fila, o <strong>Registrar pago de patente</strong> dentro de Gestionar. Abre el formulario de Gastos de motos (o de autos) ya completo con la venta (capítulo 7). En una venta bonificada, la etiqueta pasa de "Pago pendiente" a "Pagado" cuando ese pago queda marcado como pagado.</p>
   </section>
 
   <section>
@@ -775,9 +776,10 @@ a{color:var(--red)}
 
   <section>
     <h3>Cómo funcionan estas pantallas</h3>
-    <p>Esto vale para Ingresos, Gastos y Compras. Patentes/seguros es distinta: su botón de filtros se llama <strong>Aplicar</strong> y no tiene total ni reloj de movimientos.</p>
+    <p>Esto vale para Ingresos, Gastos y Compras. Gastos de motos y de autos es distinta: su botón de filtros se llama <strong>Aplicar</strong> y no tiene total ni reloj de movimientos. En todas, <strong>Exportar a Excel</strong> baja lo que trae el filtro.</p>
     <ul>
       <li>Arriba está el panel <strong>Filtros</strong>. Nada se filtra hasta tocar <strong>Aplicar filtros</strong>. <strong>Limpiar</strong> los borra.</li>
+      <li>En Ingresos y Gastos, <strong>Socio</strong> deja solo las cuentas de esa persona, incluidas sus históricas del Excel; si no elegís una <strong>Cuenta</strong>, busca en todas las suyas. Con una <strong>Sucursal</strong> elegida, la lista de cuentas muestra solo las de esa sucursal y las históricas. En Ingresos, <strong>Medio de pago</strong> filtra por efectivo, transferencia, tarjeta, etc.</li>
       <li>El recuadro <strong>Total de los registros encontrados</strong> suma todo lo que trae el filtro, aunque esté repartido en varias páginas. Si hay pesos y dólares, muestra un total por moneda. En Compras sólo aparece si tu perfil puede ver los costos.</li>
       <li>El reloj al final de cada fila (<strong>Ver movimientos</strong>) muestra los cobros o pagos de ese registro: cuenta, importe, quién lo registró.</li>
     </ul>
@@ -928,31 +930,40 @@ a{color:var(--red)}
   </section>
 
   <section>
-    <h3>Patentes y seguros</h3>
-    <span class="where">Administración financiera → Patentes/seguros de motos</span>
-    <p>Esta pantalla es para <strong>pagos</strong>: acá se anota lo que la agencia le paga a la gestoría o a la aseguradora por la documentación de cada moto (patente, seguro, formularios). Cada pago está <strong>Pendiente</strong> o <strong>Pagado</strong>.</p>
+    <h3>Gastos de motos y gastos de autos</h3>
+    <span class="where">Administración financiera → Gastos de motos (o Gastos de autos)</span>
+    <p>Acá se anota lo que la agencia <strong>paga</strong> por las motos (o los autos): patentes, seguros, formularios y cualquier otro gasto, sea de una unidad en particular o general (por ejemplo, el lavado de las motos del salón). Los carga el <strong>administrador que lo pagó</strong> (Juan, Lucas o Nicolás), eligiendo su propia caja. Cada gasto está <strong>Pendiente</strong> o <strong>Pagado</strong>.</p>
     <p class="warn"><strong>No es para cobrarle al cliente.</strong> El cobro de la patente al cliente se registra desde la operación: Ventas → Operaciones → columna Patentamiento → <strong>Gestionar</strong> (capítulo 4). Un aviso arriba de la pantalla lo recuerda.</p>
-    <figure class="mock"><figcaption><b>Ejemplo</b>Patentes, seguros y formularios</figcaption>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Gastos de motos</figcaption>
       <div class="in">
         <div class="scroll"><table>
-          <thead><tr><th>Fecha</th><th>Concepto</th><th>Vehículo</th><th>Operación</th><th>Proveedor</th><th>Importe</th><th>Estado</th><th></th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Concepto</th><th>Vehículo</th><th>Operación</th><th>Proveedor</th><th>Pagado desde</th><th>Importe</th><th>Estado</th><th></th></tr></thead>
           <tbody>
-            <tr><td>02/10/2026</td><td>Patente</td><td>8CHKD0810SP001209<small>Honda XR 150</small></td><td>#1048<small>Boleto SM-0417</small></td><td>Gestoría Norte</td><td>$ 85.000</td><td><span class="badge wa">Pendiente</span></td><td><span class="b">Marcar pagado</span> <span class="b">Patente</span></td></tr>
+            <tr><td>02/10/2026</td><td>Patente</td><td>8CHKD0810SP001209<small>Honda XR 150</small></td><td>#1048<small>Boleto SM-0417</small></td><td>Gestoría Norte</td><td>Caja Juan<small>Juan Capdevila</small></td><td>$ 85.000</td><td><span class="badge ok">Pagado</span></td><td><span class="b">Marcar pendiente</span> <span class="b">Patente</span></td></tr>
+            <tr><td>05/10/2026</td><td>Lavado<small>Motos del salón</small></td><td><small>General · San Miguel</small></td><td>—</td><td>—</td><td>Caja Lucas<small>Lucas</small></td><td>$ 25.000</td><td><span class="badge wa">Pendiente</span></td><td><span class="b">Marcar pagado</span></td></tr>
           </tbody>
         </table></div>
       </div>
     </figure>
-    <h4>Cargar un pago</h4>
+    <h4>Cargar un gasto</h4>
     <ol class="steps">
-      <li><span>Tocá <strong>Cargar pago nuevo</strong>.</span></li>
-      <li><span>En <strong>Buscar por boleto</strong> escribí el boleto o el número de operación y elegila: se completan solas la operación y la moto. Si no hay venta, buscá la moto en <strong>VIN / Chasis</strong>.</span></li>
-      <li><span>Elegí el <strong>Concepto</strong> (Patente, Seguro, Formulario) y el <strong>Proveedor</strong>. Tanto en Concepto como en Proveedor, el botón <strong>+</strong> permite agregar uno nuevo ahí mismo.</span></li>
-      <li><span>Completá el <strong>Importe</strong> y el <strong>Estado</strong> (Pendiente o Pagado).</span></li>
-      <li><span>Tocá <strong>Guardar pago</strong>.</span></li>
+      <li><span>Tocá <strong>Cargar gasto nuevo</strong>.</span></li>
+      <li><span>Si el gasto es de una venta, en <strong>Buscar por boleto</strong> escribí el boleto o el número de operación y elegila: se completan solas la operación y la moto. Si es de una moto sin venta, buscala en <strong>Vehículo (VIN / chasis)</strong>. Si no es de ninguna moto en particular, dejá los dos vacíos y elegí la <strong>Sucursal</strong>.</span></li>
+      <li><span>Elegí el <strong>Concepto</strong> (Patente, Seguro, Formulario u otro). El <strong>Proveedor</strong> es opcional: dejalo en "Sin proveedor" si no hay. En los dos, el botón <strong>+</strong> agrega uno nuevo ahí mismo.</span></li>
+      <li><span>En <strong>Pagado desde mi caja</strong> elegí tu caja, si lo pagaste vos. Sólo aparecen las cajas a tu nombre y es opcional: si no elegís ninguna, el gasto se guarda sin caja y no descuenta plata. Si no tenés cajas a tu nombre, el campo no aparece.</span></li>
+      <li><span>Completá el <strong>Importe</strong> y el <strong>Estado</strong>. Si elegiste caja y lo cargás como <strong>Pagado</strong>, abajo de la caja te avisa cuánto se va a descontar.</span></li>
+      <li><span>Si querés, escribí el detalle en <strong>Observaciones</strong> (se ve en la lista debajo del concepto) y tocá <strong>Guardar gasto</strong>.</span></li>
     </ol>
-    <h4>Marcar pagado</h4>
-    <p><strong>Marcar pagado</strong> y <strong>Marcar pendiente</strong> cambian el estado al instante, sin preguntar. El botón <strong>Patente</strong> abre la ventana de patentamiento de esa venta (capítulo 4).</p>
-    <p class="warn">Esta pantalla sólo anota si se pagó o no: <strong>no descuenta plata de ninguna caja</strong>. Si la venta todavía no tiene moto asignada, no deja cargar el pago. Un pago cargado no se puede editar ni borrar.</p>
+    <h4>Pagado, pendiente y la caja</h4>
+    <ul>
+      <li><span>Un gasto <strong>Pagado</strong> con caja descuenta el importe de esa caja. Mientras está <strong>Pendiente</strong>, o si no tiene caja, no se toca ninguna caja.</span></li>
+      <li><span><strong>Marcar pagado</strong> descuenta el importe de la caja; <strong>Marcar pendiente</strong> lo devuelve. Los dos movimientos quedan en el historial de la caja y en Auditoría.</span></li>
+      <li><span>Sólo el dueño de la caja puede marcar pagado o pendiente un gasto con su caja: para los demás, el botón aparece gris.</span></li>
+      <li><span>Si un gasto no tiene caja y tenés cajas a tu nombre, al tocar <strong>Marcar pagado</strong> te pregunta si salió de alguna de ellas (y el importe, si se había cargado en cero). Podés marcarlo pagado sin caja. Los que ya figuraban pagados sin caja quedan así: no se descuentan después.</span></li>
+      <li><span>La fecha de un gasto pagado no puede ser posterior a hoy.</span></li>
+    </ul>
+    <p>El botón <strong>Patente</strong> abre la ventana de patentamiento de esa venta (capítulo 4). Con <strong>Exportar a Excel</strong> bajás todos los gastos que trae el filtro, con la caja y quién lo pagó.</p>
+    <p class="warn">Un gasto cargado no se puede borrar. Si te equivocaste de importe o de caja en uno pagado, avisale a un administrador.</p>
   </section>
 </div>
 

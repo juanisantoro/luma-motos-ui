@@ -11,24 +11,26 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { alertError } from '../../shared/alerts'
 import { ApiError } from '../../shared/api/client'
 import { StatePanel } from '../../shared/components/StatePanel'
-import { financialErrorMessage, formatMoney } from '../finance/format'
 import {
-  EXPORT_MAX_ROWS,
+  downloadExcel,
+  EXCEL_MAX_ROWS,
   fetchAllPages,
-  getAuditFilters,
-  listAuditEvents,
-  listMoneyMovements,
-} from './api'
+} from '../../shared/export/excel'
+import { financialErrorMessage, formatMoney } from '../finance/format'
+import { getAuditFilters, listAuditEvents, listMoneyMovements } from './api'
 import { AuditEventModal } from './AuditEventModal'
+import {
+  describeActivityFilters,
+  describeMoneyFilters,
+  eventColumns,
+  movementColumns,
+  summaryColumns,
+} from './export'
 import {
   actorName,
   argentinaDay,
-  downloadCsv,
-  eventsCsv,
   formatDateTime,
-  movementsCsv,
   netAmount,
-  summaryCsv,
 } from './format'
 import { MoneyTable } from './MoneyTable'
 import { OperationHistoryModal } from './OperationHistoryModal'
@@ -164,26 +166,40 @@ function Panel({
   )
 }
 
-function ExportButton({ onExport }: { onExport: () => Promise<void> }) {
+// Como el `ExportExcelButton` común, pero con los mensajes de error de la
+// auditoría (filtros inválidos, sin permiso, etc.).
+function ExportButton({
+  onExport,
+  disabled = false,
+  label = 'Exportar a Excel',
+  compact = false,
+}: {
+  onExport: () => Promise<void>
+  disabled?: boolean
+  label?: string
+  compact?: boolean
+}) {
   const [busy, setBusy] = useState(false)
+  const size = compact ? 15 : 17
   return (
     <button
-      className="button button--secondary"
-      disabled={busy}
+      className={`button button--secondary${compact ? ' button--compact' : ''}`}
+      disabled={busy || disabled}
       onClick={() => {
         setBusy(true)
         onExport()
           .catch((error: unknown) => void alertError(auditErrorMessage(error)))
           .finally(() => setBusy(false))
       }}
+      title={disabled ? 'No hay registros para exportar' : undefined}
       type="button"
     >
       {busy ? (
-        <LoaderCircle className="spin" size={17} />
+        <LoaderCircle aria-hidden="true" className="spin" size={size} />
       ) : (
-        <Download size={17} />
+        <Download aria-hidden="true" size={size} />
       )}
-      {busy ? 'Exportando…' : 'Exportar a Excel'}
+      {busy ? 'Exportando…' : label}
     </button>
   )
 }
@@ -328,14 +344,19 @@ function ActivityTab({
               Limpiar
             </button>
             <ExportButton
+              disabled={status !== 'success' || !result?.items.length}
               onExport={async () => {
                 const all = await fetchAllPages((page, limit) =>
                   listAuditEvents({ ...query, page, limit }),
                 )
-                downloadCsv(
-                  `auditoria-actividad-${argentinaDay()}.csv`,
-                  eventsCsv(all.items),
-                )
+                await downloadExcel({
+                  fileName: 'Auditoría - Actividad',
+                  title: 'Auditoría · Actividad',
+                  filters: describeActivityFilters(query, filters),
+                  columns: eventColumns,
+                  rows: all.items,
+                  total: all.total,
+                })
               }}
             />
             <button className="button button--primary" type="submit">
@@ -635,14 +656,19 @@ function MoneyTab({
               Limpiar
             </button>
             <ExportButton
+              disabled={status !== 'success' || !result?.items.length}
               onExport={async () => {
                 const all = await fetchAllPages((page, limit) =>
                   listMoneyMovements({ ...query, page, limit }),
                 )
-                downloadCsv(
-                  `auditoria-dinero-${argentinaDay()}.csv`,
-                  movementsCsv(all.items),
-                )
+                await downloadExcel({
+                  fileName: 'Auditoría - Movimientos de dinero',
+                  title: 'Auditoría · Movimientos de dinero',
+                  filters: describeMoneyFilters(query, filters),
+                  columns: movementColumns,
+                  rows: all.items,
+                  total: all.total,
+                })
               }}
             />
             <button className="button button--primary" type="submit">
@@ -705,19 +731,20 @@ function MoneyTab({
               </p>
             </div>
             <div className="audit-summary__actions">
-              <button
-                className="button button--secondary button--compact"
-                onClick={() =>
-                  downloadCsv(
-                    `cierre-por-caja-${argentinaDay()}.csv`,
-                    summaryCsv(result.summary ?? []),
-                  )
+              <ExportButton
+                compact
+                label="Exportar resumen"
+                onExport={() =>
+                  // El resumen ya viene completo para todo el filtro.
+                  downloadExcel({
+                    fileName: 'Auditoría - Resumen por caja',
+                    title: 'Auditoría · Resumen por caja',
+                    filters: describeMoneyFilters(query, filters),
+                    columns: summaryColumns,
+                    rows: result.summary ?? [],
+                  })
                 }
-                type="button"
-              >
-                <Download size={15} />
-                Exportar resumen
-              </button>
+              />
               <button
                 aria-expanded={showSummary}
                 className="button button--secondary button--compact"
@@ -831,7 +858,7 @@ export function AuditPage() {
           <p>
             Todo lo que se hizo en el sistema, con fecha y hora, quién lo hizo y
             quién lo aprobó. Las horas son de Argentina. Se exportan hasta{' '}
-            {EXPORT_MAX_ROWS.toLocaleString('es-AR')} filas por vez.
+            {EXCEL_MAX_ROWS.toLocaleString('es-AR')} filas por vez.
           </p>
         </div>
       </header>

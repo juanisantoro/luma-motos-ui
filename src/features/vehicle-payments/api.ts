@@ -3,6 +3,7 @@ import type {
   CatalogOption,
   CreateVehiclePaymentInput,
   PageResponse,
+  PayerAccount,
   UpdateVehiclePaymentInput,
   VehiclePayment,
   VehiclePaymentQuery,
@@ -32,6 +33,14 @@ export function listVehiclePaymentConcepts(signal?: AbortSignal) {
 
 export function listVehiclePaymentProviders(signal?: AbortSignal) {
   return apiRequest<CatalogOption[]>('/vehicle-payments/providers', {
+    token: authToken(),
+    ...(signal ? { signal } : {}),
+  })
+}
+
+// Cajas de administradores desde las que se puede pagar un gasto.
+export function listVehiclePaymentAccounts(signal?: AbortSignal) {
+  return apiRequest<PayerAccount[]>('/vehicle-payments/accounts', {
     token: authToken(),
     ...(signal ? { signal } : {}),
   })

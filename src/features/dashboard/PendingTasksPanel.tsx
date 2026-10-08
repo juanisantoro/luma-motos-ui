@@ -44,7 +44,7 @@ const TASKS: Record<
     icon: Banknote,
   },
   VEHICLE_PAYMENTS_UNCONFIRMED: {
-    label: 'Pagos de vehículo sin confirmar',
+    label: 'Gastos de motos y autos sin pagar',
     to: '/motos/pagos-vehiculo',
     icon: Truck,
   },

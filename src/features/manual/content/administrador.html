@@ -188,6 +188,7 @@ a{color:var(--red)}
     <ul>
       <li>En las listas de <strong>Operaciones</strong> ves las ventas de todas las sucursales juntas.</li>
       <li>En <strong>Seguimiento de cobros</strong>, <strong>Ingresos</strong>, <strong>Gastos</strong>, <strong>Compras</strong> y <strong>Stock</strong> el filtro de Sucursal te deja elegir "Todas" o una en particular.</li>
+      <li>En Ingresos y Gastos, <strong>Socio</strong> deja solo las cuentas de esa persona, incluidas sus históricas del Excel; si no elegís una <strong>Cuenta</strong>, busca en todas las suyas. Con una <strong>Sucursal</strong> elegida, la lista de cuentas muestra solo las de esa sucursal y las históricas. En Ingresos, <strong>Medio de pago</strong> filtra por efectivo, transferencia, tarjeta, etc.</li>
       <li>Al cargar una venta, un ingreso o una moto, <strong>tenés que elegir la sucursal</strong>: no viene fija.</li>
     </ul>
     <p>Arriba, debajo del nombre de la pantalla, figura la organización y, si tu usuario tiene una sucursal asignada, esa sucursal. Aunque tengas una asignada, seguís viendo todas.</p>
@@ -256,7 +257,7 @@ a{color:var(--red)}
         <tr><td>Cuotas vencidas sin cobrar</td><td>Cuotas con el vencimiento pasado, sin cobrar del todo.</td><td>Créditos → Cobranza</td></tr>
         <tr><td>Ingresos pendientes de cobro</td><td>Ingresos cargados como Pendiente o cobrados en parte.</td><td>Ingresos</td></tr>
         <tr><td>Efectivo cobrado sin rendir</td><td>Cobros en efectivo que quien los recibe todavía no confirmó.</td><td>Ingresos / Seguimiento de cobros</td></tr>
-        <tr><td>Pagos de vehículo sin confirmar</td><td>Patentes o seguros cargados como Pendiente.</td><td>Pagos de vehículo</td></tr>
+        <tr><td>Gastos de motos y autos sin pagar</td><td>Gastos de motos o autos cargados como Pendiente.</td><td>Gastos de motos</td></tr>
         <tr><td>Patentes vencidas sin cargar</td><td>Ventas con la fecha estimada pasada y la patente sin cargar.</td><td>Operaciones</td></tr>
         <tr><td>Patentes recibidas con pago pendiente</td><td>La patente llegó y el cliente todavía no la pagó.</td><td>Operaciones</td></tr>
         <tr><td>Gastos pendientes de pago</td><td>Gastos cargados que no se pagaron del todo.</td><td>Gastos</td></tr>
@@ -740,7 +741,7 @@ a{color:var(--red)}
       <li><span>Poné el período del cierre en <strong>Fecha desde / hasta</strong>.</span></li>
       <li><span>Elegí la <strong>Sucursal</strong> (San Miguel o Del Viso) y tocá <strong>Buscar</strong>.</span></li>
       <li><span>Leé el resumen: qué cobró cada socio en esa sucursal, en pesos y en dólares por separado.</span></li>
-      <li><span><strong>Exportar resumen</strong> lo baja a Excel.</span></li>
+      <li><span><strong>Exportar resumen</strong> lo baja a Excel (.xlsx).</span></li>
     </ol>
     <p>Sin elegir sucursal ves las dos juntas, cada caja con su sucursal al lado.</p>
     <p class="warn">Un cobro figura en caja con la <strong>Fecha del ingreso</strong> y un pago con la <strong>Fecha del gasto</strong>: si el martes se carga un ingreso del sábado, en caja figura el sábado, aunque se cobre después o en partes. Por eso importa que la administrativa ponga bien la fecha al cargar.</p>
@@ -748,7 +749,7 @@ a{color:var(--red)}
 
   <section>
     <h3>Exportar a Excel</h3>
-    <p>En las dos pestañas, <strong>Exportar a Excel</strong> descarga un archivo con todo lo que trae el filtro (no sólo la página que estás viendo), hasta 5.000 filas. Si necesitás más, achicá el rango de fechas y exportá por partes.</p>
+    <p>En las dos pestañas, <strong>Exportar a Excel</strong> descarga un archivo de Excel (.xlsx) con todo lo que trae el filtro (no sólo la página que estás viendo), hasta 10.000 filas, con los importes como números para poder sumarlos. Si necesitás más, achicá el rango de fechas y exportá por partes. Todas las demás listas del sistema tienen el mismo botón.</p>
   </section>
 </div>
 

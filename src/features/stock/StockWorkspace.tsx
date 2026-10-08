@@ -22,9 +22,26 @@ import { PricePolicyModal } from './PricePolicyModal'
 import { ReceiveSupplyModal } from './ReceiveSupplyModal'
 import { UnitFormModal } from './UnitFormModal'
 import { stockErrorMessage } from './errors'
+import {
+  availabilityColumns,
+  catalogColumns,
+  physicalUnitColumns,
+  supplyColumns,
+  type CatalogExportRow,
+} from './export'
+import {
+  conditionLabel,
+  originLabels,
+  supplyStatusLabels,
+  unitColorLabel,
+  unitStatusLabels,
+} from './labels'
 import { alertError, alertSuccess } from '../../shared/alerts'
+import { downloadExcel } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import type {
   AcquisitionOrigin,
+  BranchOption,
   CatalogPricePolicy,
   ConfigurePriceInput,
   CreateUnitsInput,
@@ -68,39 +85,6 @@ type StockWorkspaceProps = {
     supplyId: string,
     input: ReceiveSupplyInput,
   ) => Promise<void>
-}
-
-const unitStatusLabels: Record<UnitStatus, string> = {
-  EN_STOCK: 'En stock',
-  RESERVADO: 'Reservado',
-  EN_TRASLADO: 'En traslado',
-  EN_ACONDICIONAMIENTO: 'En acondicionamiento',
-  VENDIDO: 'Vendido',
-  ENTREGADO: 'Entregado',
-  BLOQUEADO: 'Bloqueado',
-  DADO_DE_BAJA: 'Dado de baja',
-}
-
-const supplyStatusLabels: Record<SupplyStatus, string> = {
-  PENDIENTE_APROBACION: 'Pendiente de aprobación',
-  PENDIENTE_CONFIRMACION: 'Pendiente de confirmación',
-  CONFIRMADO: 'Confirmado',
-  PEDIDO: 'Pedido',
-  EN_TRANSITO: 'En tránsito',
-  RECIBIDO: 'Recibido',
-  ASIGNADO: 'Recibida y reservada',
-  CANCELADA: 'Cancelada',
-}
-
-const originLabels: Record<AcquisitionOrigin, string> = {
-  PROVEEDOR: 'Proveedor',
-  TOMA_PARTE_PAGO: 'Parte de pago',
-  OTRO: 'Otro',
-}
-
-function unitColorLabel(unit: PhysicalUnit) {
-  if (unit.color && unit.acabado) return `${unit.color} · ${unit.acabado}`
-  return unit.color ?? unit.acabado ?? 'Sin color'
 }
 
 // Para timestamps reales (ej. updatedAt): mostrar en huso local es lo
@@ -225,7 +209,7 @@ function UnitCards({
           <dl>
             <div>
               <dt>Condición</dt>
-              <dd>{unit.condition === 'NUEVO' ? 'Nuevo / 0 km' : 'Usado'}</dd>
+              <dd>{conditionLabel(unit.condition)}</dd>
             </div>
             <div>
               <dt>Sucursal</dt>
@@ -338,7 +322,7 @@ function PhysicalUnits({
                   <strong>{modelName(unit.catalogModel)}</strong>
                 </td>
                 <td>
-                  {unit.condition === 'NUEVO' ? 'Nuevo / 0 km' : 'Usado'}
+                  {conditionLabel(unit.condition)}
                 </td>
                 <td className="stock-table__identifier">{unit.vin}</td>
                 <td>{unit.branch.name}</td>
@@ -415,10 +399,41 @@ function policyDiscount(policy: CatalogPricePolicy | null) {
   }
 }
 
+function policyScopeLabel(
+  policy: CatalogPricePolicy | null,
+  branches: BranchOption[],
+) {
+  return policy?.branchId
+    ? branches.find((branch) => branch.id === policy.branchId)?.name ??
+        'Sucursal'
+    : 'Organización'
+}
+
+/** Filas del catálogo con el precio efectivo para la sucursal elegida. */
+function catalogRows(
+  catalog: StockWorkspaceData['catalog'],
+  units: PhysicalUnit[],
+  branches: BranchOption[],
+  catalogBranchId: string,
+): CatalogExportRow[] {
+  return catalog.map((item) => {
+    const policy = effectivePolicy(item, catalogBranchId)
+    return {
+      item,
+      policy,
+      units: units.filter((unit) => unit.catalogModel.id === item.id).length,
+      scope: policyScopeLabel(policy, branches),
+      policyLabel: policyLabel(policy),
+    }
+  })
+}
+
 function CatalogList({
   catalog,
   units,
   branches,
+  catalogBranchId,
+  onCatalogBranchChange,
   canConfigurePrice,
   canViewCosts,
   onConfigurePrice,
@@ -427,6 +442,8 @@ function CatalogList({
   catalog: StockWorkspaceData['catalog']
   units: PhysicalUnit[]
   branches: StockWorkspaceData['branches']
+  catalogBranchId: string
+  onCatalogBranchChange: (branchId: string) => void
   canConfigurePrice: boolean
   canViewCosts: boolean
   onConfigurePrice: (
@@ -436,7 +453,6 @@ function CatalogList({
   ) => void
   onEdit: (item: StockWorkspaceData['catalog'][number]) => void
 }) {
-  const [catalogBranchId, setCatalogBranchId] = useState('')
   if (catalog.length === 0) {
     return (
       <EmptyTab
@@ -445,10 +461,7 @@ function CatalogList({
       />
     )
   }
-  const rows = catalog.map((item) => ({
-    item,
-    policy: effectivePolicy(item, catalogBranchId),
-  }))
+  const rows = catalogRows(catalog, units, branches, catalogBranchId)
   return (
     <>
       <div className="catalog-toolbar">
@@ -456,7 +469,7 @@ function CatalogList({
           <span>Precio efectivo para</span>
           <select
             aria-label="Sucursal de política"
-            onChange={(event) => setCatalogBranchId(event.target.value)}
+            onChange={(event) => onCatalogBranchChange(event.target.value)}
             value={catalogBranchId}
           >
             <option value="">Organización</option>
@@ -489,7 +502,7 @@ function CatalogList({
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ item, policy }) => (
+          {rows.map(({ item, policy, units: unitCount, scope }) => (
             <tr key={item.id}>
               <td><strong>{item.brand}</strong></td>
               <td>
@@ -533,17 +546,10 @@ function CatalogList({
                     : '—'}
                 </td>
               )}
-              <td>
-                {units.filter((unit) => unit.catalogModel.id === item.id).length}
-              </td>
+              <td>{unitCount}</td>
               <td>
                 <div className="catalog-policy-state">
-                  <span>
-                    {policy?.branchId
-                      ? branches.find((branch) => branch.id === policy.branchId)
-                          ?.name ?? 'Sucursal'
-                      : 'Organización'}
-                  </span>
+                  <span>{scope}</span>
                   <Badge tone={policy ? 'success' : 'danger'}>
                     {policyLabel(policy)}
                   </Badge>
@@ -577,7 +583,7 @@ function CatalogList({
         </table>
       </div>
       <div className="catalog-card-list">
-        {rows.map(({ item, policy }) => (
+        {rows.map(({ item, policy, units: unitCount }) => (
           <article className="catalog-card" key={item.id}>
             <header>
               <div>
@@ -621,7 +627,7 @@ function CatalogList({
               )}
               <div>
                 <dt>Unidades</dt>
-                <dd>{units.filter((unit) => unit.catalogModel.id === item.id).length}</dd>
+                <dd>{unitCount}</dd>
               </div>
             </dl>
             {canConfigurePrice && (
@@ -697,7 +703,7 @@ function AvailabilityList({
                   </small>
                 </td>
                 <td>
-                  {item.condition === 'NUEVO' ? 'Nuevo / 0 km' : 'Usado'}
+                  {conditionLabel(item.condition)}
                 </td>
                 <td>{item.supplier.name}</td>
                 <td><strong>{item.quantity} unidades</strong></td>
@@ -733,7 +739,7 @@ function AvailabilityList({
             <h3>{modelName(item.catalogModel)}</h3>
             <div className="availability-card__meta">
               <Badge tone="info">
-                {item.condition === 'NUEVO' ? 'Nuevo / 0 km' : 'Usado'}
+                {conditionLabel(item.condition)}
               </Badge>
               <span>Sin VIN · fuera del stock físico</span>
             </div>
@@ -967,6 +973,7 @@ export function StockWorkspace({
     branchId: string
     policy: CatalogPricePolicy | null
   } | null>(null)
+  const [catalogBranchId, setCatalogBranchId] = useState('')
   const [selectedUnits, setSelectedUnits] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [busySupplyId, setBusySupplyId] = useState<string | null>(null)
@@ -1186,18 +1193,89 @@ export function StockWorkspace({
     })
   }
 
+  const tabLabel = tabs.find(([value]) => value === tab)?.[1] ?? ''
+  const pageTitle = `Stock de ${noun}`
+  const exportCount =
+    tab === 'physical'
+      ? units.length
+      : tab === 'catalog'
+        ? catalog.length
+        : tab === 'providers'
+          ? availability.length
+          : supplies.length
+
+  // Filtros de la vista actual, tal como se ven en la barra.
+  const exportFilters = () => {
+    const branchName = branchLocked
+      ? data.branches[0]?.name
+      : data.branches.find((branch) => branch.id === branchId)?.name
+    const usesBranch = tab === 'physical' || tab === 'supply'
+    return [
+      search.trim() && `Búsqueda: ${search.trim()}`,
+      tab !== 'catalog' &&
+        condition !== 'ALL' &&
+        `Condición: ${conditionLabel(condition)}`,
+      usesBranch && branchName && `Sucursal: ${branchName}`,
+      tab === 'physical' &&
+        origin !== 'ALL' &&
+        `Origen: ${originLabels[origin]}`,
+      tab === 'physical' &&
+        unitStatus !== 'ALL' &&
+        `Estado de unidad: ${unitStatusLabels[unitStatus]}`,
+      tab === 'supply' &&
+        supplyStatus !== 'ALL' &&
+        `Estado de abastecimiento: ${supplyStatusLabels[supplyStatus]}`,
+      tab === 'catalog' &&
+        `Precio efectivo para: ${
+          data.branches.find((branch) => branch.id === catalogBranchId)
+            ?.name ?? 'Organización'
+        }`,
+    ]
+  }
+
+  // Todas las vistas filtran en memoria: se exporta lo mismo que se ve.
+  const exportExcel = () => {
+    const base = {
+      fileName: `${pageTitle} - ${tabLabel}`,
+      title: `${pageTitle} - ${tabLabel}`,
+      filters: exportFilters(),
+    }
+    if (tab === 'catalog') {
+      return downloadExcel({
+        ...base,
+        columns: catalogColumns(capabilities.viewCosts ?? false),
+        rows: catalogRows(catalog, data.units, data.branches, catalogBranchId),
+      })
+    }
+    if (tab === 'providers') {
+      return downloadExcel({
+        ...base,
+        columns: availabilityColumns,
+        rows: availability,
+      })
+    }
+    if (tab === 'supply') {
+      return downloadExcel({ ...base, columns: supplyColumns, rows: supplies })
+    }
+    return downloadExcel({ ...base, columns: physicalUnitColumns, rows: units })
+  }
+
   return (
     <>
       <header className="page-heading stock-heading">
         <div>
           <p className="eyebrow">INVENTARIO Y ABASTECIMIENTO</p>
-          <h1>Stock de {noun}</h1>
+          <h1>{pageTitle}</h1>
           <p>
             Unidades físicas, catálogo y disponibilidad de proveedores sin
             mezclar sus existencias.
           </p>
         </div>
         <div className="stock-heading__actions">
+          <ExportExcelButton
+            disabled={exportCount === 0}
+            onExport={exportExcel}
+          />
           {capabilities.manageAvailability && (
             <button
               className="button button--secondary"
@@ -1466,6 +1544,8 @@ export function StockWorkspace({
             <CatalogList
               branches={data.branches}
               catalog={catalog}
+              catalogBranchId={catalogBranchId}
+              onCatalogBranchChange={setCatalogBranchId}
               units={data.units}
               canConfigurePrice={capabilities.createCatalog}
               canViewCosts={capabilities.viewCosts ?? false}

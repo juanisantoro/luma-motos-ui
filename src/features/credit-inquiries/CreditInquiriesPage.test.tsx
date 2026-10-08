@@ -26,6 +26,12 @@ const authMock = vi.hoisted(() => ({
 }))
 
 vi.mock('./api', () => apiMocks)
+
+const excel = vi.hoisted(() => ({ download: vi.fn(() => Promise.resolve()) }))
+vi.mock('../../shared/export/excel', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../shared/export/excel')>()),
+  downloadExcel: excel.download,
+}))
 vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({
     user: {
@@ -146,6 +152,60 @@ afterEach(() => {
 })
 
 describe('CreditInquiriesPage', () => {
+  it('exporta a Excel todas las páginas del filtro aplicado', async () => {
+    const user = userEvent.setup()
+    render(<CreditInquiriesPage />)
+    expect(await screen.findByText('Carlos Medina')).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('Sucursal'), inquiry.branch.id)
+    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }))
+    await waitFor(() =>
+      expect(apiMocks.listRejectedInquiries).toHaveBeenLastCalledWith(
+        { page: 1, limit: 20, branchId: inquiry.branch.id },
+        expect.any(AbortSignal),
+      ),
+    )
+
+    apiMocks.listRejectedInquiries.mockImplementation(
+      ({ page, limit }: { page: number; limit: number }) =>
+        Promise.resolve({
+          items: Array.from({ length: page === 1 ? limit : 5 }, (_, index) => ({
+            ...inquiry,
+            id: `inquiry-${page}-${index}`,
+          })),
+          total: limit + 5,
+          page,
+          limit,
+        }),
+    )
+    const button = screen.getByRole('button', { name: 'Exportar a Excel' })
+    await waitFor(() => expect(button).toBeEnabled())
+    await user.click(button)
+
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    expect(apiMocks.listRejectedInquiries).toHaveBeenCalledWith({
+      branchId: inquiry.branch.id,
+      page: 2,
+      limit: 100,
+    })
+    const [options] = excel.download.mock.calls[0] as unknown as [
+      {
+        title: string
+        filters: unknown[]
+        rows: unknown[]
+        total: number
+        columns: Array<{ header: string }>
+      },
+    ]
+    expect(options.title).toBe('Clientes en rojo')
+    expect(options.rows).toHaveLength(105)
+    expect(options.total).toBe(105)
+    expect(options.filters).toContain('Sucursal: San Miguel')
+    expect(options.columns.map((column) => column.header)).toEqual(
+      expect.arrayContaining(['Documento', 'Cliente', 'Financiera', 'Intentos', 'Último rechazo']),
+    )
+  })
+
   it('abre directamente el listado desktop y aplica todos los filtros', async () => {
     Object.defineProperty(window, 'innerWidth', {
       configurable: true,

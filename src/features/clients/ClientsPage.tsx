@@ -10,10 +10,13 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { listClients, updateClientStatus } from './api'
 import { ClientFormModal } from './ClientFormModal'
 import { ClientList } from './ClientList'
 import { clientsErrorMessage } from './errors'
+import { clientExcelColumns } from './export'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import type { Client, ClientListResponse } from './types'
 
@@ -107,6 +110,30 @@ export function ClientsPage() {
     ? Math.max(1, Math.ceil(result.total / result.limit))
     : 1
 
+  // Excel: todos los clientes de la búsqueda y el estado aplicados.
+  const exportExcel = async () => {
+    const { items, total } = await fetchAllPages((nextPage, limit) =>
+      listClients({
+        page: nextPage,
+        limit,
+        ...(search ? { search } : {}),
+        ...(activeFilter === 'all' ? {} : { active: activeFilter === 'active' }),
+      }),
+    )
+    await downloadExcel({
+      fileName: 'Clientes',
+      title: 'Clientes',
+      filters: [
+        search && `Buscar: ${search}`,
+        activeFilter !== 'all' &&
+          `Estado: ${activeFilter === 'active' ? 'Activos' : 'Inactivos'}`,
+      ],
+      columns: clientExcelColumns,
+      rows: items,
+      total,
+    })
+  }
+
   return (
     <>
       <header className="page-heading">
@@ -115,16 +142,22 @@ export function ClientsPage() {
           <h1>Clientes</h1>
           <p>Consulta y administración de la cartera de clientes.</p>
         </div>
-        {canManage && (
-          <button
-            className="button button--primary"
-            onClick={() => setModalClient(null)}
-            type="button"
-          >
-            <Plus size={18} aria-hidden="true" />
-            Nuevo cliente
-          </button>
-        )}
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={status !== 'success' || !result || result.total === 0}
+            onExport={exportExcel}
+          />
+          {canManage && (
+            <button
+              className="button button--primary"
+              onClick={() => setModalClient(null)}
+              type="button"
+            >
+              <Plus size={18} aria-hidden="true" />
+              Nuevo cliente
+            </button>
+          )}
+        </div>
       </header>
 
       <section className="clients-panel" aria-label="Listado de clientes">

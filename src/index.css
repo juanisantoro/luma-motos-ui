@@ -717,6 +717,19 @@ a {
   letter-spacing: -0.8px;
 }
 
+.page-heading__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Envuelve el panel de filtros para leerlos al exportar, sin cambiar el layout. */
+.export-filters-scope {
+  display: contents;
+}
+
 .page-heading p,
 .section-heading p {
   margin: 0;
@@ -5127,6 +5140,12 @@ a {
 
   .page-heading .button {
     width: 100%;
+  }
+
+  .page-heading__actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .client-filters {

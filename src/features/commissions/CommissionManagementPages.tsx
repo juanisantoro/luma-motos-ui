@@ -10,6 +10,8 @@ import {
 import { useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
@@ -22,6 +24,16 @@ import {
   CommissionStatusBadge,
   VehicleTypeNav,
 } from './components'
+import {
+  excelDate,
+  managerSettlementExcelColumns,
+  operationExcelColumns,
+  optionFilters,
+  paidExcelColumns,
+  payableExcelColumns,
+  periodFilter,
+  vehicleFilter,
+} from './export'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import {
   commissionErrorMessage,
@@ -139,6 +151,23 @@ export function SellerMeetingPage({
     setSelectedId(id)
   }
 
+  const exportOperations = async () => {
+    if (!detail) return
+    const title = 'Visualizar con vendedor'
+    await downloadExcel({
+      fileName: `${title} - ${detail.seller.name}`,
+      title,
+      filters: [
+        vehicleFilter(detail.vehicleType),
+        periodFilter(detail.period),
+        `Vendedor: ${detail.seller.name}`,
+        `Sucursal: ${detail.branch.name}`,
+      ],
+      columns: operationExcelColumns,
+      rows: detail.operations,
+    })
+  }
+
   const changePeriod = (nextPeriod: string) => {
     setAgreementOpen(false)
     setDetail(null)
@@ -216,11 +245,17 @@ export function SellerMeetingPage({
                       <h3>Operaciones del período</h3>
                       <p>Verde: computable. Ámbar: bajo lista. Las demás explican por qué no computan.</p>
                     </div>
-                    {canAgree && detail.status !== 'PAID' && (
-                      <button className="button button--primary" type="button" onClick={() => setAgreementOpen(true)}>
-                        Registrar acuerdo
-                      </button>
-                    )}
+                    <div className="page-heading__actions">
+                      <ExportExcelButton
+                        disabled={detail.operations.length === 0}
+                        onExport={exportOperations}
+                      />
+                      {canAgree && detail.status !== 'PAID' && (
+                        <button className="button button--primary" type="button" onClick={() => setAgreementOpen(true)}>
+                          Registrar acuerdo
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <CommissionOperations operations={detail.operations} />
                 </>
@@ -495,9 +530,44 @@ export function CommissionPaymentsPage({
     return () => controller.abort()
   }, [gateway, managerRefreshKey, period, vehicleType])
 
+  const pageTitle = 'Pagar comisiones'
+  const exportExcel = async () => {
+    const { items: rows, total } = await fetchAllPages((page, limit) =>
+      gateway.listPayable({ vehicleType, period, page, limit }),
+    )
+    await downloadExcel({
+      fileName: pageTitle,
+      title: pageTitle,
+      filters: [vehicleFilter(vehicleType), periodFilter(period)],
+      columns: payableExcelColumns,
+      rows,
+      total,
+    })
+  }
+  const exportManagerExcel = async () => {
+    const listManagerSettlements = gateway.listManagerSettlements
+    if (!listManagerSettlements) return
+    const { items: rows, total } = await fetchAllPages((page, limit) =>
+      listManagerSettlements({ vehicleType, period, status: 'AGREED', page, limit }),
+    )
+    await downloadExcel({
+      fileName: `${pageTitle} de gerentes`,
+      title: `${pageTitle} de gerentes`,
+      filters: [vehicleFilter(vehicleType), periodFilter(period)],
+      columns: managerSettlementExcelColumns,
+      rows,
+      total,
+    })
+  }
+
   return (
     <>
-      <header className="page-heading"><div><p className="eyebrow">COMISIONES · TESORERÍA</p><h1>Pagar comisiones</h1><p>Liquidaciones acordadas y pendientes de pago completo.</p></div></header>
+      <header className="page-heading">
+        <div><p className="eyebrow">COMISIONES · TESORERÍA</p><h1>Pagar comisiones</h1><p>Liquidaciones acordadas y pendientes de pago completo.</p></div>
+        <div className="page-heading__actions">
+          <ExportExcelButton disabled={status !== 'success' || items.length === 0} onExport={exportExcel} />
+        </div>
+      </header>
       <VehicleTypeNav active={vehicleType} path="/comisiones/pagar" />
       {optionsStatus === 'error' && <StatePanel icon={FileSearch} title="No pudimos cargar las cuentas de pago" description={optionsError} tone="danger" action={<button className="button button--secondary" type="button" onClick={() => setOptionsRefreshKey((key) => key + 1)}>Reintentar cuentas</button>} />}
       <div className="commission-single-filter">
@@ -531,12 +601,13 @@ export function CommissionPaymentsPage({
 
       {gateway.listManagerSettlements && (
         <section className="commission-panel commission-manager-panel" aria-label="Pagar comisiones de gerentes">
-          <header className="commission-manager-panel__header">
+          <header className="commission-manager-panel__header commission-section-heading">
             <div>
               <p className="eyebrow">COMISIONES · GERENTES</p>
               <h2>Gerentes</h2>
               <p>Liquidaciones de gerentes acordadas y pendientes de pago completo.</p>
             </div>
+            <ExportExcelButton disabled={managerStatus !== 'success' || managerItems.length === 0} onExport={exportManagerExcel} />
           </header>
           <CommissionLoadState status={managerStatus} error={managerError} empty={managerItems.length === 0} onRetry={() => setManagerRefreshKey((key) => key + 1)}>
             <div className="commission-desktop-table">
@@ -662,9 +733,36 @@ export function PaidCommissionsPage({
     setQuery({ ...draft, vehicleType, page: 1, limit: 50 })
   }
 
+  const pageTitle = 'Comisiones pagadas'
+  const exportExcel = async () => {
+    const { items: rows, total } = await fetchAllPages((page, limit) =>
+      gateway.listPaid({ ...query, page, limit }),
+    )
+    await downloadExcel({
+      fileName: pageTitle,
+      title: pageTitle,
+      filters: [
+        vehicleFilter(vehicleType),
+        ...optionFilters(options, query),
+        query.paidFrom && `Fecha desde: ${excelDate(query.paidFrom)}`,
+        query.paidTo && `Fecha hasta: ${excelDate(query.paidTo)}`,
+        query.year !== undefined && `Año: ${query.year}`,
+        query.month !== undefined && `Mes: ${new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date(2026, query.month - 1, 1))}`,
+      ],
+      columns: paidExcelColumns,
+      rows,
+      total,
+    })
+  }
+
   return (
     <>
-      <header className="page-heading"><div><p className="eyebrow">COMISIONES · HISTÓRICO</p><h1>Comisiones pagadas</h1><p>Histórico inalterable con escala, importes y medio de pago registrados.</p></div></header>
+      <header className="page-heading">
+        <div><p className="eyebrow">COMISIONES · HISTÓRICO</p><h1>Comisiones pagadas</h1><p>Histórico inalterable con escala, importes y medio de pago registrados.</p></div>
+        <div className="page-heading__actions">
+          <ExportExcelButton disabled={status !== 'success' || items.length === 0} onExport={exportExcel} />
+        </div>
+      </header>
       <VehicleTypeNav active={vehicleType} path="/comisiones/pagadas" />
       {optionsStatus === 'error' && <StatePanel icon={FileSearch} title="No pudimos cargar vendedores y sucursales" description={optionsError} tone="danger" action={<button className="button button--secondary" type="button" onClick={() => setOptionsRefreshKey((key) => key + 1)}>Reintentar opciones</button>} />}
       <details className="financial-filters commission-filters" open>

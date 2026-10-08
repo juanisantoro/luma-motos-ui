@@ -14,11 +14,25 @@ const mocks = vi.hoisted(() => ({
   getOperation: vi.fn(),
   listAllOperations: vi.fn(),
   listUnits: vi.fn(),
+  listAccounts: vi.fn(),
+  listBranches: vi.fn(),
+  user: {
+    id: 'user-1',
+    globalAccess: false,
+    organization: { id: 'org-1', name: 'Luma', code: 'LUMA_CENTRAL' },
+    branch: { id: 'branch-sm', name: 'San Miguel', code: 'SM' },
+    role: { code: 'ADMINISTRATIVA', permissions: ['sucursales.todas'] },
+  },
+}))
+
+vi.mock('../auth/AuthContext', () => ({
+  useAuth: () => ({ user: mocks.user }),
 }))
 
 vi.mock('./api', () => ({
   listVehiclePaymentConcepts: mocks.listConcepts,
   listVehiclePaymentProviders: mocks.listProviders,
+  listVehiclePaymentAccounts: mocks.listAccounts,
   createVehiclePayment: mocks.createPayment,
   createVehiclePaymentConcept: vi.fn(),
   createVehiclePaymentProvider: vi.fn(),
@@ -29,6 +43,7 @@ vi.mock('../sales/api', () => ({
 }))
 vi.mock('../finance/api', () => ({
   listAllSalesOperations: mocks.listAllOperations,
+  listInventoryBranches: mocks.listBranches,
 }))
 vi.mock('../stock/api', () => ({
   listAllPhysicalUnits: mocks.listUnits,
@@ -72,6 +87,15 @@ beforeEach(() => {
   mocks.createPayment.mockResolvedValue({ id: 'payment-1' })
   mocks.listAllOperations.mockResolvedValue([])
   mocks.listUnits.mockResolvedValue([])
+  mocks.listAccounts.mockResolvedValue([
+    { id: 'account-juan', name: 'Caja Juan', responsible: 'Juan Capdevila', currency: 'ARS', branchId: null, own: true },
+    { id: 'account-juan-usd', name: 'Caja Juan USD', responsible: 'Juan Capdevila', currency: 'USD', branchId: null, own: true },
+    { id: 'account-lucas', name: 'Caja Lucas', responsible: 'Lucas', currency: 'ARS', branchId: null, own: false },
+  ])
+  mocks.listBranches.mockResolvedValue([
+    { id: 'branch-sm', code: 'SM', name: 'San Miguel' },
+    { id: 'branch-dv', code: 'DV', name: 'Del Viso' },
+  ])
 })
 
 describe('Pago de vehículo por boleto', () => {
@@ -111,18 +135,88 @@ describe('Pago de vehículo por boleto', () => {
 
     await user.selectOptions(await selectWithOption('Patente'), 'concept-patente')
     await user.selectOptions(await selectWithOption('Gestora Carolina'), 'provider-1')
+    await user.selectOptions(
+      await selectWithOption('Caja Juan · Juan Capdevila'),
+      'account-juan',
+    )
     await user.type(screen.getByLabelText('Importe *'), '60000')
-    await user.click(screen.getByRole('button', { name: 'Guardar pago' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar gasto' }))
 
     expect(mocks.createPayment).toHaveBeenCalledWith(
       expect.objectContaining({
         conceptId: 'concept-patente',
+        vehicleType: 'MOTO',
+        accountId: 'account-juan',
         unitId: 'unit-1',
         operationId: 'operation-1',
         providerId: 'provider-1',
         amount: 60000,
       }),
     )
+    expect(mocks.createPayment.mock.calls[0]?.[0]).not.toHaveProperty('branchId')
+    expect(onSaved).toHaveBeenCalled()
+  })
+
+  it('ofrece sólo las cajas propias y la caja es opcional', async () => {
+    const user = userEvent.setup()
+    const { onSaved } = renderForm()
+    await screen.findByRole('option', { name: 'Caja Juan · Juan Capdevila' })
+    expect(screen.queryByRole('option', { name: /Caja Lucas/ })).not.toBeInTheDocument()
+    await user.selectOptions(await selectWithOption('Seguro'), 'concept-seguro')
+    await user.selectOptions(await selectWithOption('Del Viso'), 'branch-dv')
+    await user.type(screen.getByLabelText('Importe *'), '15000')
+    await user.click(screen.getByRole('button', { name: 'Guardar gasto' }))
+
+    const sent = mocks.createPayment.mock.calls[0]?.[0]
+    expect(sent).not.toHaveProperty('accountId')
+    expect(onSaved).toHaveBeenCalled()
+  })
+
+  it('sin cajas propias guarda el gasto sin caja', async () => {
+    const user = userEvent.setup()
+    mocks.listAccounts.mockResolvedValue([
+      { id: 'account-lucas', name: 'Caja Lucas', responsible: 'Lucas', currency: 'ARS', branchId: null, own: false },
+    ])
+    renderForm()
+    expect(
+      await screen.findByText('No tenés cajas a tu nombre: el gasto se guarda sin caja y no descuenta plata.'),
+    ).toBeInTheDocument()
+    await user.selectOptions(await selectWithOption('Seguro'), 'concept-seguro')
+    await user.selectOptions(await selectWithOption('Del Viso'), 'branch-dv')
+    await user.type(screen.getByLabelText('Importe *'), '15000')
+    await user.click(screen.getByRole('button', { name: 'Guardar gasto' }))
+    expect(mocks.createPayment.mock.calls[0]?.[0]).not.toHaveProperty('accountId')
+  })
+
+  it('carga un gasto general sin unidad ni proveedor, en la sucursal elegida', async () => {
+    const user = userEvent.setup()
+    const { onSaved } = renderForm()
+    await user.selectOptions(await selectWithOption('Seguro'), 'concept-seguro')
+    await user.selectOptions(await selectWithOption('Del Viso'), 'branch-dv')
+    await user.selectOptions(
+      await selectWithOption('Caja Juan · Juan Capdevila'),
+      'account-juan',
+    )
+    await user.type(screen.getByLabelText('Importe *'), '15000')
+    await user.selectOptions(screen.getByLabelText('Estado'), 'PAGADO')
+    expect(
+      screen.getByText(/Al guardar se descuentan \$\s?15\.000,00 de esta caja/),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Guardar gasto' }))
+
+    const sent = mocks.createPayment.mock.calls[0]?.[0]
+    expect(sent).toEqual(
+      expect.objectContaining({
+        conceptId: 'concept-seguro',
+        vehicleType: 'MOTO',
+        accountId: 'account-juan',
+        branchId: 'branch-dv',
+        status: 'PAGADO',
+        amount: 15000,
+      }),
+    )
+    expect(sent).not.toHaveProperty('unitId')
+    expect(sent).not.toHaveProperty('providerId')
     expect(onSaved).toHaveBeenCalled()
   })
 
@@ -154,9 +248,9 @@ describe('Pago de vehículo por boleto', () => {
     expect(option).toHaveTextContent('Pendiente de ingreso del proveedor')
     await user.click(option)
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Pendiente de ingreso del proveedor: todavía no tiene unidad',
+      'Pendiente de ingreso del proveedor: todavía no tiene unidad; el gasto queda asociado sólo a la operación',
     )
-    expect(screen.getByRole('button', { name: 'Guardar pago' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Guardar gasto' })).toBeEnabled()
   })
 
   it('desde la operación abre precargado con concepto Patente', async () => {

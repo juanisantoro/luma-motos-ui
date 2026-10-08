@@ -27,6 +27,12 @@ const authMock = vi.hoisted(() => ({
   ],
 }))
 
+const excel = vi.hoisted(() => ({ download: vi.fn(() => Promise.resolve()) }))
+vi.mock('../../shared/export/excel', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../shared/export/excel')>()),
+  downloadExcel: excel.download,
+}))
+
 vi.mock('../../shared/alerts', () => ({
   alertSuccess: vi.fn(() => Promise.resolve()),
   alertError: vi.fn(() => Promise.resolve()),
@@ -632,5 +638,83 @@ describe('gestión de roles', () => {
     expect(
       screen.queryByRole('button', { name: 'Desactivar rol Administrador' }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('exportación a Excel', () => {
+  type ExportOptions = {
+    title: string
+    rows: Array<{ id: string }>
+    total: number
+    filters: unknown[]
+    columns: Array<{ header: string }>
+  }
+
+  function pagedResponse<T extends { id: string }>(item: T, total: number) {
+    return (query: { page?: number; limit?: number }) => {
+      const page = query.page ?? 1
+      const limit = query.limit ?? 20
+      const count = Math.max(0, Math.min(limit, total - (page - 1) * limit))
+      return Promise.resolve({
+        items: Array.from({ length: count }, (_, index) => ({ ...item, id: `${item.id}-${page}-${index}` })),
+        total,
+        page,
+        limit,
+      })
+    }
+  }
+
+  beforeEach(() => excel.download.mockClear())
+
+  it('exporta todos los usuarios del filtro aplicado, pidiendo todas las páginas', async () => {
+    const api = gateway()
+    vi.mocked(api.listUsers).mockImplementation(pagedResponse(managedUser, 130) as AccessGateway['listUsers'])
+    const user = userEvent.setup()
+    renderRoute('/usuarios', <UsersPage gateway={api} />)
+    await screen.findAllByText('Ana Gómez')
+    await user.selectOptions(screen.getByLabelText('Filtrar por estado'), 'true')
+    const button = screen.getByRole('button', { name: 'Exportar a Excel' })
+    await waitFor(() => expect(button).toBeEnabled())
+    await user.click(button)
+
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    const pages = vi.mocked(api.listUsers).mock.calls
+      .map(([query]) => query)
+      .filter((query) => query.limit === 100)
+    expect(pages).toHaveLength(2)
+    expect(pages.every((query) => query.active === true && query.organizationId === 'org-1')).toBe(true)
+    const [options] = excel.download.mock.calls[0] as unknown as [ExportOptions]
+    expect(options.title).toBe('Usuarios y permisos')
+    expect(options.rows).toHaveLength(130)
+    expect(options.total).toBe(130)
+    expect(options.filters).toContain('Estado: Activos')
+    expect(options.columns.map((column) => column.header)).toEqual([
+      'Usuario', 'Email', 'Sucursal', 'Rol', 'Estado', 'Invitación', 'Último acceso',
+    ])
+  })
+
+  it('exporta todos los roles del filtro aplicado', async () => {
+    const api = gateway()
+    vi.mocked(api.listRoles).mockImplementation(pagedResponse(role, 105) as AccessGateway['listRoles'])
+    const user = userEvent.setup()
+    renderRoute('/usuarios/roles', <RolesPage gateway={api} />)
+    await screen.findAllByText('Vendedor')
+    await user.type(screen.getByPlaceholderText('Buscar nombre o descripción'), 'vend')
+    await user.click(screen.getByRole('button', { name: 'Buscar' }))
+    const button = screen.getByRole('button', { name: 'Exportar a Excel' })
+    await waitFor(() => expect(button).toBeEnabled())
+    await user.click(button)
+
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    const pages = vi.mocked(api.listRoles).mock.calls
+      .map(([query]) => query)
+      .filter((query) => query.limit === 100)
+    expect(pages).toHaveLength(2)
+    expect(pages.every((query) => query.search === 'vend')).toBe(true)
+    const [options] = excel.download.mock.calls[0] as unknown as [ExportOptions]
+    expect(options.title).toBe('Roles y permisos')
+    expect(options.rows).toHaveLength(105)
+    expect(options.filters).toContain('Búsqueda: vend')
+    expect(options.columns.map((column) => column.header)).toContain('Módulos')
   })
 })

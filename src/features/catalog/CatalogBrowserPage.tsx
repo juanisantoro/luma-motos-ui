@@ -2,6 +2,8 @@ import { ImageOff, Maximize2, RefreshCw, Search, Warehouse, X } from 'lucide-rea
 import { useEffect, useMemo, useState } from 'react'
 import { resolveMediaUrl } from '../../shared/api/client'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel, type ExcelColumn } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { useAuth } from '../auth/AuthContext'
 import {
@@ -25,9 +27,41 @@ type CatalogRow = {
   totalStock: number
   stockByBranch: Array<{ branchName: string; count: number }>
   supplierNames: string[]
+  price: { amount: number; currency: string; from: boolean } | null
   priceLabel: string
   mileageLabel: string | null
 }
+
+// Excel del catálogo: los mismos datos de cada tarjeta, con el precio como
+// número y la moneda aparte.
+const catalogExcelColumns: Array<ExcelColumn<CatalogRow>> = [
+  { header: 'Marca', value: (row) => row.model.brand },
+  { header: 'Modelo', value: (row) => row.model.model },
+  { header: 'Versión', value: (row) => row.model.version },
+  { header: 'Moneda', value: (row) => row.price?.currency },
+  { header: 'Precio', value: (row) => row.price?.amount, type: 'money' },
+  {
+    header: 'Referencia de precio',
+    value: (row) =>
+      !row.price
+        ? 'Sin precio configurado'
+        : row.price.from
+          ? 'Desde (precio por sucursal)'
+          : 'Precio de lista',
+  },
+  { header: 'En stock', value: (row) => row.totalStock, type: 'integer' },
+  {
+    header: 'Stock por sucursal',
+    value: (row) =>
+      row.stockByBranch.map((entry) => `${entry.branchName}: ${entry.count}`).join(', '),
+  },
+  { header: 'Kilometraje', value: (row) => row.mileageLabel },
+  {
+    header: 'Proveedor',
+    value: (row) =>
+      row.supplierNames.length > 0 ? row.supplierNames.join(', ') : 'Sin proveedor asociado',
+  },
+]
 
 function formatMoney(value: number, currency = 'ARS') {
   return new Intl.NumberFormat('es-AR', {
@@ -54,17 +88,25 @@ function activePolicies(model: CatalogModel) {
     .sort((left, right) => right.validFrom.localeCompare(left.validFrom))
 }
 
-function priceLabel(model: CatalogModel): string {
+function resolvePrice(model: CatalogModel): CatalogRow['price'] {
   const active = activePolicies(model)
   const orgWide = active.find((policy) => !policy.branchId)
-  if (orgWide) return formatMoney(orgWide.listPrice, orgWide.currency)
+  if (orgWide) {
+    return { amount: orgWide.listPrice, currency: orgWide.currency, from: false }
+  }
   if (active.length > 0) {
     const cheapest = active.reduce((min, policy) =>
       policy.listPrice < min.listPrice ? policy : min,
     )
-    return `Desde ${formatMoney(cheapest.listPrice, cheapest.currency)}`
+    return { amount: cheapest.listPrice, currency: cheapest.currency, from: true }
   }
-  return 'Sin precio configurado'
+  return null
+}
+
+function priceLabel(price: CatalogRow['price']): string {
+  if (!price) return 'Sin precio configurado'
+  const amount = formatMoney(price.amount, price.currency)
+  return price.from ? `Desde ${amount}` : amount
 }
 
 function mileageLabel(units: PhysicalUnit[]): string | null {
@@ -94,6 +136,7 @@ function buildRows(
         .filter((item) => item.catalogModel.id === model.id)
         .forEach((item) => supplierNames.add(item.supplier.name))
     }
+    const price = resolvePrice(model)
     return {
       model,
       totalStock: modelUnits.length,
@@ -101,7 +144,8 @@ function buildRows(
         .map(([branchName, count]) => ({ branchName, count }))
         .sort((a, b) => b.count - a.count),
       supplierNames: [...supplierNames].sort((a, b) => a.localeCompare(b, 'es')),
-      priceLabel: priceLabel(model),
+      price,
+      priceLabel: priceLabel(price),
       mileageLabel: mileageLabel(modelUnits),
     }
   })
@@ -151,6 +195,17 @@ export function CatalogBrowserPage({ vehicleType }: { vehicleType: VehicleKind }
     )
   }, [rows, search])
 
+  const pageTitle = `Catálogo de ${vehicleType === 'MOTO' ? 'motos' : 'autos'}`
+  // La búsqueda es local: se exporta lo mismo que se ve.
+  const exportExcel = () =>
+    downloadExcel({
+      fileName: pageTitle,
+      title: pageTitle,
+      filters: [search.trim() && `Búsqueda: ${search.trim()}`],
+      columns: catalogExcelColumns,
+      rows: filteredRows,
+    })
+
   if (status === 'loading') {
     return (
       <div className="stock-page-state" aria-live="polite">
@@ -188,8 +243,11 @@ export function CatalogBrowserPage({ vehicleType }: { vehicleType: VehicleKind }
       <header className="page-heading">
         <div>
           <p className="eyebrow">CATÁLOGO</p>
-          <h1>Catálogo de {vehicleType === 'MOTO' ? 'motos' : 'autos'}</h1>
+          <h1>{pageTitle}</h1>
           <p>Consulta de solo lectura: modelos vigentes, stock por sucursal y proveedor.</p>
+        </div>
+        <div className="page-heading__actions">
+          <ExportExcelButton disabled={filteredRows.length === 0} onExport={exportExcel} />
         </div>
       </header>
       <div className="catalog-browser-toolbar">

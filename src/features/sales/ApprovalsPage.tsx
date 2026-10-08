@@ -1,6 +1,8 @@
 import { Check, RefreshCw, ShieldCheck, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
 import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
 import type { VehicleKind } from '../stock/types'
 import {
@@ -16,6 +18,7 @@ import {
   vehicleLabel,
 } from './presentation'
 import { SalesDecisionModal } from './SalesDecisionModal'
+import { approvalExcelColumns } from './export'
 import type { SalesOperation } from './types'
 
 export function ApprovalsPage({
@@ -110,15 +113,35 @@ export function ApprovalsPage({
   )
   const currency = operations[0]?.currency ?? 'ARS'
 
+  // Excel: todas las aprobaciones pendientes (no sólo las primeras 100).
+  const pageTitle = `Aprobaciones de ${vehicleType === 'MOTO' ? 'motos' : 'autos'}`
+  const exportExcel = async () => {
+    const { items, total } = await fetchAllPages((page, limit) =>
+      listSalesApprovals({ vehicleType, page, limit }),
+    )
+    await downloadExcel({
+      fileName: pageTitle,
+      title: pageTitle,
+      filters: ['Estado: Pendientes de aprobación'],
+      columns: approvalExcelColumns,
+      rows: items,
+      total,
+    })
+  }
+
   return (
     <>
       <header className="page-heading">
         <div>
           <p className="eyebrow">CONTROL COMERCIAL</p>
-          <h1>
-            Aprobaciones de {vehicleType === 'MOTO' ? 'motos' : 'autos'}
-          </h1>
+          <h1>{pageTitle}</h1>
           <p>Operaciones con precio inferior al valor de lista.</p>
+        </div>
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={status !== 'success' || operations.length === 0}
+            onExport={exportExcel}
+          />
         </div>
       </header>
 

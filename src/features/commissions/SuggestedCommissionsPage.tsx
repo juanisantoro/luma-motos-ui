@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import {
   CommissionLoadState,
   CommissionOperations,
@@ -10,6 +12,13 @@ import {
   CommissionStatusBadge,
   VehicleTypeNav,
 } from './components'
+import {
+  managerSuggestionExcelColumns,
+  optionFilters,
+  periodFilter,
+  suggestionExcelColumns,
+  vehicleFilter,
+} from './export'
 import {
   commissionErrorMessage,
   formatCommissionMoney,
@@ -224,6 +233,44 @@ export function SuggestedCommissionsPage({
     setDetail(null)
   }
 
+  const pageTitle = 'Sugerido de comisiones'
+  const exportExcel = async () => {
+    const { items: rows, total } = await fetchAllPages((page, limit) =>
+      gateway.listSuggestions({ ...query, page, limit }),
+    )
+    await downloadExcel({
+      fileName: pageTitle,
+      title: pageTitle,
+      filters: [
+        vehicleFilter(vehicleType),
+        periodFilter(query.period),
+        ...optionFilters(options, query),
+        query.minSales !== undefined && `Cantidad mínima: ${query.minSales}`,
+        query.maxSales !== undefined && `Cantidad máxima: ${query.maxSales}`,
+      ],
+      columns: suggestionExcelColumns,
+      rows,
+      total,
+    })
+  }
+
+  const exportManagerExcel = async () => {
+    const listManagerSuggestions = gateway.listManagerSuggestions
+    if (!listManagerSuggestions) return
+    const period = query.period ?? currentPeriod()
+    const { items: rows, total } = await fetchAllPages((page, limit) =>
+      listManagerSuggestions({ period, vehicleType, page, limit }),
+    )
+    await downloadExcel({
+      fileName: `${pageTitle} de gerentes`,
+      title: `${pageTitle} de gerentes`,
+      filters: [vehicleFilter(vehicleType), periodFilter(period)],
+      columns: managerSuggestionExcelColumns,
+      rows,
+      total,
+    })
+  }
+
   const handleAgreeManager = async (item: ManagerCommissionSuggestion) => {
     if (!gateway.agreeManagerCommission) return
     setManagerAgreeingId(item.id)
@@ -247,6 +294,12 @@ export function SuggestedCommissionsPage({
           <p className="eyebrow">COMISIONES · CÁLCULO PRODUCTIVO</p>
           <h1>Sugerido de comisiones</h1>
           <p>El backend calcula un único monto fijo total según la escala alcanzada.</p>
+        </div>
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={status !== 'success' || items.length === 0}
+            onExport={exportExcel}
+          />
         </div>
       </header>
       <VehicleTypeNav active={vehicleType} path="/comisiones/sugerido" />
@@ -442,12 +495,16 @@ export function SuggestedCommissionsPage({
 
       {gateway.listManagerSuggestions && (
         <section className="commission-panel commission-manager-panel" aria-label="Sugeridos de gerentes">
-          <header className="commission-manager-panel__header">
+          <header className="commission-manager-panel__header commission-section-heading">
             <div>
               <p className="eyebrow">COMISIONES · GERENTES</p>
               <h2>Gerentes</h2>
               <p>Comisión calculada en vivo según la configuración vigente de cada gerente.</p>
             </div>
+            <ExportExcelButton
+              disabled={managerStatus !== 'success' || managerItems.length === 0}
+              onExport={exportManagerExcel}
+            />
           </header>
           <CommissionLoadState
             status={managerStatus}

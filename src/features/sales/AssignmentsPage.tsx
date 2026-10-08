@@ -8,9 +8,11 @@ import {
   Store,
   Warehouse,
 } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { ReceiveSupplyModal } from '../stock/ReceiveSupplyModal'
@@ -19,6 +21,7 @@ import { stockErrorMessage } from '../stock/errors'
 import type { ReceiveSupplyInput, VehicleKind } from '../stock/types'
 import { listSalesOperations } from './api'
 import { AssignUnitModal } from './AssignUnitModal'
+import { assignmentExcelColumns } from './export'
 import { salesErrorMessage } from './errors'
 import {
   fulfillmentLabel,
@@ -43,6 +46,14 @@ type TrayFilter = Exclude<SalesFulfillmentStatus, 'ASIGNADA'> | 'SIN_ASIGNAR'
 type Action = 'assign' | 'order' | 'receive'
 
 const PAGE_SIZE = 20
+
+const TRAY_FILTER_LABELS: Record<TrayFilter, string> = {
+  SIN_ASIGNAR: 'Todas sin unidad',
+  PENDIENTE_ASIGNACION: 'Pendientes de asignar unidad',
+  PEDIDA: 'Pedidas a proveedor',
+  PENDIENTE_INGRESO: 'Pendientes de ingreso del proveedor',
+  RECIBIDA: 'Recibidas, falta asignar',
+}
 
 // Bandeja "Operaciones a asignar" (fase 3): operaciones enviadas por el
 // vendedor que todavía no tienen unidad física. La administrativa asigna una
@@ -73,18 +84,22 @@ export function AssignmentsPage({ vehicleType }: { vehicleType: VehicleKind }) {
   const [receiving, setReceiving] = useState(false)
   const [receiveError, setReceiveError] = useState<string | null>(null)
 
+  // Filtro aplicado (sin paginar): lo usan la grilla y el Excel.
+  const filterQuery = useMemo(
+    () => ({
+      vehicleType,
+      fulfillmentStatus: filter,
+      ...(search ? { search } : {}),
+    }),
+    [filter, search, vehicleType],
+  )
+
   useEffect(() => {
     const controller = new AbortController()
     setStatus('loading')
     setError('')
     void listSalesOperations(
-      {
-        vehicleType,
-        fulfillmentStatus: filter,
-        page,
-        limit: PAGE_SIZE,
-        ...(search ? { search } : {}),
-      },
+      { ...filterQuery, page, limit: PAGE_SIZE },
       controller.signal,
     )
       .then((response) => {
@@ -97,7 +112,7 @@ export function AssignmentsPage({ vehicleType }: { vehicleType: VehicleKind }) {
         setStatus('error')
       })
     return () => controller.abort()
-  }, [filter, page, refreshKey, search, vehicleType])
+  }, [filterQuery, page, refreshKey])
 
   const reload = () => setRefreshKey((value) => value + 1)
   const close = () => {
@@ -140,6 +155,24 @@ export function AssignmentsPage({ vehicleType }: { vehicleType: VehicleKind }) {
     ? Math.max(1, Math.ceil(result.total / result.limit))
     : 1
   const vehicleNoun = vehicleType === 'MOTO' ? 'motos' : 'autos'
+  // Excel: todo lo que trae el filtro aplicado, no sólo la página visible.
+  const pageTitle = `Operaciones a asignar · ${vehicleNoun}`
+  const exportExcel = async () => {
+    const { items: rows, total } = await fetchAllPages((nextPage, limit) =>
+      listSalesOperations({ ...filterQuery, page: nextPage, limit }),
+    )
+    await downloadExcel({
+      fileName: pageTitle,
+      title: pageTitle,
+      filters: [
+        search && `Búsqueda: ${search}`,
+        `Situación de la unidad: ${TRAY_FILTER_LABELS[filter]}`,
+      ],
+      columns: assignmentExcelColumns,
+      rows,
+      total,
+    })
+  }
   const receivingFulfillment =
     active?.action === 'receive'
       ? operationFulfillment(active.operation)
@@ -150,11 +183,17 @@ export function AssignmentsPage({ vehicleType }: { vehicleType: VehicleKind }) {
       <header className="page-heading">
         <div>
           <p className="eyebrow">VENTAS</p>
-          <h1>Operaciones a asignar · {vehicleNoun}</h1>
+          <h1>{pageTitle}</h1>
           <p>
             Operaciones enviadas sin unidad física. Asigná una del stock de tu
             sucursal o pedila a un proveedor.
           </p>
+        </div>
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={status !== 'success' || !result || result.total === 0}
+            onExport={exportExcel}
+          />
         </div>
       </header>
 
@@ -180,15 +219,11 @@ export function AssignmentsPage({ vehicleType }: { vehicleType: VehicleKind }) {
               }}
               value={filter}
             >
-              <option value="SIN_ASIGNAR">Todas sin unidad</option>
-              <option value="PENDIENTE_ASIGNACION">
-                Pendientes de asignar unidad
-              </option>
-              <option value="PEDIDA">Pedidas a proveedor</option>
-              <option value="PENDIENTE_INGRESO">
-                Pendientes de ingreso del proveedor
-              </option>
-              <option value="RECIBIDA">Recibidas, falta asignar</option>
+              {(Object.keys(TRAY_FILTER_LABELS) as TrayFilter[]).map((value) => (
+                <option key={value} value={value}>
+                  {TRAY_FILTER_LABELS[value]}
+                </option>
+              ))}
             </select>
           </label>
           <button className="button button--secondary" type="submit">

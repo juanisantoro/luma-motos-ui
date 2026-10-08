@@ -1,11 +1,20 @@
 import { Bike, CarFront, RefreshCw, WalletCards } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel, type ExcelColumn } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import {
   CommissionOperations,
   CommissionProgress,
   CommissionStatusBadge,
 } from './components'
+import {
+  operationExcelColumns,
+  ownManagerSettlementExcelColumns,
+  ownPaidExcelColumns,
+  periodFilter,
+  vehicleFilter,
+} from './export'
 import {
   commissionErrorMessage,
   formatCommissionDate,
@@ -24,6 +33,27 @@ import type {
 function currentPeriod() {
   const date = new Date()
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+const pageTitle = 'Mis comisiones'
+
+// Cada grilla de la pantalla (por tipo de vehículo) se exporta por separado,
+// con lo que ya trajo la consulta del período.
+function exportSection<T>(
+  section: string,
+  vehicleType: CommissionVehicleType,
+  period: string | null,
+  columns: Array<ExcelColumn<T>>,
+  rows: T[],
+) {
+  const title = `${pageTitle} - ${section} de ${vehicleLabels[vehicleType].toLowerCase()}`
+  return downloadExcel({
+    fileName: title,
+    title,
+    filters: [vehicleFilter(vehicleType), period && periodFilter(period)],
+    columns,
+    rows,
+  })
 }
 
 export function MyCommissionsPage({ gateway }: { gateway: CommissionGateway }) {
@@ -103,7 +133,12 @@ export function MyCommissionsPage({ gateway }: { gateway: CommissionGateway }) {
                 )}
                 {result.managerSettlementHistory && result.managerSettlementHistory.items.length > 0 && (
                   <>
-                    <div className="commission-meeting__section-title"><div><h3>Tus liquidaciones de gerente</h3><p>Comisiones de gerente acordadas y pagadas, histórico de {vehicleLabels[vehicleType].toLowerCase()}.</p></div></div>
+                    <div className="commission-meeting__section-title">
+                      <div><h3>Tus liquidaciones de gerente</h3><p>Comisiones de gerente acordadas y pagadas, histórico de {vehicleLabels[vehicleType].toLowerCase()}.</p></div>
+                      <ExportExcelButton
+                        onExport={() => exportSection('Liquidaciones de gerente', vehicleType, null, ownManagerSettlementExcelColumns, result.managerSettlementHistory?.items ?? [])}
+                      />
+                    </div>
                     <div className="commission-desktop-table">
                       <table className="financial-table commission-table">
                         <thead><tr><th>Período</th><th>Alcance</th><th>Ventas computables</th><th>Monto</th><th>Estado</th><th>Pagada</th></tr></thead>
@@ -147,12 +182,24 @@ export function MyCommissionsPage({ gateway }: { gateway: CommissionGateway }) {
                         {detail.unitsToNextScale !== null && <> Te faltan <strong>{detail.unitsToNextScale} ventas</strong> para la próxima escala.</>}
                       </div>
                     )}
-                    <div className="commission-meeting__section-title"><div><h3>Tus operaciones</h3><p>Las no computables incluyen el motivo informado por el sistema.</p></div></div>
+                    <div className="commission-meeting__section-title">
+                      <div><h3>Tus operaciones</h3><p>Las no computables incluyen el motivo informado por el sistema.</p></div>
+                      <ExportExcelButton
+                        disabled={detail.operations.length === 0}
+                        onExport={() => exportSection('Operaciones', vehicleType, period, operationExcelColumns, detail.operations)}
+                      />
+                    </div>
                     <CommissionOperations operations={detail.operations} />
                   </>
                 )}
 
-                <div className="commission-meeting__section-title"><div><h3>Tus comisiones pagadas</h3><p>Histórico exclusivo de {vehicleLabels[vehicleType].toLowerCase()}.</p></div></div>
+                <div className="commission-meeting__section-title">
+                  <div><h3>Tus comisiones pagadas</h3><p>Histórico exclusivo de {vehicleLabels[vehicleType].toLowerCase()}.</p></div>
+                  <ExportExcelButton
+                    disabled={result.paidHistory.items.length === 0}
+                    onExport={() => exportSection('Comisiones pagadas', vehicleType, null, ownPaidExcelColumns, result.paidHistory.items)}
+                  />
+                </div>
                 {result.paidHistory.items.length === 0 ? (
                   <p className="commission-empty-note">Todavía no tenés pagos registrados para este tipo de vehículo.</p>
                 ) : (

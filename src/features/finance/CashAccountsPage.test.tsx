@@ -2,6 +2,21 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CashAccountsPage } from './CashAccountsPage'
+const excel = vi.hoisted(() => ({ download: vi.fn(() => Promise.resolve()) }))
+vi.mock('../../shared/export/excel', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../shared/export/excel')>()),
+  downloadExcel: excel.download,
+}))
+
+type ExcelCall = {
+  title: string
+  fileName: string
+  filters: unknown[]
+  rows: unknown[]
+  total?: number
+  columns: Array<{ header: string; value: (row: never) => unknown }>
+}
+const excelCall = () => excel.download.mock.calls[0] as unknown as [ExcelCall]
 
 const mocks = vi.hoisted(() => ({
   permissions: [] as string[],
@@ -192,5 +207,29 @@ describe('Cuentas de caja', () => {
     expect(
       screen.queryByRole('button', { name: /^Editar/ }),
     ).not.toBeInTheDocument()
+  })
+  it('exporta a Excel las cuentas que se ven, con el saldo como número', async () => {
+    const user = userEvent.setup()
+    render(<CashAccountsPage />)
+    await screen.findByRole('table')
+
+    await user.click(screen.getByRole('button', { name: 'Exportar a Excel' }))
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    const [options] = excelCall()
+    expect(options.title).toBe('Cuentas de caja')
+    // La histórica importada queda afuera, igual que en la grilla.
+    expect(options.rows).toEqual([lucasAccount])
+    expect(options.columns.map((column) => column.header)).toEqual([
+      'Cuenta',
+      'Importada del Excel',
+      'Tipo',
+      'Responsable',
+      'Sucursal',
+      'Moneda',
+      'Saldo',
+      'Estado',
+    ])
+    const values = options.columns.map((column) => column.value(lucasAccount as never))
+    expect(values).toEqual(['Caja Lucas', false, 'Caja de socio', 'Lucas', 'Compartida', 'ARS', '150000', 'Activa'])
   })
 })

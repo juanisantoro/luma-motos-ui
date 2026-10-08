@@ -1,16 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { formatMoney } from '../finance/format'
-import { cashMovement, handoverEvent } from './fixtures'
+import { cashMovement } from './fixtures'
 import {
   argentinaDay,
   auditChanges,
   dayEnd,
   dayStart,
-  eventsCsv,
   formatAccountingDate,
   formatDateTime,
   handoverLabel,
-  movementsCsv,
 } from './format'
 
 describe('audit format', () => {
@@ -93,28 +91,6 @@ describe('audit format', () => {
       }),
     ).toBe('Pendiente de rendir a Lucas')
     expect(handoverLabel({ ...cashMovement, handover: null })).toBeNull()
-  })
-
-  it('exports events and movements as an Excel-friendly CSV', () => {
-    const events = eventsCsv([handoverEvent])
-    expect(events.startsWith('﻿Fecha y hora;Usuario;')).toBe(true)
-    expect(events).toContain(
-      '04/10/2026 12:30:12;Carla Caja;carla@luma.test;Administrativa;San Miguel;Dinero y caja;Ingreso modificado;Ingreso: SEÑA;Seña Honda Wave · Juan Pérez;150000,5;120;10.0.0.1',
-    )
-    const movements = movementsCsv([
-      { ...cashMovement, notes: 'dijo "ok"; pagó' },
-    ])
-    expect(movements).toContain(';Efectivo;150000,5;;Vera Vendedora;')
-    expect(movements).toContain('"dijo ""ok""; pagó"')
-    expect(events).toContain(';150000,5;120;')
-  })
-
-  it('neutralises spreadsheet formulas in exported text', () => {
-    const csv = movementsCsv([
-      { ...cashMovement, reference: '=HYPERLINK("http://x")', notes: '@cmd' },
-    ])
-    expect(csv).toContain(`"'=HYPERLINK(""http://x"")"`)
-    expect(csv).toContain(";'@cmd")
   })
 
   it('shows the accounting day stored as a date or as an instant', () => {

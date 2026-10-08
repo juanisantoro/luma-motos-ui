@@ -5,6 +5,21 @@ import {
   CashTransfersPage,
   PartnerWithdrawalsPage,
 } from './CashOperationsPages'
+const excel = vi.hoisted(() => ({ download: vi.fn(() => Promise.resolve()) }))
+vi.mock('../../shared/export/excel', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../shared/export/excel')>()),
+  downloadExcel: excel.download,
+}))
+
+type ExcelCall = {
+  title: string
+  fileName: string
+  filters: unknown[]
+  rows: unknown[]
+  total?: number
+  columns: Array<{ header: string; value: (row: never) => unknown }>
+}
+const excelCall = () => excel.download.mock.calls[0] as unknown as [ExcelCall]
 
 const mocks = vi.hoisted(() => ({
   permissions: [] as string[],
@@ -34,7 +49,10 @@ vi.mock('./api', () => ({
   reversePartnerWithdrawal: mocks.reverseWithdrawal,
 }))
 
-vi.mock('../../shared/alerts', () => ({ alertSuccess: mocks.alertSuccess }))
+vi.mock('../../shared/alerts', () => ({
+  alertSuccess: mocks.alertSuccess,
+  alertError: vi.fn(),
+}))
 
 function account(overrides: Record<string, unknown>) {
   return {
@@ -293,6 +311,80 @@ describe('Retiros de socios', () => {
         'withdrawal-1',
         expect.objectContaining({ reason: 'Error de carga' }),
       ),
+    )
+  })
+})
+
+describe('Exportar a Excel', () => {
+  function pages<T>(item: T, total: number, extra: Record<string, unknown> = {}) {
+    return ({ page, limit }: { page: number; limit: number }) => {
+      const count = Math.min(limit, total - (page - 1) * limit)
+      return Promise.resolve({
+        items: Array.from({ length: Math.max(0, count) }, (_, index) => ({
+          ...item,
+          id: `row-${page}-${index}`,
+        })),
+        total,
+        page,
+        limit,
+        ...extra,
+      })
+    }
+  }
+
+  it('transferencias: pide todas las páginas con el filtro aplicado', async () => {
+    const user = userEvent.setup()
+    mocks.transfers.mockImplementation(pages(transfer, 130))
+    render(<CashTransfersPage />)
+    await screen.findByRole('table')
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Cuenta' }), 'lucas-sm')
+    await user.click(screen.getByRole('button', { name: 'Buscar' }))
+    await waitFor(() =>
+      expect(mocks.transfers).toHaveBeenLastCalledWith(
+        expect.objectContaining({ accountId: 'lucas-sm', page: 1, limit: 50 }),
+        expect.anything(),
+      ),
+    )
+    await user.click(await screen.findByRole('button', { name: 'Exportar a Excel' }))
+
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    const exported = mocks.transfers.mock.calls
+      .map(([query]) => query as { page: number; limit: number; accountId?: string })
+      .filter((query) => query.limit === 100)
+    expect(exported.map((query) => query.page)).toEqual([1, 2])
+    expect(exported.every((query) => query.accountId === 'lucas-sm')).toBe(true)
+    const [options] = excelCall()
+    expect(options.title).toBe('Transferencias entre cajas')
+    expect(options.rows).toHaveLength(130)
+    expect(options.total).toBe(130)
+    expect(options.filters).toContain(
+      'Cuenta: Caja Lucas SM · Lucas Medina · Caja de socio — San Miguel',
+    )
+    const amount = options.columns.find((column) => column.header === 'Importe')!
+    expect(amount.value(transfer as never)).toBe('250000')
+    expect(options.columns.map((column) => column.header)).toContain('Moneda')
+  })
+
+  it('retiros: pide todas las páginas y exporta socio, caja e importe', async () => {
+    const user = userEvent.setup()
+    mocks.withdrawals.mockImplementation(
+      pages(withdrawal, 101, { totals: [{ currency: 'ARS', amount: '500000' }] }),
+    )
+    render(<PartnerWithdrawalsPage />)
+    await screen.findByRole('table')
+
+    await user.click(screen.getByRole('button', { name: 'Exportar a Excel' }))
+    await waitFor(() => expect(excel.download).toHaveBeenCalledTimes(1))
+    const exported = mocks.withdrawals.mock.calls.filter(
+      ([query]) => (query as { limit: number }).limit === 100,
+    )
+    expect(exported).toHaveLength(2)
+    const [options] = excelCall()
+    expect(options.title).toBe('Retiros de socios')
+    expect(options.rows).toHaveLength(101)
+    expect(options.columns.map((column) => column.header)).toEqual(
+      expect.arrayContaining(['Fecha', 'Socio', 'Caja', 'Moneda', 'Importe', 'Motivo', 'Estado']),
     )
   })
 })

@@ -2,10 +2,13 @@ import { Landmark, Plus, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import { StatePanel } from '../../shared/components/StatePanel'
+import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
+import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { createCreditPlan, listCreditPlans, updateCreditPlan } from './api'
 import { CreditPlanModal } from './CreditPlanModal'
+import { creditPlanExcelColumns } from './export'
 import { calculationMethodLabels, creditPlansErrorMessage, formatMoney } from './format'
 import type { CreateCreditPlanInput, CreditPlan } from './types'
 
@@ -100,6 +103,21 @@ export function CreditPlansPage() {
     }
   }
 
+  // Excel: todos los planes con el mismo filtro (activos o todos).
+  const exportExcel = async () => {
+    const { items, total } = await fetchAllPages((page, limit) =>
+      listCreditPlans({ page, limit, ...(showInactive ? {} : { active: true }) }),
+    )
+    await downloadExcel({
+      fileName: 'Planes de crédito',
+      title: 'Planes de crédito',
+      filters: [showInactive ? 'Estado: Activos e inactivos' : 'Estado: Activos'],
+      columns: creditPlanExcelColumns,
+      rows: items,
+      total,
+    })
+  }
+
   return (
     <>
       <header className="page-heading">
@@ -108,12 +126,18 @@ export function CreditPlansPage() {
           <h1>Planes de crédito</h1>
           <p>Financiación propia de la agencia: definí cuotas, tasa y método de interés.</p>
         </div>
-        {canManage && (
-          <button className="button button--primary" onClick={openCreate} type="button">
-            <Plus size={18} />
-            Nuevo plan
-          </button>
-        )}
+        <div className="page-heading__actions">
+          <ExportExcelButton
+            disabled={status !== 'success' || plans.length === 0}
+            onExport={exportExcel}
+          />
+          {canManage && (
+            <button className="button button--primary" onClick={openCreate} type="button">
+              <Plus size={18} />
+              Nuevo plan
+            </button>
+          )}
+        </div>
       </header>
 
       <label className="operation-check" style={{ marginBottom: 12 }}>
