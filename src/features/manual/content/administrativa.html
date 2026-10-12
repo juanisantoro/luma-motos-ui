@@ -369,7 +369,7 @@ a{color:var(--red)}
     <h4>Filtros</h4>
     <ul>
       <li><strong>Buscador</strong>: escribí número de operación, cliente, chasis, patente o boleto y tocá <strong>Buscar</strong> (o Enter).</li>
-      <li><strong>Estado</strong>, <strong>Patentamiento</strong>, <strong>Situación de unidad</strong> y <strong>Período</strong> (mes): se aplican solos al elegir.</li>
+      <li><strong>Estado</strong>, <strong>Patentamiento</strong>, <strong>Situación de unidad</strong> y <strong>Período</strong> (mes del almanaque): se aplican solos al elegir. Al lado está <strong>Corte</strong>, que busca de corte a corte el mes de trabajo que elijas; no se combina con Período.</li>
       <li>En Patentamiento podés elegir "Patente demorada" o "Patente recibida, cobro pendiente" para ver sólo esas.</li>
     </ul>
     <h4>Estados de una operación</h4>
@@ -808,6 +808,9 @@ a{color:var(--red)}
     <p>Esto vale para Ingresos, Gastos y Compras. Gastos de motos y de autos es distinta: su botón de filtros se llama <strong>Aplicar</strong> y no tiene total ni reloj de movimientos. En todas, <strong>Exportar a Excel</strong> baja lo que trae el filtro.</p>
     <ul>
       <li>Arriba está el panel <strong>Filtros</strong>. Nada se filtra hasta tocar <strong>Aplicar filtros</strong>. <strong>Limpiar</strong> los borra.</li>
+      <li><strong>Mes y año</strong>, Desde y Hasta son fechas del almanaque, como siempre. Para ver un <strong>mes de trabajo</strong> (de corte a corte, si el Administrador definió cortes) elegilo en <strong>Corte</strong>: cada opción muestra sus fechas, por ejemplo "Octubre de 2026 · 28/09 al 27/10". Corte no se combina con Mes y año ni con Desde y Hasta.</li>
+      <li>En Ingresos, con <strong>Corte</strong> lo cobrado del <strong>plan de pago de una venta</strong> (contado, transferencia, tarjeta, financiera, toma) cuenta en el <strong>mes de la venta</strong>, aunque se acredite días después del corte. Por ejemplo, la financiera de una venta del 2 que acredita el lunes siguiente figura en el mes que se cerró, no en el nuevo. Para eso el cobro tiene que registrarse desde la venta (Seguimiento de cobros → Cobrar), que lo asocia a su parte del plan. Lo que no estaba en el plan (la patente, un saldo suelto), las cuotas de crédito propio y los ingresos sin venta van por su fecha. Con Desde y Hasta se busca siempre por la fecha del ingreso.</li>
+      <li>En Gastos de motos y de autos, <strong>Mes</strong> y <strong>Año</strong> son del almanaque; <strong>Corte</strong> busca de corte a corte.</li>
       <li>En Ingresos y Gastos, <strong>Socio</strong> deja solo las cuentas de esa persona, incluidas sus históricas del Excel; si no elegís una <strong>Cuenta</strong>, busca en todas las suyas. Con una <strong>Sucursal</strong> elegida, la lista de cuentas muestra solo las de esa sucursal y las históricas. En Ingresos, <strong>Medio de pago</strong> filtra por efectivo, transferencia, tarjeta, etc.</li>
       <li>El recuadro <strong>Total de los registros encontrados</strong> suma todo lo que trae el filtro, aunque esté repartido en varias páginas. Si hay pesos y dólares, muestra un total por moneda. En Compras sólo aparece si tu perfil puede ver los costos.</li>
       <li>El reloj al final de cada fila (<strong>Ver movimientos</strong>) muestra los cobros o pagos de ese registro: cuenta, importe, quién lo registró.</li>

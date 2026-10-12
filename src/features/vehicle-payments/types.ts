@@ -83,6 +83,8 @@ export type VehiclePaymentQuery = {
   status?: VehiclePaymentStatus
   month?: number
   year?: number
+  // Corte: mes de trabajo "AAAA-MM", de corte a corte.
+  period?: string
   search?: string
   organizationId?: string
 }

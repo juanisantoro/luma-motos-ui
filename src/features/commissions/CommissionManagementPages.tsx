@@ -13,6 +13,9 @@ import { StatePanel } from '../../shared/components/StatePanel'
 import { downloadExcel, fetchAllPages } from '../../shared/export/excel'
 import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
+import { WorkMonthHint } from '../../shared/work-months/WorkMonthHint'
+import { WorkMonthSelect, workPeriodLabel } from '../../shared/work-months/WorkMonthSelect'
+import { calendarPeriod, useWorkMonths, useWorkPeriod } from '../../shared/work-months/workMonths'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { cashAccountLabel } from '../finance/cashAccounts'
@@ -62,12 +65,18 @@ import type {
   PaymentInput,
 } from './types'
 
-function currentPeriod() {
-  const date = new Date()
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-}
 
 const emptyOptions: CommissionOptions = { sellers: [], branches: [] }
+
+// Con corte no van las fechas de almanaque del historial.
+function withoutDates(query: PaidCommissionQuery): PaidCommissionQuery {
+  const next = { ...query }
+  delete next.paidFrom
+  delete next.paidTo
+  delete next.year
+  delete next.month
+  return next
+}
 const emptyPaymentOptions: CommissionPaymentOptions = { accounts: [] }
 
 export function SellerMeetingPage({
@@ -80,7 +89,7 @@ export function SellerMeetingPage({
   const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const initialSuggestion = searchParams.get('suggestion')
-  const [period, setPeriod] = useState(currentPeriod)
+  const [period, setPeriod, workMonths] = useWorkPeriod(initialSuggestion ? calendarPeriod() : null)
   const [items, setItems] = useState<CommissionSummary[]>([])
   const [selectedId, setSelectedId] = useState(initialSuggestion ?? '')
   const [detail, setDetail] = useState<CommissionDetail | null>(null)
@@ -145,7 +154,7 @@ export function SellerMeetingPage({
         setStatus('error')
       })
     return () => controller.abort()
-  }, [detailRefreshKey, gateway, initialSuggestion, selectedId, vehicleType])
+  }, [detailRefreshKey, gateway, initialSuggestion, selectedId, setPeriod, vehicleType])
 
   const selectSeller = (id: string) => {
     setSelectedId(id)
@@ -190,6 +199,7 @@ export function SellerMeetingPage({
           <label className="field">
             <span>Período</span>
             <input aria-label="Período" type="month" value={period} onChange={(event) => changePeriod(event.target.value)} />
+            <WorkMonthHint months={workMonths} period={period} />
           </label>
           <label className="field">
             <span>Vendedor</span>
@@ -452,7 +462,7 @@ export function CommissionPaymentsPage({
   vehicleType: CommissionVehicleType
   gateway: CommissionGateway
 }) {
-  const [period, setPeriod] = useState(currentPeriod)
+  const [period, setPeriod, workMonths] = useWorkPeriod()
   const [items, setItems] = useState<CommissionSettlement[]>([])
   const [options, setOptions] = useState(emptyPaymentOptions)
   const [optionsStatus, setOptionsStatus] = useState<'loading' | 'success' | 'error'>('loading')
@@ -571,7 +581,7 @@ export function CommissionPaymentsPage({
       <VehicleTypeNav active={vehicleType} path="/comisiones/pagar" />
       {optionsStatus === 'error' && <StatePanel icon={FileSearch} title="No pudimos cargar las cuentas de pago" description={optionsError} tone="danger" action={<button className="button button--secondary" type="button" onClick={() => setOptionsRefreshKey((key) => key + 1)}>Reintentar cuentas</button>} />}
       <div className="commission-single-filter">
-        <label className="field"><span>Período</span><input aria-label="Período" type="month" value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
+        <label className="field"><span>Período</span><input aria-label="Período" type="month" value={period} onChange={(event) => setPeriod(event.target.value)} /><WorkMonthHint months={workMonths} period={period} /></label>
       </div>
       <section className="commission-panel">
         <CommissionLoadState status={status} error={error} empty={items.length === 0} onRetry={() => setRefreshKey((key) => key + 1)}>
@@ -733,6 +743,9 @@ export function PaidCommissionsPage({
     setQuery({ ...draft, vehicleType, page: 1, limit: 50 })
   }
 
+  // Corte: pagos hechos en un mes de trabajo. No se combina con Fecha desde,
+  // Fecha hasta, Año ni Mes (de almanaque).
+  const workMonths = useWorkMonths()
   const pageTitle = 'Comisiones pagadas'
   const exportExcel = async () => {
     const { items: rows, total } = await fetchAllPages((page, limit) =>
@@ -748,6 +761,7 @@ export function PaidCommissionsPage({
         query.paidTo && `Fecha hasta: ${excelDate(query.paidTo)}`,
         query.year !== undefined && `Año: ${query.year}`,
         query.month !== undefined && `Mes: ${new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date(2026, query.month - 1, 1))}`,
+        query.period && `Corte: ${workPeriodLabel(workMonths, query.period)}`,
       ],
       columns: paidExcelColumns,
       rows,
@@ -770,10 +784,11 @@ export function PaidCommissionsPage({
         <form onSubmit={apply}>
           <label className="filter-field">Vendedor<select aria-label="Vendedor" disabled={optionsStatus === 'loading'} value={draft.sellerId ?? ''} onChange={(event) => setDraft(withOptional(draft, 'sellerId', event.target.value || undefined))}><option value="">Todos</option>{options.sellers.map((seller) => <option key={seller.id} value={seller.id}>{seller.name}</option>)}</select></label>
           <label className="filter-field">Sucursal<select aria-label="Sucursal" disabled={optionsStatus === 'loading'} value={draft.branchId ?? ''} onChange={(event) => setDraft(withOptional(draft, 'branchId', event.target.value || undefined))}><option value="">Todas</option>{options.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
-          <label className="filter-field">Fecha desde<input aria-label="Fecha desde" type="date" value={draft.paidFrom ?? ''} onChange={(event) => setDraft(withOptional(draft, 'paidFrom', event.target.value || undefined))} /></label>
-          <label className="filter-field">Fecha hasta<input aria-label="Fecha hasta" type="date" value={draft.paidTo ?? ''} onChange={(event) => setDraft(withOptional(draft, 'paidTo', event.target.value || undefined))} /></label>
-          <label className="filter-field">Año<input aria-label="Año" type="number" min="2000" max="2100" value={draft.year ?? ''} onChange={(event) => setDraft(withOptional(draft, 'year', event.target.value ? Number(event.target.value) : undefined))} /></label>
-          <label className="filter-field">Mes<select aria-label="Mes" value={draft.month ?? ''} onChange={(event) => setDraft(withOptional(draft, 'month', event.target.value ? Number(event.target.value) : undefined))}><option value="">Todos</option>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date(2026, index, 1))}</option>)}</select></label>
+          <label className="filter-field">Fecha desde<input aria-label="Fecha desde" type="date" value={draft.paidFrom ?? ''} onChange={(event) => setDraft(withOptional(withOptional(draft, 'period', undefined), 'paidFrom', event.target.value || undefined))} /></label>
+          <label className="filter-field">Fecha hasta<input aria-label="Fecha hasta" type="date" value={draft.paidTo ?? ''} onChange={(event) => setDraft(withOptional(withOptional(draft, 'period', undefined), 'paidTo', event.target.value || undefined))} /></label>
+          <label className="filter-field">Año<input aria-label="Año" type="number" min="2000" max="2100" value={draft.year ?? ''} onChange={(event) => setDraft(withOptional(withOptional(draft, 'period', undefined), 'year', event.target.value ? Number(event.target.value) : undefined))} /></label>
+          <label className="filter-field">Mes<select aria-label="Mes" value={draft.month ?? ''} onChange={(event) => setDraft(withOptional(withOptional(draft, 'period', undefined), 'month', event.target.value ? Number(event.target.value) : undefined))}><option value="">Todos</option>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date(2026, index, 1))}</option>)}</select></label>
+          <WorkMonthSelect id={`paid-${vehicleType}-work-period`} months={workMonths} onChange={(value) => setDraft(value ? { ...withoutDates(draft), period: value } : withOptional(draft, 'period', undefined))} value={draft.period ?? ''} />
           <div className="financial-filter-actions"><button className="button button--primary" type="submit">Aplicar filtros</button></div>
         </form>
       </details>

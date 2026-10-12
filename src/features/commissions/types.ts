@@ -147,6 +147,8 @@ export type PaidCommissionQuery = {
   paidTo?: string
   year?: number
   month?: number
+  // Corte: pagos hechos en ese mes de trabajo "AAAA-MM".
+  period?: string
   page?: number
   limit?: number
 }

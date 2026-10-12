@@ -31,6 +31,8 @@ import type {
   VehiclePaymentVehicleType,
 } from './types'
 import { displayVersion } from '../../shared/utils/vehicleVersion'
+import { WorkMonthSelect, workPeriodLabel } from '../../shared/work-months/WorkMonthSelect'
+import { useWorkMonths } from '../../shared/work-months/workMonths'
 
 const PAGE_SIZE = 20
 
@@ -233,10 +235,17 @@ export function VehiclePaymentsPage({
   const [payingWithoutAccount, setPayingWithoutAccount] = useState<VehiclePayment | null>(null)
   const [draft, setDraft] = useState<VehiclePaymentQuery>({ page: 1, limit: PAGE_SIZE })
 
+  const workMonths = useWorkMonths()
   const changeDraft = <K extends keyof VehiclePaymentQuery>(
     key: K,
     next: VehiclePaymentQuery[K],
-  ) => setDraft((current) => ({ ...current, [key]: next || undefined }))
+  ) =>
+    setDraft((current) => {
+      const updated = { ...current, [key]: next || undefined }
+      // Mes o año de almanaque y corte no se combinan.
+      if ((key === 'month' || key === 'year') && next) delete updated.period
+      return updated
+    })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -299,6 +308,7 @@ export function VehiclePaymentsPage({
         query.status && `Estado: ${statusLabel(query.status)}`,
         query.month ? `Mes: ${query.month}` : null,
         query.year ? `Año: ${query.year}` : null,
+        query.period ? `Corte: ${workPeriodLabel(workMonths, query.period)}` : null,
       ],
       columns: EXCEL_COLUMNS,
       rows: items,
@@ -500,6 +510,21 @@ export function VehiclePaymentsPage({
               ))}
             </select>
           </div>
+          <WorkMonthSelect
+            id="vp-work-period"
+            months={workMonths}
+            onChange={(value) =>
+              setDraft((current) => {
+                const updated = { ...current }
+                delete updated.period
+                if (!value) return updated
+                delete updated.month
+                delete updated.year
+                return { ...updated, period: value }
+              })
+            }
+            value={draft.period ?? ''}
+          />
           <div className="financial-filter-actions">
             <button className="button button--primary" type="submit">Aplicar</button>
             <button className="button button--secondary" type="button" onClick={clearFilters}>Limpiar</button>

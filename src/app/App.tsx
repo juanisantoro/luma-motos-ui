@@ -43,6 +43,8 @@ import { OperationsPage } from '../features/sales/OperationsPage'
 import { NewOperationPage } from '../features/sales/NewOperationPage'
 import { stockApiGateway } from '../features/stock/api'
 import { StockPage } from '../features/stock/StockPage'
+import { WorkMonthsPage } from '../features/work-months/WorkMonthsPage'
+import { BalancePage } from '../features/balance/BalancePage'
 import { AppLayout } from './layout/AppLayout'
 import { ForbiddenPage, NotFoundPage } from './pages/ErrorPages'
 
@@ -337,6 +339,10 @@ export function App() {
                 <Route path="comisiones/escalas/autos" element={<CommissionScalesPage vehicleType="AUTO" ambito="VENDEDOR" gateway={commissionApiGateway} />} />
                 <Route path="comisiones/escalas/gerencia/motos" element={<CommissionScalesPage vehicleType="MOTO" ambito="GERENCIA" gateway={commissionApiGateway} />} />
                 <Route path="comisiones/escalas/gerencia/autos" element={<CommissionScalesPage vehicleType="AUTO" ambito="GERENCIA" gateway={commissionApiGateway} />} />
+              </Route>
+              <Route element={<PermissionRoute permission="meses_trabajo.gestionar" />}>
+                <Route path="configuracion/meses-de-trabajo" element={<WorkMonthsPage />} />
+                <Route path="balance" element={<BalancePage />} />
               </Route>
               <Route element={<PermissionRoute permission="comisiones.propias" />}>
                 <Route path="mis-comisiones" element={<MyCommissionsPage gateway={commissionApiGateway} />} />

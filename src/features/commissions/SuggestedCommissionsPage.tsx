@@ -1,5 +1,5 @@
 import { CheckCircle2, Eye, Presentation, RefreshCw, SlidersHorizontal } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import { StatePanel } from '../../shared/components/StatePanel'
@@ -39,10 +39,11 @@ import type {
   CommissionVehicleType,
   ManagerCommissionSuggestion,
 } from './types'
+import { WorkMonthHint } from '../../shared/work-months/WorkMonthHint'
+import { calendarPeriod, useWorkMonths, workMonthBounds } from '../../shared/work-months/workMonths'
 
 function currentPeriod() {
-  const date = new Date()
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+  return calendarPeriod()
 }
 
 const emptyOptions: CommissionOptions = {
@@ -64,6 +65,15 @@ export function SuggestedCommissionsPage({
     limit: 50,
   })
   const [draft, setDraft] = useState(query)
+  // Cuando llegan los cortes, el período pasa al mes de trabajo en curso,
+  // salvo que ya se haya filtrado por otro.
+  const workMonths = useWorkMonths()
+  const periodChosen = useRef(false)
+  useEffect(() => {
+    if (!workMonths || periodChosen.current) return
+    setQuery((current) => ({ ...current, period: workMonths.current }))
+    setDraft((current) => ({ ...current, period: workMonths.current }))
+  }, [workMonths])
   const [items, setItems] = useState<CommissionSummary[]>([])
   const [policies, setPolicies] = useState<CommissionScalePolicy[]>([])
   const [options, setOptions] = useState(emptyOptions)
@@ -210,7 +220,10 @@ export function SuggestedCommissionsPage({
   }, [gateway, managerRefreshKey, query.period, vehicleType])
 
   const policy = useMemo(() => {
-    const periodDate = `${query.period ?? currentPeriod()}-01`
+    // La escala vigente al último día del mes de trabajo, como la elige el
+    // backend.
+    const period = query.period ?? currentPeriod()
+    const periodDate = workMonthBounds(workMonths, period).to ?? `${period}-01`
     return policies.find(
       (candidate) =>
         candidate.status === 'ACTIVE'
@@ -218,7 +231,7 @@ export function SuggestedCommissionsPage({
         && candidate.validFrom <= periodDate
         && (!candidate.validTo || candidate.validTo >= periodDate),
     ) ?? null
-  }, [policies, query.period, vehicleType])
+  }, [policies, query.period, vehicleType, workMonths])
 
   const configurationMissing =
     status === 'success'
@@ -228,6 +241,7 @@ export function SuggestedCommissionsPage({
 
   const applyFilters = (event: FormEvent) => {
     event.preventDefault()
+    periodChosen.current = true
     setQuery({ ...draft, vehicleType, page: 1, limit: 50 })
     setSelectedId(null)
     setDetail(null)
@@ -353,8 +367,12 @@ export function SuggestedCommissionsPage({
               type="month"
               required
               value={draft.period}
-              onChange={(event) => setDraft({ ...draft, period: event.target.value })}
+              onChange={(event) => {
+                periodChosen.current = true
+                setDraft({ ...draft, period: event.target.value })
+              }}
             />
+            {draft.period && <WorkMonthHint months={workMonths} period={draft.period} />}
           </label>
           <label className="filter-field">
             Sucursal

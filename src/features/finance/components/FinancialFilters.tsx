@@ -12,6 +12,12 @@ import {
   filterCashAccounts,
   isImportedAccount,
 } from '../cashAccounts'
+import { WorkMonthSelect } from '../../../shared/work-months/WorkMonthSelect'
+import {
+  calendarMonthBounds,
+  useWorkMonths,
+  workMonthBounds,
+} from '../../../shared/work-months/workMonths'
 import { paymentMethodLabels } from '../../sales/tracking'
 import { useAuth } from '../../auth/AuthContext'
 import {
@@ -35,15 +41,6 @@ type FinancialFiltersProps = {
   onApply: (query: FinancialListQuery) => void
 }
 
-function monthBounds(month: string) {
-  if (!month) return {}
-  const [yearValue = 0, monthValue = 0] = month.split('-').map(Number)
-  const lastDay = new Date(yearValue, monthValue, 0).getDate()
-  return {
-    from: `${month}-01`,
-    to: `${month}-${String(lastDay).padStart(2, '0')}`,
-  }
-}
 
 export function FinancialFilters({
   kind,
@@ -53,6 +50,10 @@ export function FinancialFilters({
   const { user } = useAuth()
   const [draft, setDraft] = useState(value)
   const [month, setMonth] = useState('')
+  // Corte: un mes de trabajo, de corte a corte. "Mes y año", Desde y Hasta
+  // siguen siendo fechas de almanaque.
+  const [workPeriod, setWorkPeriod] = useState('')
+  const workMonths = useWorkMonths()
   const [branches, setBranches] = useState<BranchOption[]>([])
   const [accounts, setAccounts] = useState<CashAccount[]>([])
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
@@ -132,12 +133,22 @@ export function FinancialFilters({
     const next = { ...draft }
     delete next.accountId
     delete next.accountIds
-    onApply({ ...next, ...accountFilter(), ...monthBounds(month), page: 1 })
+    delete next.period
+    // Con corte, en Ingresos lo resuelve el backend: lo cobrado del plan de
+    // pago de una venta va al mes de la venta aunque se acredite después del
+    // corte. En Gastos y Compras, las fechas del mes de trabajo.
+    const dateFilter = workPeriod
+      ? kind === 'income'
+        ? { period: workPeriod }
+        : workMonthBounds(workMonths, workPeriod)
+      : calendarMonthBounds(month)
+    onApply({ ...next, ...accountFilter(), ...dateFilter, page: 1 })
   }
 
   const clear = () => {
     setDraft({})
     setMonth('')
+    setWorkPeriod('')
     setPartnerId('')
     onApply({ page: 1 })
   }
@@ -167,10 +178,12 @@ export function FinancialFilters({
         <label className="filter-field">
           <span>Mes y año</span>
           <input
+            aria-label="Mes y año"
             type="month"
             value={month}
             onChange={(event) => {
               setMonth(event.target.value)
+              setWorkPeriod('')
               setDraft((current) => {
                 const next = { ...current }
                 delete next.from
@@ -180,6 +193,27 @@ export function FinancialFilters({
             }}
           />
         </label>
+        <div className="filter-field">
+          <WorkMonthSelect
+            className="work-month-select"
+            id={`${kind}-work-period`}
+            months={workMonths}
+            onChange={(value) => {
+              setWorkPeriod(value)
+              setMonth('')
+              setDraft((current) => {
+                const next = { ...current }
+                delete next.from
+                delete next.to
+                return next
+              })
+            }}
+            value={workPeriod}
+          />
+          {workPeriod && kind === 'income' && (
+            <small className="work-month-hint">Lo cobrado del plan de pago de una venta cuenta en el mes de la venta.</small>
+          )}
+        </div>
         <label className="filter-field">
           <span>Desde</span>
           <input
@@ -187,6 +221,7 @@ export function FinancialFilters({
             value={draft.from ?? ''}
             onChange={(event) => {
               setMonth('')
+              setWorkPeriod('')
               change('from', event.target.value)
             }}
           />
@@ -198,6 +233,7 @@ export function FinancialFilters({
             value={draft.to ?? ''}
             onChange={(event) => {
               setMonth('')
+              setWorkPeriod('')
               change('to', event.target.value)
             }}
           />

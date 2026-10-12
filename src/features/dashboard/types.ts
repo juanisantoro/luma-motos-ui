@@ -88,6 +88,9 @@ export type AdminHome = {
   // anterior al selector de mes no los manda.
   month?: DashboardMonth
   period?: string
+  // Los dos meses que se pueden elegir, con sus fechas según los cortes de
+  // la organización (meses de trabajo).
+  months?: Array<{ month: DashboardMonth; period: string; from: string; to: string }>
   // Ausente en respuestas anteriores; null sin permisos sobre esas tareas.
   pendingTasks?: PendingTasks | null
   monthlySales: MonthlyPerformance | null

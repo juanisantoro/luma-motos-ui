@@ -39,6 +39,8 @@ import type {
   SalesOperationQuery,
   SalesOperationStatus,
 } from './types'
+import { WorkMonthSelect } from '../../shared/work-months/WorkMonthSelect'
+import { useWorkMonths, workMonthBounds } from '../../shared/work-months/workMonths'
 
 type FilterStatus = SalesOperationStatus | 'TODOS'
 type LicensingFilter =
@@ -141,6 +143,13 @@ export function OperationsPage({
   const [operationStatus, setOperationStatus] =
     useState<FilterStatus>('TODOS')
   const [period, setPeriod] = useState('')
+  // Corte: un mes de trabajo, de corte a corte. "Período" sigue siendo el
+  // mes de almanaque.
+  const [workPeriod, setWorkPeriod] = useState('')
+  const workMonths = useWorkMonths()
+  const workBounds = workPeriod ? workMonthBounds(workMonths, workPeriod) : {}
+  const workFrom = workBounds.from ? `${workBounds.from}T00:00:00.000Z` : ''
+  const workTo = workBounds.to ? `${workBounds.to}T23:59:59.999Z` : ''
   const [licensingOperation, setLicensingOperation] =
     useState<SalesOperation | null>(null)
   // Grilla administrativa: la ve quien no está limitado a "mis operaciones".
@@ -216,7 +225,7 @@ export function OperationsPage({
       vehicleType,
       ...(search ? { search } : {}),
       ...(operationStatus === 'TODOS' ? {} : { status: operationStatus }),
-      ...periodRange(period),
+      ...(workFrom && workTo ? { from: workFrom, to: workTo } : periodRange(period)),
       ...(showLicensing ? licensingQuery(licensingFilter) : {}),
       ...(unitFilter ? { fulfillmentStatus: unitFilter } : {}),
       ...(effectiveMine ? { mine: true } : {}),
@@ -227,6 +236,8 @@ export function OperationsPage({
       operationStatus,
       period,
       search,
+      workFrom,
+      workTo,
       showLicensing,
       unitFilter,
       vehicleType,
@@ -465,9 +476,21 @@ export function OperationsPage({
                 onChange={(event) => {
                   setPage(1)
                   setPeriod(event.target.value)
+                  setWorkPeriod('')
                 }}
               />
             </label>
+            <WorkMonthSelect
+              className="sales-date-field"
+              id={`${vehicleType}-operations-work-period`}
+              months={workMonths}
+              onChange={(value) => {
+                setPage(1)
+                setWorkPeriod(value)
+                setPeriod('')
+              }}
+              value={workPeriod}
+            />
             <button className="button button--secondary" type="submit">
               Buscar
             </button>

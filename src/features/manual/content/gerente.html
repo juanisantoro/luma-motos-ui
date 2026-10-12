@@ -373,7 +373,7 @@ a{color:var(--red)}
     <h4>Filtros</h4>
     <ul>
       <li><strong>Buscador</strong>: escribí número de operación, cliente, chasis, patente o boleto y tocá <strong>Buscar</strong> (o Enter).</li>
-      <li><strong>Estado</strong>, <strong>Patentamiento</strong>, <strong>Situación de unidad</strong> y <strong>Período</strong> (mes): se aplican solos al elegir.</li>
+      <li><strong>Estado</strong>, <strong>Patentamiento</strong>, <strong>Situación de unidad</strong> y <strong>Período</strong> (mes del almanaque): se aplican solos al elegir. Al lado está <strong>Corte</strong>, que busca de corte a corte el mes de trabajo que elijas; no se combina con Período.</li>
       <li>En Patentamiento podés elegir "Patente demorada" o "Patente recibida, cobro pendiente" para ver sólo esas.</li>
     </ul>
     <h4>Estados de una operación</h4>
@@ -779,6 +779,9 @@ a{color:var(--red)}
     <p>Esto vale para Ingresos, Gastos y Compras. Gastos de motos y de autos es distinta: su botón de filtros se llama <strong>Aplicar</strong> y no tiene total ni reloj de movimientos. En todas, <strong>Exportar a Excel</strong> baja lo que trae el filtro.</p>
     <ul>
       <li>Arriba está el panel <strong>Filtros</strong>. Nada se filtra hasta tocar <strong>Aplicar filtros</strong>. <strong>Limpiar</strong> los borra.</li>
+      <li><strong>Mes y año</strong>, Desde y Hasta son fechas del almanaque, como siempre. Para ver un <strong>mes de trabajo</strong> (de corte a corte, si el Administrador definió cortes) elegilo en <strong>Corte</strong>: cada opción muestra sus fechas, por ejemplo "Octubre de 2026 · 28/09 al 27/10". Corte no se combina con Mes y año ni con Desde y Hasta.</li>
+      <li>En Ingresos, con <strong>Corte</strong> lo cobrado del <strong>plan de pago de una venta</strong> (contado, transferencia, tarjeta, financiera, toma) cuenta en el <strong>mes de la venta</strong>, aunque se acredite días después del corte. Por ejemplo, la financiera de una venta del 2 que acredita el lunes siguiente figura en el mes que se cerró, no en el nuevo. Para eso el cobro tiene que registrarse desde la venta (Seguimiento de cobros → Cobrar), que lo asocia a su parte del plan. Lo que no estaba en el plan (la patente, un saldo suelto), las cuotas de crédito propio y los ingresos sin venta van por su fecha. Con Desde y Hasta se busca siempre por la fecha del ingreso.</li>
+      <li>En Gastos de motos y de autos, <strong>Mes</strong> y <strong>Año</strong> son del almanaque; <strong>Corte</strong> busca de corte a corte.</li>
       <li>En Ingresos y Gastos, <strong>Socio</strong> deja solo las cuentas de esa persona, incluidas sus históricas del Excel; si no elegís una <strong>Cuenta</strong>, busca en todas las suyas. Con una <strong>Sucursal</strong> elegida, la lista de cuentas muestra solo las de esa sucursal y las históricas. En Ingresos, <strong>Medio de pago</strong> filtra por efectivo, transferencia, tarjeta, etc.</li>
       <li>El recuadro <strong>Total de los registros encontrados</strong> suma todo lo que trae el filtro, aunque esté repartido en varias páginas. Si hay pesos y dólares, muestra un total por moneda. En Compras sólo aparece si tu perfil puede ver los costos.</li>
       <li>El reloj al final de cada fila (<strong>Ver movimientos</strong>) muestra los cobros o pagos de ese registro: cuenta, importe, quién lo registró.</li>
@@ -1084,7 +1087,7 @@ a{color:var(--red)}
       </div>
     </figure>
     <ul>
-      <li><strong>Filtros</strong>: Período, Sucursal, Vendedor, Cantidad mínima y Cantidad máxima. Se aplican con <strong>Aplicar filtros</strong>.</li>
+      <li><strong>Filtros</strong>: Período, Sucursal, Vendedor, Cantidad mínima y Cantidad máxima. Se aplican con <strong>Aplicar filtros</strong>. El Período es el <strong>mes de trabajo</strong>: si el Administrador definió cortes, cuentan las ventas desde el día siguiente al corte anterior hasta el corte del mes, y debajo del selector se ven esas fechas. Viene elegido el mes en curso.</li>
       <li><strong>Detalle</strong> abre las ventas del vendedor en el período: fecha, cliente y vehículo, precio de lista, cierre, diferencia, estado y si es computable.</li>
       <li><strong>Presentar</strong> abre la pantalla para mostrársela al vendedor y registrar el acuerdo.</li>
     </ul>
@@ -1129,7 +1132,7 @@ a{color:var(--red)}
   <section>
     <h3>Pagadas</h3>
     <span class="where">Comisiones → Pagadas</span>
-    <p>Es el histórico, que no se modifica: fecha de pago, vendedor, escala de ese momento, importe sugerido, importe acordado y pagado, y cuenta o comprobante. Filtros: Vendedor, Sucursal, Fecha desde y Fecha hasta, con <strong>Aplicar filtros</strong>. <strong>Ver auditoría</strong> muestra el detalle del pago.</p>
+    <p>Es el histórico, que no se modifica: fecha de pago, vendedor, escala de ese momento, importe sugerido, importe acordado y pagado, y cuenta o comprobante. Filtros: Vendedor, Sucursal, Fecha desde, Fecha hasta, Año, Mes y Corte, con <strong>Aplicar filtros</strong>. Año y Mes son del almanaque; <strong>Corte</strong> busca los pagos hechos en ese mes de trabajo, de corte a corte. <strong>Ver auditoría</strong> muestra el detalle del pago.</p>
   </section>
 </div>
 

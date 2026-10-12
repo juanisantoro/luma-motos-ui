@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../app/App'
 import { ApiError, AUTH_TOKEN_KEY } from '../../shared/api/client'
 import type { AuthUser } from '../auth/types'
+import { invalidateWorkMonths } from '../../shared/work-months/workMonths'
 import { financialErrorMessage } from './format'
 
 const excel = vi.hoisted(() => ({ download: vi.fn(() => Promise.resolve()) }))
@@ -182,10 +183,12 @@ function mockFinanceApi(
   user: AuthUser,
   records: { purchases?: SupplierPurchase[]; incomes?: Income[]; expenses?: Expense[] },
   branches = [branch],
+  workMonths?: unknown,
 ) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url.endsWith('/auth/me')) return jsonResponse(user)
+    if (workMonths && url.endsWith('/work-months')) return jsonResponse(workMonths)
     if (url.includes('/inventory/branches')) {
       return jsonResponse(
         branches.map((item) => ({ ...item, organizationId: organization.id })),
@@ -221,6 +224,7 @@ function openRoute(path: string) {
 }
 
 afterEach(() => {
+  invalidateWorkMonths()
   window.history.replaceState({}, '', '/')
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
   vi.unstubAllGlobals()
@@ -348,6 +352,98 @@ describe('administración financiera', () => {
         && url.includes('status=PENDIENTE')
         && url.includes('from=2026-08-01')
         && url.includes('to=2026-08-31'),
+      )).toBe(true)
+    })
+  })
+
+  it('filtra por corte con las fechas del mes de trabajo y deja Mes y año como almanaque', async () => {
+    openRoute('/compras')
+    const fetchMock = mockFinanceApi(
+      authUser(['compras.consultar', 'compras.costos.consultar']),
+      { purchases: [] },
+      [branch],
+      {
+        current: '2026-10',
+        months: [
+          {
+            period: '2026-08',
+            from: '2026-07-28',
+            to: '2026-08-27',
+            cutDate: '2026-08-27',
+            cutMin: '2026-08-15',
+            cutMax: '2026-09-14',
+            current: false,
+            locked: false,
+          },
+        ],
+      },
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'No hay resultados' })
+    const corte = await screen.findByLabelText('Corte')
+    await waitFor(() => expect(corte).not.toBeDisabled())
+    expect(screen.getByRole('option', { name: 'Agosto de 2026 · 28/07 al 27/08' })).toBeInTheDocument()
+    await user.selectOptions(corte, '2026-08')
+    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }))
+
+    await waitFor(() => {
+      const urls = fetchMock.mock.calls.map(([url]) => String(url))
+      expect(urls.some((url) =>
+        url.includes('/supplier-purchases?page=1&limit=20')
+        && url.includes('from=2026-07-28')
+        && url.includes('to=2026-08-27'),
+      )).toBe(true)
+    })
+
+    // Mes y año sigue siendo el mes del almanaque, aunque haya cortes.
+    fireEvent.change(screen.getByLabelText('Mes y año'), {
+      target: { value: '2026-08' },
+    })
+    expect(corte).toHaveValue('')
+    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }))
+    await waitFor(() => {
+      const urls = fetchMock.mock.calls.map(([url]) => String(url))
+      expect(urls.some((url) =>
+        url.includes('/supplier-purchases?page=1&limit=20')
+        && url.includes('from=2026-08-01')
+        && url.includes('to=2026-08-31'),
+      )).toBe(true)
+    })
+  })
+
+  it('en Ingresos el corte va al backend para que atribuya lo del plan de pago al mes de la venta', async () => {
+    openRoute('/motos/ingresos')
+    const fetchMock = mockFinanceApi(authUser(['ingresos.consultar']), { incomes: [] }, [branch], {
+      current: '2026-10',
+      months: [
+        {
+          period: '2026-09',
+          from: '2026-08-28',
+          to: '2026-09-27',
+          cutDate: '2026-09-27',
+          cutMin: '2026-09-15',
+          cutMax: '2026-10-14',
+          current: false,
+          locked: false,
+        },
+      ],
+    })
+    const user = userEvent.setup()
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'No hay resultados' })
+    const corte = screen.getByLabelText('Corte')
+    await waitFor(() => expect(corte).not.toBeDisabled())
+    await user.selectOptions(corte, '2026-09')
+    expect(screen.getByText('Lo cobrado del plan de pago de una venta cuenta en el mes de la venta.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Aplicar filtros' }))
+
+    await waitFor(() => {
+      const urls = fetchMock.mock.calls.map(([url]) => String(url))
+      expect(urls.some((url) =>
+        url.includes('/incomes?') && url.includes('period=2026-09') && !url.includes('from='),
       )).toBe(true)
     })
   })

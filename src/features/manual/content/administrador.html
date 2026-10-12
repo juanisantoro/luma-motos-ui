@@ -141,9 +141,10 @@ a{color:var(--red)}
     <li><a href="#rendicion"><b>6</b>Rendiciones de efectivo</a></li>
     <li><a href="#corregir"><b>7</b>Corregir una venta</a></li>
     <li><a href="#escalas"><b>8</b>Escalas de comisión</a></li>
-    <li><a href="#auditoria"><b>9</b>Auditoría</a></li>
-    <li><a href="#lumi"><b>10</b>Lumi, el asistente</a></li>
-    <li><a href="#ayuda"><b>11</b>Si algo no sale</a></li>
+    <li><a href="#meses"><b>9</b>Meses de trabajo y balance</a></li>
+    <li><a href="#auditoria"><b>10</b>Auditoría</a></li>
+    <li><a href="#lumi"><b>11</b>Lumi, el asistente</a></li>
+    <li><a href="#ayuda"><b>12</b>Si algo no sale</a></li>
   </ul>
 </section>
 
@@ -155,7 +156,7 @@ a{color:var(--red)}
       <tr><td>Cómo se carga una venta y cómo la sigue el vendedor; sus comisiones</td><td>Vendedor (Call Center usa las mismas pantallas)</td></tr>
       <tr><td>Asignar o pedir una moto, registrar la llegada, patentamiento, ingresos, cobros, gastos, patentes y seguros</td><td>Administrativa</td></tr>
       <tr><td>Aprobar ventas por debajo de lista, compras con costos, planes de crédito, detalle del BCRA, sugerido, acuerdo y pago de comisiones</td><td>Gerente</td></tr>
-      <tr><td>Usuarios, roles, cuentas de caja, rendiciones, corregir ventas, escalas de comisión</td><td>Este manual</td></tr>
+      <tr><td>Usuarios, roles, cuentas de caja, rendiciones, corregir ventas, escalas de comisión, meses de trabajo, balance del mes</td><td>Este manual</td></tr>
     </tbody>
   </table></div>
   <p class="note">Cuando otro manual diga "no podés…" o "pedíselo a un Administrador", eso no corre para vos: sos quien lo puede hacer.</p>
@@ -233,7 +234,7 @@ a{color:var(--red)}
       </tbody>
     </table></div>
     <h4>Ver el mes anterior</h4>
-    <p>Arriba a la derecha está el selector de mes, con el mes en curso y el anterior (por ejemplo <strong>Octubre</strong> y <strong>Septiembre</strong>). Al elegir el anterior, todo lo que es "del mes" pasa a ese mes: ventas, cobrado y lo que falta cobrar de esas ventas, gastos, vendedores y modelos más vendidos. La comparación también se corre: septiembre se compara contra agosto. Lo que es una foto de hoy no cambia: tareas pendientes, clientes nuevos de la semana, stock, cartera de créditos, compras por recibir y ventas esperando aprobación. Cada vez que entrás a Inicio arranca en el mes en curso.</p>
+    <p>Arriba a la derecha está el selector de mes, con el mes en curso y el anterior (por ejemplo <strong>Octubre</strong> y <strong>Septiembre</strong>). Son meses de trabajo: si definieron cortes (capítulo 9), cada mes va de corte a corte, y al lado de la fecha de hoy se ven sus días, por ejemplo "Octubre: del 28/09 al 27/10". Al elegir el anterior, todo lo que es "del mes" pasa a ese mes: ventas, cobrado y lo que falta cobrar de esas ventas, gastos, vendedores y modelos más vendidos. La comparación también se corre: septiembre se compara contra agosto. Lo que es una foto de hoy no cambia: tareas pendientes, clientes nuevos de la semana, stock, cartera de créditos, compras por recibir y ventas esperando aprobación. Cada vez que entrás a Inicio arranca en el mes en curso.</p>
     <p class="note">El cobrado de un mes anterior incluye lo que se cobró después: si una venta de septiembre se terminó de cobrar en octubre, en septiembre ya figura como cobrada.</p>
     <h4>Ver una sucursal sola</h4>
     <p>Arriba del tablero hay un selector: <strong>Todas las sucursales</strong> y una opción por cada sucursal. Al elegir una, todo el Inicio pasa a mostrar sólo esa sucursal. También podés entrar tocando <strong>Ver sucursal</strong> en su tarjeta. Para volver, tocá <strong>Todas las sucursales</strong>.</p>
@@ -689,8 +690,71 @@ a{color:var(--red)}
 </div>
 
 <!-- ============ 9 ============ -->
+<div class="chapter" id="meses">
+  <header><span>Capítulo 9</span><h2>Meses de trabajo y balance</h2><p>Ustedes no cierran el mes el último día del almanaque: acá definís cuándo termina cada mes, el sistema usa esas fechas y el balance te dice cómo les fue.</p></header>
+
+  <section>
+    <h3>Qué cambia con el corte</h3>
+    <span class="where">Configuración → Meses de trabajo</span>
+    <p>Cada mes va del día siguiente al corte del mes anterior hasta su propio corte. Por ejemplo, si septiembre cerró el 27/09 y octubre cierra el 27/10, <strong>octubre va del 28/09 al 27/10</strong>. Con esas fechas se calcula:</p>
+    <ul>
+      <li>Todo lo que es "del mes" en el <strong>Inicio</strong> de cada perfil: ventas, cobrado, gastos, vendedores y modelos.</li>
+      <li>Las <strong>comisiones</strong>: el sugerido, el acuerdo con el vendedor y el gerente, el pago y Mis comisiones. Cuentan las ventas de esas fechas.</li>
+      <li>El filtro <strong>Corte</strong> de Ingresos, Gastos, Compras, Ventas, Gastos de motos y de autos y Comisiones pagadas: elegís un mes de trabajo y busca de corte a corte. Los filtros de siempre (Mes y año, Período, Desde, Hasta, Año y Mes) siguen siendo fechas del almanaque.</li>
+      <li>En <strong>Ingresos</strong> con Corte, lo cobrado del <strong>plan de pago de una venta</strong> (contado, transferencia, tarjeta, financiera, toma) cuenta en el <strong>mes de la venta</strong>, aunque se acredite después del corte: si cierran el 3 y la financiera de una venta del 2 acredita el lunes, ese ingreso es del mes que cerró. Lo que no estaba en el plan (la patente, un saldo suelto), las cuotas de crédito propio y los ingresos sin venta van por su fecha.</li>
+      
+    </ul>
+    <p>Un mes sin corte termina el último día del almanaque. Si nunca cargás un corte, todo sigue como siempre.</p>
+    <figure class="mock"><figcaption><b>Ejemplo</b>Meses de trabajo</figcaption>
+      <div class="in">
+        <div class="row"><strong>Noviembre de 2026</strong> <span class="mini">28/10/2026 al 30/11/2026 · Fin de mes</span> <span class="b">Definir corte</span></div>
+        <div class="row"><strong>Octubre de 2026</strong> <span class="badge ok">En curso</span> <span class="mini">28/09/2026 al 27/10/2026 · Corte 27/10/2026</span> <span class="b">Cambiar</span> <span class="b">Quitar</span></div>
+        <div class="row"><strong>Septiembre de 2026</strong> <span class="mini">01/09/2026 al 27/09/2026 · Con comisiones liquidadas</span></div>
+      </div>
+    </figure>
+  </section>
+
+  <section>
+    <h3>Cerrar el mes</h3>
+    <p>Hay dos formas, y dan lo mismo:</p>
+    <ol class="steps">
+      <li><span>El día que cierran, tocá <strong>Cerrar [mes] hoy</strong>, arriba a la derecha. El mes termina hoy y desde mañana corre el siguiente.</span></li>
+      <li><span>Si ya sabés la fecha, en la fila del mes tocá <strong>Definir corte</strong> (o <strong>Cambiar</strong>), elegí el día y tocá <strong>Guardar</strong>. Podés dejar cargado de antemano el corte del mes en curso o del siguiente.</span></li>
+    </ol>
+    <p>Para que un mes vuelva a terminar con el almanaque, tocá <strong>Quitar</strong>.</p>
+    <ul>
+      <li>El corte de un mes tiene que caer <strong>entre el 15 de ese mes y el 14 del siguiente</strong>. El de octubre, entre el 15/10 y el 14/11. Así los meses nunca se pisan ni quedan días afuera.</li>
+      <li>El mes siguiente arranca solo, el día después del corte. No hace falta abrirlo.</li>
+      <li>El corte no bloquea nada: se puede seguir cargando y corrigiendo con fecha de un mes ya cerrado, y cuenta en ese mes.</li>
+    </ul>
+    <p class="warn">Un corte <strong>no se puede mover</strong> si ya hay comisiones liquidadas (acordadas o pagadas) de ese mes o del siguiente: las comisiones quedaron calculadas con esas fechas. La fila dice "Con comisiones liquidadas" y los botones quedan apagados. Definí el corte antes de acordar las comisiones del mes.</p>
+    <p class="note">Sólo el Administrador ve esta pantalla. Cada cambio queda en Auditoría como "Corte de mes de trabajo definido" o "quitado", con quién lo hizo y las fechas de antes y de después.</p>
+  </section>
+
+  <section>
+    <h3>Balance del mes</h3>
+    <span class="where">Administración financiera → Balance del mes</span>
+    <p>Ingresos y egresos de un mes de trabajo, de corte a corte, para ver cómo les fue y cerrar el mes. Junta lo que ya está cargado en Ingresos, Gastos generales, Gastos de motos y de autos, Compras y Comisiones: no hay que cargar nada aparte.</p>
+    <ol class="steps">
+      <li><span>Elegí el <strong>Corte</strong> (al entrar está el mes en curso) y la <strong>Moneda</strong>: pesos y dólares no se suman.</span></li>
+      <li><span>En <strong>Ver por</strong> elegí <strong>Sucursal</strong> (una columna por sucursal, más "Generales" para lo que no es de ninguna) o <strong>Socio</strong>. Con <strong>Sucursal</strong> podés quedarte con una sola.</span></li>
+      <li><span><strong>Exportar a Excel</strong> baja la tabla tal como la ves.</span></li>
+    </ol>
+    <ul>
+      <li><strong>Ingresos</strong>: con la misma regla que el filtro Corte de Ingresos. Lo cobrado del plan de pago de una venta cuenta en el mes de la venta, aunque se acredite después del corte.</li>
+      <li><strong>Egresos</strong>: gastos generales, gastos de motos y autos (patentes, seguros…) y comisiones pagadas en el mes, a vendedores y a gerentes. Los gastos sin pagar ya restan.</li>
+      <li><strong>Motos y autos comprados</strong>: las compras a proveedores no restan el mes en que se compran, porque son stock. Con <strong>Restar lo vendido</strong> resta lo que costaron las unidades vendidas en el mes (la compra al proveedor, o el costo de la ficha); con <strong>Dejar afuera</strong> no entran. El total comprado se ve aparte.</li>
+      <li><strong>Falta cobrar</strong>: lo que todavía no entró de las ventas del corte. Cuando entre, suma en este mismo mes.</li>
+    </ul>
+    <p><strong>Por socio</strong> muestra lo que se cobró en las cajas de cada socio (el responsable de la caja) y lo que se pagó desde ellas. Es lo que movió cada caja, no lo que ganó cada uno. "Sin caja" es lo que todavía no se cobró o no se pagó, o se cargó sin caja (las comisiones de gerentes, lo importado). El costo de lo vendido no se reparte por socio.</p>
+    <p class="warn">Si una unidad vendida no tiene costo cargado, la pantalla lo avisa: el costo de lo vendido queda corto y el resultado, más alto. Cargalo en la compra al proveedor o en la ficha de la unidad.</p>
+    <p class="note">El balance no es la caja. La plata real, el día que entró o salió, está en Auditoría → Movimientos de dinero. Sólo el Administrador ve el balance.</p>
+  </section>
+</div>
+
+<!-- ============ 10 ============ -->
 <div class="chapter" id="auditoria">
-  <header><span>Capítulo 9</span><h2>Auditoría</h2><p>Todo lo que se hizo en el sistema, con fecha y hora, quién lo hizo y quién lo aprobó. Es la pantalla para controlar la plata.</p></header>
+  <header><span>Capítulo 10</span><h2>Auditoría</h2><p>Todo lo que se hizo en el sistema, con fecha y hora, quién lo hizo y quién lo aprobó. Es la pantalla para controlar la plata.</p></header>
   <section>
     <span class="where">Configuración → Auditoría</span>
     <p>Arriba hay dos pestañas: <strong>Actividad</strong> (quién hizo qué) y <strong>Movimientos de dinero</strong> (por dónde pasó cada peso). Todas las fechas tienen hora, minutos y segundos, en hora de Argentina. No se puede modificar ni borrar nada desde acá: es sólo consulta.</p>
@@ -756,9 +820,9 @@ a{color:var(--red)}
   </section>
 </div>
 
-<!-- ============ 10 ============ -->
+<!-- ============ 11 ============ -->
 <div class="chapter" id="lumi">
-  <header><span>Capítulo 10</span><h2>Lumi, el asistente</h2><p>Lumi responde preguntas sobre cómo usar el sistema y consulta datos por vos. Está en todas las pantallas.</p></header>
+  <header><span>Capítulo 11</span><h2>Lumi, el asistente</h2><p>Lumi responde preguntas sobre cómo usar el sistema y consulta datos por vos. Está en todas las pantallas.</p></header>
   <section>
     <ol class="steps">
       <li><span>Tocá el botón <strong>Preguntale a Lumi</strong>, abajo a la derecha.</span></li>
@@ -782,9 +846,9 @@ a{color:var(--red)}
   </section>
 </div>
 
-<!-- ============ 11 ============ -->
+<!-- ============ 12 ============ -->
 <div class="chapter" id="ayuda">
-  <header><span>Capítulo 11</span><h2>Si algo no sale</h2><p>Los mensajes más comunes de las pantallas de administrador, y lo que hoy el sistema todavía no hace.</p></header>
+  <header><span>Capítulo 12</span><h2>Si algo no sale</h2><p>Los mensajes más comunes de las pantallas de administrador, y lo que hoy el sistema todavía no hace.</p></header>
   <section>
     <div class="tablebox"><table>
       <thead><tr><th>Qué ves</th><th>Qué hacer</th></tr></thead>
@@ -803,6 +867,8 @@ a{color:var(--red)}
         <tr><td>"Otra persona modificó esta venta…"</td><td>Cerrá, actualizá la lista y volvé a intentar.</td></tr>
         <tr><td>"La vigencia se superpone con otra política."</td><td>Hay una escala que empieza después de la fecha que pusiste. Usá una fecha posterior.</td></tr>
         <tr><td>"Hay un hueco o solapamiento entre los tramos…"</td><td>Cada tramo tiene que empezar donde termina el anterior más uno.</td></tr>
+        <tr><td>"El corte de … tiene que caer entre el … y el …"</td><td>El corte de un mes va del 15 de ese mes al 14 del siguiente. Elegí un día dentro de ese rango.</td></tr>
+        <tr><td>"Ya hay comisiones liquidadas de … o del mes siguiente: el corte no se puede mover."</td><td>Las comisiones de esas fechas ya se acordaron o pagaron. El corte queda como está.</td></tr>
         <tr><td>"Lumi todavía no está habilitado."</td><td>Falta configurarlo en el servidor. Avisá a soporte.</td></tr>
       </tbody>
     </table></div>

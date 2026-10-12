@@ -165,6 +165,9 @@ export type FinancialListQuery = {
   branchId?: string
   from?: string
   to?: string
+  // Ingresos: mes de trabajo "AAAA-MM" en lugar de from/to; lo cobrado del
+  // plan de pago de una venta cuenta en el mes de la venta.
+  period?: string
   status?: FinancialStatus
   search?: string
   supplierId?: string

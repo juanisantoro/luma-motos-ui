@@ -19,6 +19,7 @@ import {
   monthNameOf,
   todayLongLabel,
 } from './format'
+import { formatDay } from '../../shared/work-months/workMonths'
 import { PendingTasksPanel } from './PendingTasksPanel'
 import type { AdminBranchSummary, AdminHome, DashboardMonth, PendingTasks } from './types'
 
@@ -57,6 +58,12 @@ function monthLabels(month: DashboardMonth, period: string | undefined): MonthLa
     previousMonth: previousName,
     withinMonth: `en ${name}`,
   }
+}
+
+function isCalendarMonth(item: { period: string; from: string; to: string }) {
+  const [year, month] = item.period.split('-').map(Number)
+  const lastDay = new Date(Date.UTC(year!, month!, 0)).getUTCDate()
+  return item.from === `${item.period}-01` && item.to === `${item.period}-${String(lastDay).padStart(2, '0')}`
 }
 
 function capitalize(value: string) {
@@ -255,20 +262,30 @@ function BranchDetail({
 
 function MonthSwitch({
   today,
+  months,
   month,
   loading,
   onChange,
 }: {
   today: string
+  months: AdminHome['months']
   month: DashboardMonth
   loading: boolean
   onChange: (month: DashboardMonth) => void
 }) {
+  // Con cortes, el mes en curso puede no ser el del almanaque: los nombres y
+  // las fechas vienen del backend. Uno anterior a los cortes no los manda.
   const currentPeriod = today.slice(0, 7)
-  const options: Array<{ value: DashboardMonth; label: string }> = [
-    { value: 'current', label: capitalize(monthNameOf(currentPeriod)) },
-    { value: 'previous', label: capitalize(monthNameOf(currentPeriod, -1)) },
-  ]
+  const options: Array<{ value: DashboardMonth; label: string; range?: string }> = months?.length
+    ? months.map((item) => ({
+        value: item.month,
+        label: capitalize(monthNameOf(item.period)),
+        range: `Del ${formatDay(item.from)} al ${formatDay(item.to)}`,
+      }))
+    : [
+        { value: 'current', label: capitalize(monthNameOf(currentPeriod)) },
+        { value: 'previous', label: capitalize(monthNameOf(currentPeriod, -1)) },
+      ]
   return (
     <div aria-busy={loading} aria-label="Mes" className="month-switch" role="group">
       {options.map((option) => (
@@ -278,6 +295,7 @@ function MonthSwitch({
           disabled={loading}
           key={option.value}
           onClick={() => onChange(option.value)}
+          title={option.range}
           type="button"
         >
           {option.label}
@@ -304,6 +322,12 @@ export function AdminDashboard({
   // selector ya marca el nuevo.
   const shownMonth = home.month ?? 'current'
   const labels = monthLabels(shownMonth, home.period ?? home.monthlySales?.period)
+  // Si el mes que se ve no es el del almanaque, sus fechas en el encabezado.
+  const shownMonthRange = home.months?.find((item) => item.month === shownMonth)
+  const shownRange =
+    shownMonthRange && !isCalendarMonth(shownMonthRange)
+      ? `${capitalize(monthNameOf(shownMonthRange.period))}: del ${formatDay(shownMonthRange.from)} al ${formatDay(shownMonthRange.to)}`
+      : null
   const branches = home.branches ?? []
   const [selected, setSelected] = useState<string>(ALL_BRANCHES)
   const branch = branches.find((item) => item.branchId === selected) ?? null
@@ -332,6 +356,7 @@ export function AdminDashboard({
           <p>
             {todayLongLabel(greeting.date)} ·{' '}
             {branch ? `Sucursal ${branch.branchName}` : 'Vista consolidada de la organización'}
+            {shownRange && ` · ${shownRange}`}
             {loading && ' · Actualizando…'}
           </p>
         </div>
@@ -340,6 +365,7 @@ export function AdminDashboard({
             <MonthSwitch
               loading={loading}
               month={month}
+              months={home.months}
               onChange={onMonthChange}
               today={greeting.date}
             />

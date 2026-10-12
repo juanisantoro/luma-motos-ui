@@ -29,11 +29,8 @@ import type {
   CommissionVehicleType,
   MyCommissions,
 } from './types'
-
-function currentPeriod() {
-  const date = new Date()
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-}
+import { WorkMonthHint } from '../../shared/work-months/WorkMonthHint'
+import { useWorkPeriod } from '../../shared/work-months/workMonths'
 
 const pageTitle = 'Mis comisiones'
 
@@ -57,7 +54,7 @@ function exportSection<T>(
 }
 
 export function MyCommissionsPage({ gateway }: { gateway: CommissionGateway }) {
-  const [period, setPeriod] = useState(currentPeriod)
+  const [period, setPeriod, workMonths] = useWorkPeriod()
   const [results, setResults] = useState<Partial<Record<CommissionVehicleType, MyCommissions>>>({})
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [error, setError] = useState('')
@@ -94,6 +91,7 @@ export function MyCommissionsPage({ gateway }: { gateway: CommissionGateway }) {
         <label className="commission-period-field">
           <span>Período</span>
           <input aria-label="Período" type="month" value={period} onChange={(event) => setPeriod(event.target.value)} />
+          <WorkMonthHint months={workMonths} period={period} />
         </label>
       </header>
 

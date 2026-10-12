@@ -217,6 +217,30 @@ describe('Inicio del administrador por sucursal', () => {
       expect(screen.getByText('Cobrado de las ventas de septiembre')).toBeInTheDocument()
     })
 
+    it('usa los meses de trabajo que manda el backend', () => {
+      // El 30/10 ya corre noviembre: octubre cerró el 27.
+      renderWithMonth(
+        home({
+          greeting: { name: 'Juan Admin', organizationName: 'Luma', branchName: null, date: '2026-10-30' },
+          month: 'current',
+          period: '2026-11',
+          months: [
+            { month: 'current', period: '2026-11', from: '2026-10-28', to: '2026-11-30' },
+            { month: 'previous', period: '2026-10', from: '2026-09-28', to: '2026-10-27' },
+          ],
+        }),
+        'current',
+      )
+
+      const group = screen.getByRole('group', { name: 'Mes' })
+      expect(within(group).getByRole('button', { name: 'Noviembre' })).toHaveAttribute('aria-pressed', 'true')
+      expect(within(group).getByRole('button', { name: 'Octubre' })).toHaveAttribute(
+        'title',
+        'Del 28/09 al 27/10',
+      )
+      expect(screen.getByText(/Noviembre: del 28\/10 al 30\/11/)).toBeInTheDocument()
+    })
+
     it('no muestra el selector si el backend no manda el período', () => {
       renderWithMonth(home(), 'current')
 
