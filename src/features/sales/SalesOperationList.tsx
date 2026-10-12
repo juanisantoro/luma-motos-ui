@@ -35,6 +35,23 @@ import {
 } from './presentation'
 import type { SalesOperation } from './types'
 
+/** Una venta propia de otra sucursal se ve pero no se modifica. */
+export function isReadOnly(operation: SalesOperation) {
+  return operation.readOnly === true
+}
+
+function ReadOnlyBadge({ operation }: { operation: SalesOperation }) {
+  if (!isReadOnly(operation)) return null
+  return (
+    <span
+      className="status-badge sales-readonly-badge"
+      title={`Venta de ${operation.branch.name}, una sucursal que ya no es la tuya. Se puede ver pero no modificar.`}
+    >
+      {operation.branch.name} · sólo consulta
+    </span>
+  )
+}
+
 export function clientDocument(operation: SalesOperation) {
   const documentType = operation.client.documentType
   const documentNumber = operation.client.documentNumber
@@ -506,6 +523,7 @@ export function SalesOperationList({
                 <span>Operación #{operation.number}</span>
                 <strong>{operation.client.fullName}</strong>
                 <small>{clientDocument(operation)}</small>
+                <ReadOnlyBadge operation={operation} />
               </div>
               <span
                 className={`status-badge ${operationStatusClass(operation.status)}`}
@@ -559,8 +577,8 @@ export function SalesOperationList({
                 <dt>{isAuto(operation) ? 'Abastecimiento' : 'Unidad'}</dt>
                 <dd>
                   <UnitStatus
-                  actions={unitActions?.(operation)}
-                  onAction={onUnitAction}
+                  actions={isReadOnly(operation) ? [] : unitActions?.(operation)}
+                  onAction={isReadOnly(operation) ? undefined : onUnitAction}
                   operation={operation}
                 />
                 </dd>
@@ -577,8 +595,10 @@ export function SalesOperationList({
                   <dd>
                     <LicensingSummary
                       operation={operation}
-                      onManage={onManageLicensing}
-                      onRegisterPayment={onRegisterLicensingPayment}
+                      onManage={isReadOnly(operation) ? undefined : onManageLicensing}
+                      onRegisterPayment={
+                        isReadOnly(operation) ? undefined : onRegisterLicensingPayment
+                      }
                     />
                   </dd>
                 </div>
@@ -587,7 +607,7 @@ export function SalesOperationList({
             <p className="sales-card__note">
               <strong>Observación:</strong> {observation(operation)}
             </p>
-            {onEdit && (
+            {onEdit && !isReadOnly(operation) && (
               <button
                 aria-label={`Editar operación ${operation.number}`}
                 className="button button--secondary sales-card__action"
@@ -609,7 +629,7 @@ export function SalesOperationList({
                 Historial
               </button>
             )}
-            {canRelease && (
+            {canRelease && !isReadOnly(operation) && (
               <ReleaseButton
                 operation={operation}
                 {...(busyId !== undefined ? { busyId } : {})}
@@ -679,6 +699,7 @@ export function SalesOperationList({
                   </td>
                   <td>
                     <strong>#{operation.number}</strong>
+                    <ReadOnlyBadge operation={operation} />
                   </td>
                   <td title={operation.client.fullName}>
                     <strong>{operation.client.fullName}</strong>
@@ -720,22 +741,30 @@ export function SalesOperationList({
                   )}
                   {hasActions && (
                     <td className="sales-table__actions">
-                      <RowActions
-                        busyId={busyId}
-                        canRelease={canRelease}
-                        onEdit={onEdit}
-                        onHistory={onHistory}
-                        onManageLicensing={
-                          showLicensing ? onManageLicensing : undefined
-                        }
-                        onRegisterLicensingPayment={
-                          showLicensing ? onRegisterLicensingPayment : undefined
-                        }
-                        onRelease={onRelease}
-                        onUnitAction={onUnitAction}
-                        operation={operation}
-                        unitActions={unitActions?.(operation)}
-                      />
+                      {isReadOnly(operation) ? (
+                        <RowActions
+                          canRelease={false}
+                          onHistory={onHistory}
+                          operation={operation}
+                        />
+                      ) : (
+                        <RowActions
+                          busyId={busyId}
+                          canRelease={canRelease}
+                          onEdit={onEdit}
+                          onHistory={onHistory}
+                          onManageLicensing={
+                            showLicensing ? onManageLicensing : undefined
+                          }
+                          onRegisterLicensingPayment={
+                            showLicensing ? onRegisterLicensingPayment : undefined
+                          }
+                          onRelease={onRelease}
+                          onUnitAction={onUnitAction}
+                          operation={operation}
+                          unitActions={unitActions?.(operation)}
+                        />
+                      )}
                     </td>
                   )}
                 </tr>

@@ -94,6 +94,8 @@ export type OperationTrackingRow = {
   operationDate: string
   status: SalesOperationStatus
   rowVersion: number
+  // Venta propia de otra sucursal: sólo para ver (ver SalesOperation).
+  readOnly?: boolean
   organizationId: string
   client: {
     id: string

@@ -7808,3 +7808,13 @@ a {
     width: 100%;
   }
 }
+
+/* Venta propia de una sucursal que ya no es del usuario: sólo consulta. */
+.status-badge.sales-readonly-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 4px;
+  color: #4f5865;
+  background: #eef0f3;
+  white-space: nowrap;
+}

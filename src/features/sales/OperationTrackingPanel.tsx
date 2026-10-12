@@ -740,6 +740,7 @@ export function OperationTrackingPanel({
                               Ingresos ({row.incomes.length})
                             </button>
                             {canCollect &&
+                              !row.readOnly &&
                               row.status !== 'CANCELADA' &&
                               collectibleComponents(row).length > 0 && (
                                 <button
@@ -758,7 +759,7 @@ export function OperationTrackingPanel({
                         <tr className="tracking-detail">
                           <td colSpan={13}>
                             <ComponentRows
-                              canManage={canCollect}
+                              canManage={canCollect && !row.readOnly}
                               onFinancing={(component) =>
                                 setFinancing({ row, component })
                               }

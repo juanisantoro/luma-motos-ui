@@ -133,6 +133,10 @@ export type SalesOperation = {
   licensing: SalesLicensing
   notes: string | null
   rowVersion: number
+  // Venta propia de una sucursal que ya no es del usuario (cambió de
+  // sucursal): se ve pero no se modifica. El backend no lo manda en las
+  // respuestas a una modificación.
+  readOnly?: boolean
   organizationId: string
   createdAt: string
   updatedAt: string
