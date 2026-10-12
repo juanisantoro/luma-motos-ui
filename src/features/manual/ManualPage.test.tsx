@@ -69,7 +69,7 @@ describe('Manual de uso por perfil', () => {
     expect(own.getAttribute('srcdoc')).toContain('Manual del Administrador')
     expect(
       screen.getAllByRole('tab').map((tab) => tab.textContent),
-    ).toEqual(['Administrador', 'Gerente', 'Administrativa', 'Vendedor', 'Call Center'])
+    ).toEqual(['Administrador', 'Gerente', 'Administrativa', 'Vendedor', 'Call Center', 'Mecánico'])
     expect(screen.getByRole('tab', { name: 'Administrador' })).toHaveAttribute(
       'aria-selected',
       'true',

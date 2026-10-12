@@ -10,6 +10,7 @@ import {
   TriangleAlert,
   Truck,
   Wallet,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -62,6 +63,11 @@ const TASKS: Record<
     label: 'Gastos pendientes de pago',
     to: '/gastos',
     icon: Receipt,
+  },
+  SERVICE_READY_TO_DELIVER: {
+    label: 'Service terminados para entregar',
+    to: '/service?tab=entregar',
+    icon: Wrench,
   },
 }
 

@@ -7,6 +7,7 @@ import { getDashboardHome } from './api'
 import { AdminDashboard } from './AdminDashboard'
 import { AdministrativeDashboard } from './AdministrativeDashboard'
 import { ManagerDashboard } from './ManagerDashboard'
+import { MechanicDashboard } from './MechanicDashboard'
 import { SellerDashboard } from './SellerDashboard'
 import type { DashboardHome, DashboardMonth } from './types'
 
@@ -106,6 +107,16 @@ export function DashboardPage() {
           icon={LayoutDashboard}
           title={`Hola, ${home.greeting.name}`}
           description="Todavía no tenés una sucursal asignada. Pedile a un administrador que te asigne una para ver tu inicio."
+        />
+      )
+    case 'MECANICO':
+      return 'workshop' in home ? (
+        <MechanicDashboard home={home} />
+      ) : (
+        <StatePanel
+          icon={LayoutDashboard}
+          title={`Hola, ${home.greeting.name}`}
+          description="Todavía no tenés una sucursal asignada. Pedile a un administrador que te asigne una para ver las motos de tu taller."
         />
       )
     default:

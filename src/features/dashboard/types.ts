@@ -1,3 +1,5 @@
+import type { ServiceOrder } from '../service/types'
+
 export type DashboardGreeting = {
   name: string
   organizationName: string
@@ -45,6 +47,7 @@ export type PendingTaskKey =
   | 'LICENSING_OVERDUE'
   | 'LICENSING_PENDING_COLLECTION'
   | 'EXPENSES_PENDING_PAYMENT'
+  | 'SERVICE_READY_TO_DELIVER'
 
 export type PendingTasks = {
   branches: Array<{
@@ -220,6 +223,20 @@ export type SellerHome = {
   }
 }
 
+// --- MECANICO -----------------------------------------------------------
+
+export type MechanicHome = {
+  role: 'MECANICO'
+  greeting: DashboardGreeting
+  workshop: {
+    waiting: number
+    inProgress: number
+    finishedToday: number
+    // Motos en espera y en el taller, la más vieja primero.
+    orders: ServiceOrder[]
+  }
+}
+
 export type OtherRoleHome = {
   role: 'OTRO'
   greeting: DashboardGreeting
@@ -234,6 +251,8 @@ export type DashboardHome =
   | AdministrativeHome
   | SellerHome
   | OtherRoleHome
+  | MechanicHome
+  | { role: 'MECANICO'; greeting: DashboardGreeting }
   | { role: 'GERENTE'; greeting: DashboardGreeting }
   | { role: 'ADMINISTRATIVA'; greeting: DashboardGreeting }
   | { role: 'VENDEDOR'; greeting: DashboardGreeting }

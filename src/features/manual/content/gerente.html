@@ -143,8 +143,9 @@ a{color:var(--red)}
     <li><a href="#creditos"><b>8</b>Créditos personales</a></li>
     <li><a href="#comisiones"><b>9</b>Comisiones</a></li>
     <li><a href="#configuracion"><b>10</b>Configuración</a></li>
-    <li><a href="#limites"><b>11</b>Lo que no podés hacer</a></li>
-    <li><a href="#ayuda"><b>12</b>Si algo no sale</a></li>
+    <li><a href="#service"><b>11</b>Service (taller)</a></li>
+    <li><a href="#limites"><b>12</b>Lo que no podés hacer</a></li>
+    <li><a href="#ayuda"><b>13</b>Si algo no sale</a></li>
   </ul>
 </section>
 
@@ -237,6 +238,7 @@ a{color:var(--red)}
             <b>Administración financiera</b><span>Compras de motos / autos</span><span>Ingresos de motos / autos</span><span>Gastos generales</span><span>Gastos de motos / autos</span>
             <b>Créditos personales</b><span>Planes de crédito</span><span>Cobranza de cuotas</span><span>Consulta BCRA</span>
             <b>Comisiones</b><span>Sugerido</span><span>Visualizar con vendedor</span><span>Pagar</span><span>Pagadas</span>
+            <b>Taller</b><span>Service</span>
             <b>Configuración</b><span>Usuarios</span><span>Roles y permisos</span>
           </div>
         </div>
@@ -312,6 +314,7 @@ a{color:var(--red)}
         <tr><td>Patentes vencidas sin cargar</td><td>Ventas con la fecha estimada pasada y la patente sin cargar.</td><td>Operaciones</td></tr>
         <tr><td>Patentes recibidas con pago pendiente</td><td>La patente llegó y el cliente todavía no la pagó.</td><td>Operaciones</td></tr>
         <tr><td>Gastos pendientes de pago</td><td>Gastos cargados que no se pagaron del todo.</td><td>Gastos</td></tr>
+        <tr><td>Service terminados para entregar</td><td>Motos que el mecánico firmó y esperan el cobro y la entrega.</td><td>Taller → Service (Para entregar)</td></tr>
       </tbody>
     </table></div>
     <p class="warn">Si en Inicio sólo ves el saludo, tu usuario no tiene sucursal asignada. Pedile a un Administrador que te la asigne.</p>
@@ -1156,8 +1159,61 @@ a{color:var(--red)}
 </div>
 
 <!-- ============ 11 ============ -->
+<div class="chapter" id="service">
+  <header><span>Capítulo 11</span><h2>Service (taller)</h2><p>Las motos que entran a service: se reciben, las trabaja y firma el mecánico, y se cobran y entregan desde la orden.</p></header>
+
+  <section>
+    <h3>Cómo es el circuito</h3>
+    <ol class="steps">
+      <li><span><strong>Recepción</strong>: la administración recibe la moto y carga la orden. Queda <span class="badge wa">Recibida</span>.</span></li>
+      <li><span><strong>Taller</strong>: el mecánico la abre, marca las tareas, carga aceite, repuestos y diagnóstico, y la firma. Queda <span class="badge ok">Lista para entregar</span>.</span></li>
+      <li><span><strong>Entrega</strong>: la administración le avisa al cliente, la cobra y la entrega. Queda <span class="badge">Entregada</span>.</span></li>
+    </ol>
+    <p>Todo está en <strong>Taller → Service</strong>. Las pestañas separan <strong>En el taller</strong> (lo que espera al mecánico), <strong>Para entregar</strong> (firmadas), <strong>Entregadas</strong>, <strong>Canceladas</strong> y <strong>Todas</strong>. El buscador encuentra por número de orden, cliente, dominio, chasis o modelo.</p>
+  </section>
+
+  <section>
+    <h3>Recibir una moto</h3>
+    <ol class="steps">
+      <li><span>En Service tocá <strong>Recibir moto</strong>.</span></li>
+      <li><span>Escribí el dominio o el chasis en <strong>Buscar la moto</strong> y tocá <strong>Buscar</strong>. Si la vendió Luma, se completan la moto y el comprador. Si ya tuvo un service en el sistema, te dice cuál fue y propone el siguiente (después del 1º, el 2º).</span></li>
+      <li><span>Completá o corregí los <strong>Datos del cliente</strong> (nombre y apellido es obligatorio; el teléfono sirve para avisarle por WhatsApp) y los <strong>Datos de la moto</strong> (dominio o chasis, y los <strong>Km actual</strong>, obligatorios).</span></li>
+      <li><span>Elegí el <strong>Tipo de service</strong>. Si no es ninguno de la lista, elegí <strong>Otro</strong> y escribí cuál. En <strong>Observaciones de la recepción</strong> anotá lo que pide o cuenta el cliente: el mecánico lo ve resaltado.</span></li>
+      <li><span>Tocá <strong>Recibir moto</strong>. Se abre la orden con su número (000001, 000002…).</span></li>
+    </ol>
+    <p class="note">Mientras el mecánico no la firmó, <strong>Corregir recepción</strong> cambia los datos del cliente y la moto. El tipo de service sólo se cambia si el mecánico todavía no la empezó.</p>
+  </section>
+
+  <section>
+    <h3>Avisar al cliente</h3>
+    <p>Cuando el mecánico firma, la orden pasa a <strong>Para entregar</strong> y aparece en tus tareas pendientes del Inicio como <strong>Service terminados para entregar</strong>. En la orden, <strong>Avisar por WhatsApp</strong> abre el chat del cliente con el mensaje armado ("tu moto ya tiene el 2º service terminado y está lista para retirar…"). El mensaje no se manda solo: revisalo y envialo vos.</p>
+    <p class="warn">Si el teléfono no parece un celular, el botón no aparece y la orden te lo avisa: corregilo en Corregir recepción o avisale por otro medio.</p>
+  </section>
+
+  <section>
+    <h3>Cobrar y entregar</h3>
+    <ol class="steps">
+      <li><span>En la orden tocá <strong>Cobrar y entregar</strong>.</span></li>
+      <li><span>Poné el <strong>Importe a cobrar</strong>. Si el tipo de service tiene precio cargado, ya aparece y lo podés cambiar. Si es garantía o no se cobra, poné <strong>0</strong>.</span></li>
+      <li><span>Elegí el <strong>Medio de pago</strong> y la <strong>Caja</strong> de la sucursal. En efectivo, elegí también <strong>Se rinde a</strong>, como en cualquier cobro.</span></li>
+      <li><span>Marcá el <strong>Estado de la moto al entregar</strong> (Óptimo, Bueno o Regular) y tocá <strong>Cobrar y entregar</strong> (o <strong>Entregar sin cobro</strong>).</span></li>
+    </ol>
+    <p>El cobro queda como un ingreso <strong>Service</strong> en Ingresos de motos, con la sucursal y el cliente de la orden, y entra en la caja elegida: lo ves en Movimientos de caja y en los cierres como cualquier otro cobro.</p>
+  </section>
+
+  <section>
+    <h3>Reabrir, cancelar e imprimir</h3>
+    <ul>
+      <li><strong>Reabrir</strong> (sólo en una orden lista para entregar): vuelve al taller sin la firma, para que el mecánico corrija algo y la firme de nuevo. Pide el motivo.</li>
+      <li><strong>Cancelar</strong>: la orden queda cancelada (por ejemplo, el cliente se llevó la moto sin hacer el service). Pide el motivo. Una orden entregada no se cancela.</li>
+      <li><strong>Imprimir</strong>: saca la orden en una hoja A4 con el formato de la planilla en papel, con lo que cargó el mecánico y los espacios para las firmas del cliente y del responsable.</li>
+    </ul>
+  </section>
+</div>
+
+<!-- ============ 11 ============ -->
 <div class="chapter" id="limites">
-  <header><span>Capítulo 11</span><h2>Lo que no podés hacer</h2><p>Para que no pierdas tiempo buscando un botón que no está. Cada cosa tiene a quién pedírsela.</p></header>
+  <header><span>Capítulo 12</span><h2>Lo que no podés hacer</h2><p>Para que no pierdas tiempo buscando un botón que no está. Cada cosa tiene a quién pedírsela.</p></header>
   <section>
     <div class="tablebox"><table>
       <thead><tr><th>No podés…</th><th>Por qué</th><th>A quién pedirlo</th></tr></thead>
@@ -1186,14 +1242,14 @@ a{color:var(--red)}
 
 <!-- ============ 12 ============ -->
 <div class="chapter" id="ayuda">
-  <header><span>Capítulo 12</span><h2>Si algo no sale</h2><p>Los mensajes más comunes y qué hacer con cada uno.</p></header>
+  <header><span>Capítulo 13</span><h2>Si algo no sale</h2><p>Los mensajes más comunes y qué hacer con cada uno.</p></header>
   <section>
     <div class="tablebox"><table>
       <thead><tr><th>Qué ves</th><th>Qué hacer</th></tr></thead>
       <tbody>
         <tr><td>"Los datos ingresados no son válidos." (al entrar)</td><td>Correo o contraseña mal escritos. Revisá mayúsculas.</td></tr>
         <tr><td>"Tu sesión venció. Ingresá nuevamente."</td><td>Volvé a entrar. Lo que no habías guardado hay que cargarlo otra vez.</td></tr>
-        <tr><td>"No tenés permiso para realizar esta acción."</td><td>Esa acción no es de tu perfil. Mirá el capítulo 11.</td></tr>
+        <tr><td>"No tenés permiso para realizar esta acción."</td><td>Esa acción no es de tu perfil. Mirá el capítulo 12.</td></tr>
         <tr><td>"No pudimos conectar con el servidor…"</td><td>Revisá internet y probá de nuevo.</td></tr>
         <tr><td>"La operación cambió o la unidad ya fue reservada…"</td><td>Otra persona modificó lo mismo. Actualizá la pantalla y repetí.</td></tr>
         <tr><td>"…todavía no tiene una caja para esta sucursal"</td><td>Quien recibe el efectivo no tiene caja creada. Pedile a un Administrador que la cree, o guardá el ingreso como "Pendiente de cobro".</td></tr>

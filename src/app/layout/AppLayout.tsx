@@ -35,6 +35,7 @@ import {
   Warehouse,
   X,
   type LucideIcon,
+  Wrench,
 } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
@@ -397,6 +398,28 @@ const navigationGroups: NavGroup[] = [
         to: '/mis-comisiones',
         icon: BadgeDollarSign,
         permissions: ['comisiones.propias'],
+      },
+    ],
+  },
+  {
+    id: 'service',
+    label: 'Taller',
+    icon: Wrench,
+    items: [
+      {
+        label: 'Service',
+        description: 'Motos que entran a service',
+        to: '/service',
+        activePrefix: '/service',
+        icon: Wrench,
+        permissions: ['service.consultar'],
+      },
+      {
+        label: 'Tipos de service',
+        description: 'Tareas y precio de cada service',
+        to: '/service/tipos',
+        icon: Settings2,
+        permissions: ['service.tipos.gestionar'],
       },
     ],
   },

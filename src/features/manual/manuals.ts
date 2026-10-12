@@ -12,6 +12,8 @@ const manualLoaders: Record<string, () => Promise<string>> = {
     import('./content/vendedor.html?raw').then((module) => module.default),
   CALLCENTER: () =>
     import('./content/callcenter.html?raw').then((module) => module.default),
+  MECANICO: () =>
+    import('./content/mecanico.html?raw').then((module) => module.default),
 }
 
 const manualLabels: Record<string, string> = {
@@ -20,6 +22,7 @@ const manualLabels: Record<string, string> = {
   ADMINISTRATIVA: 'Administrativa',
   VENDEDOR: 'Vendedor',
   CALLCENTER: 'Call Center',
+  MECANICO: 'Mecánico',
 }
 
 // Perfiles que ven todo el sistema: además de su manual pueden leer los de

@@ -45,6 +45,9 @@ import { stockApiGateway } from '../features/stock/api'
 import { StockPage } from '../features/stock/StockPage'
 import { WorkMonthsPage } from '../features/work-months/WorkMonthsPage'
 import { BalancePage } from '../features/balance/BalancePage'
+import { ServiceOrderPage } from '../features/service/ServiceOrderPage'
+import { ServiceOrdersPage } from '../features/service/ServiceOrdersPage'
+import { ServiceTypesPage } from '../features/service/ServiceTypesPage'
 import { AppLayout } from './layout/AppLayout'
 import { ForbiddenPage, NotFoundPage } from './pages/ErrorPages'
 
@@ -68,6 +71,17 @@ export function App() {
               <Route index element={<DashboardPage />} />
               <Route path="sin-permiso" element={<ForbiddenPage />} />
               <Route path="manual" element={<ManualPage />} />
+              <Route
+                element={<PermissionRoute permission="service.consultar" />}
+              >
+                <Route path="service" element={<ServiceOrdersPage />} />
+                <Route path="service/:id" element={<ServiceOrderPage />} />
+              </Route>
+              <Route
+                element={<PermissionRoute permission="service.tipos.gestionar" />}
+              >
+                <Route path="service/tipos" element={<ServiceTypesPage />} />
+              </Route>
               <Route
                 element={<PermissionRoute permission="clientes.consultar" />}
               >
