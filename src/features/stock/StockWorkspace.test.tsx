@@ -256,6 +256,46 @@ describe('workspace de stock', () => {
     )
   })
 
+  it('carga el proveedor de la compra y el número de motor de cada unidad', async () => {
+    const user = userEvent.setup()
+    const handlers = renderWorkspace()
+
+    await user.click(screen.getByRole('button', { name: /Ingresar motos/ }))
+    const dialog = screen.getByRole('dialog', { name: 'Ingresar motos al stock' })
+    await user.selectOptions(within(dialog).getByLabelText('Marca y modelo'), model.id)
+    await user.selectOptions(within(dialog).getByLabelText('Proveedor'), supplier.id)
+    await user.type(within(dialog).getByLabelText('Chasis / VIN unidad 1'), 'vin-motor-1')
+    await user.type(within(dialog).getByLabelText('Número de motor unidad 1'), 'jc41e-1')
+    await user.click(within(dialog).getByRole('button', { name: 'Agregar unidad' }))
+    await user.type(within(dialog).getByLabelText('Chasis / VIN unidad 2'), 'vin-motor-2')
+    await user.type(within(dialog).getByLabelText('Número de motor unidad 2'), 'JC41E-1')
+    await user.click(within(dialog).getByRole('button', { name: 'Ingresar 2 unidades' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'un número de motor diferente',
+    )
+
+    await user.clear(within(dialog).getByLabelText('Número de motor unidad 2'))
+    await user.click(within(dialog).getByRole('button', { name: 'Ingresar 2 unidades' }))
+
+    expect(handlers.onCreateUnits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        units: [
+          expect.objectContaining({
+            vin: 'VIN-MOTOR-1',
+            engineNumber: 'JC41E-1',
+            acquisitionOrigin: 'PROVEEDOR',
+            supplierId: supplier.id,
+          }),
+          expect.not.objectContaining({ engineNumber: expect.anything() }),
+        ],
+      }),
+    )
+    const second = (
+      handlers.onCreateUnits.mock.calls[0]![0] as { units: Array<Record<string, unknown>> }
+    ).units[1]
+    expect(second).toMatchObject({ acquisitionOrigin: 'PROVEEDOR', supplierId: supplier.id })
+  })
+
   it('muestra modelos sin política en altas físicas y disponibilidad', async () => {
     const unpricedModel: CatalogModel = {
       ...model,

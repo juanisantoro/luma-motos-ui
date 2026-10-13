@@ -8635,3 +8635,9 @@ body:has(.service-page--work .service-actions) {
   background: #fafbfc;
   font-size: 13px;
 }
+
+/* Ingresar unidades: proveedor de toda la carga. */
+.stock-unit-supplier {
+  max-width: 420px;
+  margin-bottom: 14px;
+}

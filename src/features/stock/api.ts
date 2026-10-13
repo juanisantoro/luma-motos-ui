@@ -477,6 +477,7 @@ function unitInput(
   return input.units.map((item) => ({
     versionId,
     vin: item.vin,
+    engineNumber: item.engineNumber,
     condition: input.condition,
     licensePlate: item.licensePlate,
     manufactureYear: item.year,

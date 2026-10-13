@@ -161,6 +161,7 @@ export type CatalogModelDraft = {
 
 export type UnitDraft = {
   vin: string
+  engineNumber?: string
   branchId: string
   year: number
   mileage: number

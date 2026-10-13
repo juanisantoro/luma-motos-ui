@@ -1597,6 +1597,7 @@ export function StockWorkspace({
       {unitModal && (
         <UnitFormModal
           branches={data.branches}
+          suppliers={data.suppliers}
           branchLocked={branchLocked}
           canCreateCatalog={capabilities.createCatalog}
           catalog={data.catalog}

@@ -268,6 +268,7 @@ describe('contrato API de stock', () => {
       units: [
         {
           vin: 'VIN-001',
+          engineNumber: 'MOTOR-001',
           branchId: branch.id,
           year: 2026,
           mileage: 0,
@@ -295,6 +296,7 @@ describe('contrato API de stock', () => {
       units: [{
         versionId: 'version-1',
         vin: 'VIN-001',
+        engineNumber: 'MOTOR-001',
         condition: 'NUEVO',
         manufactureYear: 2026,
         mileageKm: 0,

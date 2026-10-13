@@ -8,6 +8,7 @@ import type {
   CatalogModel,
   CatalogModelDraft,
   CreateUnitsInput,
+  SupplierOption,
   UnitDraft,
   VehicleCondition,
   VehicleKind,
@@ -17,6 +18,8 @@ type UnitFormModalProps = {
   vehicleType: VehicleKind
   catalog: CatalogModel[]
   branches: { id: string; name: string }[]
+  /** Proveedores activos; vacío si el usuario no puede consultarlos. */
+  suppliers?: SupplierOption[]
   /** Single allowed branch: preselected and not editable. */
   branchLocked?: boolean
   canCreateCatalog: boolean
@@ -29,6 +32,7 @@ type UnitFormModalProps = {
 type UnitRow = {
   key: number
   vin: string
+  engineNumber: string
   branchId: string
   year: string
   mileage: string
@@ -46,6 +50,7 @@ function emptyUnit(key: number, branchId = ''): UnitRow {
   return {
     key,
     vin: '',
+    engineNumber: '',
     branchId,
     year: String(new Date().getFullYear()),
     mileage: '0',
@@ -71,6 +76,7 @@ export function UnitFormModal({
   vehicleType,
   catalog,
   branches,
+  suppliers = [],
   branchLocked = false,
   canCreateCatalog,
   submitting,
@@ -89,6 +95,12 @@ export function UnitFormModal({
     emptyUnit(1, branches[0]?.id),
   ])
   const [validationError, setValidationError] = useState<string | null>(null)
+  // Proveedor de toda la carga (todas las unidades vienen de la misma compra).
+  const [supplierId, setSupplierId] = useState('')
+  const sortedSuppliers = useMemo(
+    () => [...suppliers].sort((left, right) => left.name.localeCompare(right.name, 'es')),
+    [suppliers],
+  )
   const [colorOptions, setColorOptions] = useState<
     { id: string; name: string }[]
   >([])
@@ -141,6 +153,13 @@ export function UnitFormModal({
       setValidationError('Cada unidad debe tener un VIN o chasis diferente.')
       return
     }
+    const engines = units
+      .map((unit) => unit.engineNumber.trim().toUpperCase())
+      .filter(Boolean)
+    if (new Set(engines).size !== engines.length) {
+      setValidationError('Cada unidad debe tener un número de motor diferente.')
+      return
+    }
     if (createCatalog) {
       const brandName = catalogDraft.brandName?.trim()
       const modelName = catalogDraft.modelName?.trim()
@@ -169,7 +188,11 @@ export function UnitFormModal({
       year: Number(unit.year),
       mileage: condition === 'NUEVO' ? 0 : Number(unit.mileage),
       receivedAt: unit.receivedAt,
-      acquisitionOrigin: 'OTRO',
+      acquisitionOrigin: supplierId ? 'PROVEEDOR' : 'OTRO',
+      ...(supplierId ? { supplierId } : {}),
+      ...(unit.engineNumber.trim()
+        ? { engineNumber: unit.engineNumber.trim().toUpperCase() }
+        : {}),
       ...(vehicleType === 'AUTO' && unit.licensePlate.trim()
         ? { licensePlate: unit.licensePlate.trim().toUpperCase() }
         : {}),
@@ -431,6 +454,25 @@ export function UnitFormModal({
               )}
             </div>
 
+            {sortedSuppliers.length > 0 && (
+              <label className="field stock-unit-supplier">
+                <span>Proveedor</span>
+                <select
+                  aria-label="Proveedor"
+                  onChange={(event) => setSupplierId(event.target.value)}
+                  value={supplierId}
+                >
+                  <option value="">Sin proveedor</option>
+                  {sortedSuppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+                <small>De quién se compraron. Vale para todas las unidades de esta carga.</small>
+              </label>
+            )}
+
             <div className="unit-drafts">
               {units.map((unit, index) => (
                 <fieldset className="unit-draft" key={unit.key}>
@@ -449,6 +491,19 @@ export function UnitFormModal({
                         autoCapitalize="characters"
                         placeholder="Identificador único"
                         required
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Nro. de motor</span>
+                      <input
+                        aria-label={`Número de motor unidad ${index + 1}`}
+                        value={unit.engineNumber}
+                        onChange={(event) =>
+                          updateUnit(unit.key, { engineNumber: event.target.value })
+                        }
+                        maxLength={60}
+                        autoCapitalize="characters"
+                        placeholder="Opcional"
                       />
                     </label>
                     <label className="field">
