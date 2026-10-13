@@ -5,6 +5,7 @@ import { alertSuccess } from '../../shared/alerts'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { listClients } from '../clients/api'
 import type { Client } from '../clients/types'
+import { displayVersion } from '../../shared/utils/vehicleVersion'
 import { listSalesCatalogModels } from '../stock/api'
 import type { CatalogModel } from '../stock/types'
 import {
@@ -87,11 +88,29 @@ function modelLabel(model: Pick<CatalogModel, 'brand' | 'model' | 'version'>) {
   return [model.brand, model.model, model.version].filter(Boolean).join(' ')
 }
 
+const normalize = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('es-AR')
+
+/** Todas las palabras buscadas tienen que aparecer, en cualquier orden. */
+function matchesModel(model: CatalogModel, search: string) {
+  const label = normalize(modelLabel(model))
+  return normalize(search)
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((word) => label.includes(word))
+}
+
+const MODEL_RESULTS = 8
+
 function operationModelLabel(operation: SalesOperation) {
   return [
     operation.vehicle.model.brand.name,
     operation.vehicle.model.name,
-    operation.vehicle.versionName,
+    // Igual que en el catálogo: sin la versión marcador "SIN ESPECIFICAR".
+    displayVersion(operation.vehicle.versionName, operation.vehicle.model.name),
   ]
     .filter(Boolean)
     .join(' ')
@@ -225,15 +244,16 @@ export function EditOperationModal({
 
   const modelChanged = versionId !== operation.vehicle.versionId
   const selectedModel = models?.find((model) => model.id === versionId) ?? null
-  const term = modelSearch.trim().toLocaleLowerCase('es-AR')
-  const modelOptions = (models ?? [])
-    .filter(
-      (model) =>
-        model.id === versionId ||
-        !term ||
-        modelLabel(model).toLocaleLowerCase('es-AR').includes(term),
-    )
-    .sort((left, right) => modelLabel(left).localeCompare(modelLabel(right), 'es'))
+  const modelMatches =
+    modelSearch.trim().length >= 2 && models
+      ? models
+          .filter(
+            (model) =>
+              model.id !== operation.vehicle.versionId &&
+              matchesModel(model, modelSearch),
+          )
+          .sort((left, right) => modelLabel(left).localeCompare(modelLabel(right), 'es'))
+      : null
 
   // The current seller/contact may be outside the lists the user can pick
   // from (another branch, inactive): keep them selectable as they are.
@@ -394,43 +414,67 @@ export function EditOperationModal({
               <p className="field-hint" style={{ margin: 0 }}>
                 Cargado: <strong>{operationModelLabel(operation)}</strong>
               </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {modelChanged && selectedModel ? (
+                <div className="model-change">
+                  <span>
+                    Pasa a <strong>{modelLabel(selectedModel)}</strong>
+                  </span>
+                  <button
+                    className="button button--secondary button--compact"
+                    onClick={() => setVersionId(operation.vehicle.versionId)}
+                    type="button"
+                  >
+                    Dejar el cargado
+                  </button>
+                </div>
+              ) : (
                 <input
-                  aria-label="Buscar modelo"
-                  onChange={(event) => setModelSearch(event.target.value)}
-                  placeholder="Buscar marca, modelo o versión"
-                  style={{ flex: '1 1 180px' }}
-                  value={modelSearch}
-                />
-                <select
                   aria-labelledby="edit-operation-model"
                   disabled={models === null}
-                  onChange={(event) => setVersionId(event.target.value)}
-                  style={{ flex: '2 1 240px' }}
-                  value={versionId}
-                >
-                  {!modelOptions.some((model) => model.id === operation.vehicle.versionId) && (
-                    <option value={operation.vehicle.versionId}>
-                      {operationModelLabel(operation)}
-                    </option>
-                  )}
-                  {modelOptions.map((model) => (
-                    <option key={model.id} value={model.id}>
+                  onChange={(event) => setModelSearch(event.target.value)}
+                  placeholder={
+                    models === null
+                      ? 'Cargando modelos…'
+                      : 'Para cambiarlo, escribí marca, modelo o versión'
+                  }
+                  value={modelSearch}
+                />
+              )}
+              {!modelChanged && modelMatches && modelMatches.length === 0 && (
+                <small>No hay otro modelo con esas palabras.</small>
+              )}
+              {!modelChanged && modelMatches && modelMatches.length > 0 && (
+                <div className="model-results" role="group" aria-label="Modelos encontrados">
+                  {modelMatches.slice(0, MODEL_RESULTS).map((model) => (
+                    <button
+                      className="button button--secondary button--compact"
+                      key={model.id}
+                      onClick={() => {
+                        setVersionId(model.id)
+                        setModelSearch('')
+                      }}
+                      type="button"
+                    >
                       {modelLabel(model)}
-                    </option>
+                      {model.pricePolicy
+                        ? ` · ${formatMoney(String(model.pricePolicy.listPrice), operation.currency)}`
+                        : ' · sin precio'}
+                    </button>
                   ))}
-                </select>
-              </div>
-              {models === null && <small>Cargando modelos…</small>}
+                  {modelMatches.length > MODEL_RESULTS && (
+                    <small>
+                      Hay {modelMatches.length - MODEL_RESULTS} más: escribí algo más para
+                      achicar la lista.
+                    </small>
+                  )}
+                </div>
+              )}
               {modelChanged && (
                 <small>
-                  Pasa a <strong>{selectedModel ? modelLabel(selectedModel) : 'el modelo elegido'}</strong>
-                  {operation.listPrice !== null && selectedModel?.pricePolicy
-                    ? `. Lista y mínimo pasan a ser los del modelo nuevo a la fecha de la venta (hoy en el catálogo: ${formatMoney(
-                        String(selectedModel.pricePolicy.listPrice),
-                        operation.currency,
-                      )}). El precio de cierre no cambia.`
-                    : '. El precio de cierre no cambia.'}
+                  {operation.listPrice !== null
+                    ? 'Lista y mínimo pasan a ser los del modelo nuevo a la fecha de la venta. '
+                    : ''}
+                  El precio de cierre no cambia.
                   {operation.vehicle.unit &&
                     ` Tiene asignada la unidad ${operation.vehicle.unit.vin}: si es del modelo anterior, primero liberá la reserva.`}
                 </small>

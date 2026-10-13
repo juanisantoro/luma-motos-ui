@@ -77,6 +77,15 @@ function catalogModel(id: string, model: string, version: string, listPrice: num
   }
 }
 
+// El diálogo enfoca su primer campo en el cuadro siguiente: se espera a que
+// carguen las listas antes de escribir, como haría una persona.
+async function modelSearchInput() {
+  await screen.findByRole('option', { name: 'Vendedor Dos' })
+  return screen.findByPlaceholderText(
+    'Para cambiarlo, escribí marca, modelo o versión',
+  )
+}
+
 function renderModal() {
   const onSaved = vi.fn()
   render(
@@ -176,6 +185,8 @@ describe('Editar una venta ya cargada', () => {
       items: [{ id: 'client-9', fullName: 'VAZQUEZ LUCIANA', documentNumber: '34365310' }],
     })
     renderModal()
+    // Mismo motivo que modelSearchInput: que el foco del diálogo ya esté puesto.
+    await screen.findByRole('option', { name: 'Vendedor Dos' })
 
     await user.type(screen.getByLabelText('Cliente *'), 'vazquez')
     await user.click(screen.getByRole('button', { name: 'Buscar' }))
@@ -192,24 +203,45 @@ describe('Editar una venta ya cargada', () => {
     const user = userEvent.setup()
     renderModal()
 
-    await screen.findByRole('option', { name: 'Honda Biz 125' })
+    const search = await modelSearchInput()
     expect(mocks.listSalesCatalogModels).toHaveBeenCalledWith(
       'MOTO',
       operation.organizationId,
       'branch-1',
       expect.anything(),
     )
-    await user.type(screen.getByLabelText('Buscar modelo'), 'titan')
-    expect(screen.queryByRole('option', { name: 'Honda Biz 125' })).not.toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText('Modelo *'), 'version-3')
+    // Sin acentos ni orden: "titan cg" encuentra "CG Titan 150".
+    await user.type(search, 'titán cg')
+    const results = screen.getByRole('group', { name: 'Modelos encontrados' })
+    expect(results).toHaveTextContent('Honda CG Titan 150')
+    expect(results).not.toHaveTextContent('Biz')
+    await user.click(screen.getByRole('button', { name: /Honda CG Titan 150/ }))
+
     expect(screen.getByText(/Pasa a/)).toHaveTextContent('Honda CG Titan 150')
-    expect(screen.getByText(/Pasa a/)).toHaveTextContent('VIN-001')
+    expect(screen.getByText(/primero liberá la reserva/)).toHaveTextContent('VIN-001')
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(mocks.correctSalesOperation).toHaveBeenCalledWith('operation-1', {
       expectedVersion: 4,
       versionId: 'version-3',
     })
+  })
+
+  it('no ofrece el modelo cargado y permite volver atrás', async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    const search = await modelSearchInput()
+    await user.type(search, 'wave')
+    expect(screen.getByText('No hay otro modelo con esas palabras.')).toBeInTheDocument()
+    await user.clear(search)
+    await user.type(search, 'biz')
+    await user.click(screen.getByRole('button', { name: /Honda Biz 125/ }))
+    await user.click(screen.getByRole('button', { name: 'Dejar el cargado' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No cambiaste ningún dato.')
+    expect(mocks.correctSalesOperation).not.toHaveBeenCalled()
   })
 
   it('explica que hay que liberar la unidad del modelo anterior', async () => {
@@ -221,8 +253,11 @@ describe('Editar una venta ya cargada', () => {
     )
     renderModal()
 
-    await screen.findByRole('option', { name: 'Honda Biz 125' })
-    await user.selectOptions(screen.getByLabelText('Modelo *'), 'version-2')
+    await user.type(
+      await modelSearchInput(),
+      'biz',
+    )
+    await user.click(screen.getByRole('button', { name: /Honda Biz 125/ }))
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

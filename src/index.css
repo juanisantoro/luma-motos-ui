@@ -8614,3 +8614,24 @@ body:has(.service-page--work .service-actions) {
     letter-spacing: 0.05em;
   }
 }
+
+/* Editar venta: búsqueda y cambio de modelo. */
+.model-results {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.model-change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fafbfc;
+  font-size: 13px;
+}
