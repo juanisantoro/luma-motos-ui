@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   listSalesContacts: vi.fn(),
   listSalesFinancialInstitutions: vi.fn(),
   listClients: vi.fn(),
+  listSalesCatalogModels: vi.fn(),
   alertSuccess: vi.fn(),
 }))
 
@@ -21,6 +22,9 @@ vi.mock('./api', () => ({
   listSalesFinancialInstitutions: mocks.listSalesFinancialInstitutions,
 }))
 vi.mock('../clients/api', () => ({ listClients: mocks.listClients }))
+vi.mock('../stock/api', () => ({
+  listSalesCatalogModels: mocks.listSalesCatalogModels,
+}))
 vi.mock('../../shared/alerts', () => ({ alertSuccess: mocks.alertSuccess }))
 
 const operation = operationFixture({
@@ -42,7 +46,36 @@ beforeEach(() => {
     items: [{ id: 'fin-1', name: 'Banco Demo', taxId: null, active: true }],
   })
   mocks.correctSalesOperation.mockResolvedValue(operation)
+  mocks.listSalesCatalogModels.mockResolvedValue([
+    catalogModel('version-1', 'Wave', '110 S', 5000000),
+    catalogModel('version-2', 'Biz', '125', 6200000),
+    catalogModel('version-3', 'CG', 'Titan 150', 7100000),
+  ])
 })
+
+function catalogModel(id: string, model: string, version: string, listPrice: number) {
+  return {
+    id,
+    brandId: 'brand-1',
+    modelId: `model-${id}`,
+    vehicleType: 'MOTO',
+    brand: 'Honda',
+    model,
+    version,
+    active: true,
+    pricePolicy: {
+      id: `policy-${id}`,
+      versionId: id,
+      branchId: 'branch-1',
+      currency: 'ARS',
+      listPrice,
+      minimumPrice: listPrice - 100000,
+      validFrom: '2026-01-01',
+      validUntil: null,
+    },
+    photoUrl: null,
+  }
+}
 
 function renderModal() {
   const onSaved = vi.fn()
@@ -153,5 +186,47 @@ describe('Editar una venta ya cargada', () => {
       expectedVersion: 4,
       clientId: 'client-9',
     })
+  })
+
+  it('corrige el modelo que eligió mal el vendedor', async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    await screen.findByRole('option', { name: 'Honda Biz 125' })
+    expect(mocks.listSalesCatalogModels).toHaveBeenCalledWith(
+      'MOTO',
+      operation.organizationId,
+      'branch-1',
+      expect.anything(),
+    )
+    await user.type(screen.getByLabelText('Buscar modelo'), 'titan')
+    expect(screen.queryByRole('option', { name: 'Honda Biz 125' })).not.toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Modelo *'), 'version-3')
+    expect(screen.getByText(/Pasa a/)).toHaveTextContent('Honda CG Titan 150')
+    expect(screen.getByText(/Pasa a/)).toHaveTextContent('VIN-001')
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(mocks.correctSalesOperation).toHaveBeenCalledWith('operation-1', {
+      expectedVersion: 4,
+      versionId: 'version-3',
+    })
+  })
+
+  it('explica que hay que liberar la unidad del modelo anterior', async () => {
+    const user = userEvent.setup()
+    mocks.correctSalesOperation.mockRejectedValue(
+      new ApiError(409, 'The operation has a unit of another model assigned', {
+        code: 'CORRECTION_UNIT_OTHER_MODEL',
+      }),
+    )
+    renderModal()
+
+    await screen.findByRole('option', { name: 'Honda Biz 125' })
+    await user.selectOptions(screen.getByLabelText('Modelo *'), 'version-2')
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Primero liberá la reserva de esa unidad',
+    )
   })
 })

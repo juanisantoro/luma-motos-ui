@@ -420,6 +420,8 @@ export type UpdateSalesOperationInput = {
 // Corrección administrativa de una venta ya cargada (PATCH /:id/correction).
 export type CorrectSalesOperationInput = {
   expectedVersion: number
+  // Modelo (versión del catálogo), cuando el vendedor eligió mal la moto.
+  versionId?: string
   clientId?: string
   sellerId?: string
   contactId?: string | null

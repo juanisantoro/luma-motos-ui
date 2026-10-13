@@ -5,6 +5,8 @@ import { alertSuccess } from '../../shared/alerts'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { listClients } from '../clients/api'
 import type { Client } from '../clients/types'
+import { listSalesCatalogModels } from '../stock/api'
+import type { CatalogModel } from '../stock/types'
 import {
   correctSalesOperation,
   listSalesContacts,
@@ -12,7 +14,7 @@ import {
   listSalesSellers,
 } from './api'
 import { salesErrorMessage } from './errors'
-import { operationStatusLabels } from './presentation'
+import { formatMoney, operationStatusLabels } from './presentation'
 import type {
   CorrectSalesOperationInput,
   SalesDebt,
@@ -69,12 +71,38 @@ const CORRECTION_ERRORS: Record<string, string> = {
     'Elegí la financiera del crédito.',
   CORRECTION_OWN_CREDIT_ACTIVE:
     'La venta tiene un crédito propio con cuotas generadas: el crédito no se puede corregir desde acá. El resto de los datos sí.',
+  CORRECTION_UNIT_OTHER_MODEL:
+    'La venta tiene asignada una unidad del modelo anterior. Primero liberá la reserva de esa unidad (Liberar reserva) y después cambiá el modelo.',
+  CORRECTION_RESERVATION_ACTIVE:
+    'La venta tiene una reserva activa del modelo anterior. Primero liberala y después cambiá el modelo.',
+  CORRECTION_SUPPLY_IN_PROGRESS:
+    'Hay un pedido al proveedor en curso con el modelo anterior. Cancelá el pedido y después cambiá el modelo.',
+  ACTIVE_PRICE_POLICY_REQUIRED:
+    'El modelo elegido no tiene precio de lista cargado para esta sucursal a la fecha de la venta. Cargalo en el catálogo y volvé a intentar.',
+  CORRECTION_CURRENCY_MISMATCH:
+    'El modelo elegido tiene el precio en otra moneda que la venta.',
+}
+
+function modelLabel(model: Pick<CatalogModel, 'brand' | 'model' | 'version'>) {
+  return [model.brand, model.model, model.version].filter(Boolean).join(' ')
+}
+
+function operationModelLabel(operation: SalesOperation) {
+  return [
+    operation.vehicle.model.brand.name,
+    operation.vehicle.model.name,
+    operation.vehicle.versionName,
+  ]
+    .filter(Boolean)
+    .join(' ')
 }
 
 function correctionErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     const code = error.details?.code
     if (code && CORRECTION_ERRORS[code]) return CORRECTION_ERRORS[code]
+    if (error.status === 400 && error.message?.includes('Version is not available'))
+      return 'Ese modelo no está disponible para esta venta. Elegí otro del mismo tipo.'
     if (error.status === 400 && error.message) {
       if (error.message.includes('Credit amount'))
         return 'El monto del crédito no es válido para esa forma de pago: tiene que ser mayor a cero y no superar el precio.'
@@ -147,6 +175,9 @@ export function EditOperationModal({
   )
   const [includesHelmet, setIncludesHelmet] = useState(operation.includesHelmet)
   const [notes, setNotes] = useState(operation.notes ?? '')
+  const [versionId, setVersionId] = useState(operation.vehicle.versionId)
+  const [models, setModels] = useState<CatalogModel[] | null>(null)
+  const [modelSearch, setModelSearch] = useState('')
   const withCredit = platform !== '' && CREDIT_PLATFORMS.includes(platform)
 
   useEffect(() => {
@@ -172,6 +203,37 @@ export function EditOperationModal({
     })
     return () => controller.abort()
   }, [operation.organizationId])
+
+  // Modelos del mismo tipo (moto/auto) con su precio en la sucursal de la
+  // venta, para corregir el modelo que eligió el vendedor.
+  useEffect(() => {
+    const controller = new AbortController()
+    listSalesCatalogModels(
+      operation.vehicle.model.vehicleType,
+      operation.organizationId,
+      operation.branch.id,
+      controller.signal,
+    )
+      .then((items) => {
+        if (!controller.signal.aborted) setModels(items)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setModels([])
+      })
+    return () => controller.abort()
+  }, [operation.vehicle.model.vehicleType, operation.organizationId, operation.branch.id])
+
+  const modelChanged = versionId !== operation.vehicle.versionId
+  const selectedModel = models?.find((model) => model.id === versionId) ?? null
+  const term = modelSearch.trim().toLocaleLowerCase('es-AR')
+  const modelOptions = (models ?? [])
+    .filter(
+      (model) =>
+        model.id === versionId ||
+        !term ||
+        modelLabel(model).toLocaleLowerCase('es-AR').includes(term),
+    )
+    .sort((left, right) => modelLabel(left).localeCompare(modelLabel(right), 'es'))
 
   // The current seller/contact may be outside the lists the user can pick
   // from (another branch, inactive): keep them selectable as they are.
@@ -201,6 +263,7 @@ export function EditOperationModal({
 
   function changes(): Omit<CorrectSalesOperationInput, 'expectedVersion'> {
     const input: Omit<CorrectSalesOperationInput, 'expectedVersion'> = {}
+    if (modelChanged) input.versionId = versionId
     if (operationDate !== operation.operationDate.slice(0, 10))
       input.operationDate = operationDate
     if (client.id !== operation.client.id) input.clientId = client.id
@@ -300,7 +363,7 @@ export function EditOperationModal({
         </div>
         <p className="modal-description">
           El estado de la venta no cambia y no vuelve a pedir aprobación. La
-          moto y la patente se gestionan desde sus columnas. Si cambiás el
+          unidad asignada y la patente se gestionan desde sus columnas. Si cambiás el
           precio o la forma de pago, el plan de pago se reacomoda y los cobros
           ya cargados quedan en la venta.
         </p>
@@ -325,6 +388,54 @@ export function EditOperationModal({
                 value={ticketNumber}
               />
             </label>
+
+            <div className="field field--wide">
+              <span id="edit-operation-model">Modelo *</span>
+              <p className="field-hint" style={{ margin: 0 }}>
+                Cargado: <strong>{operationModelLabel(operation)}</strong>
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  aria-label="Buscar modelo"
+                  onChange={(event) => setModelSearch(event.target.value)}
+                  placeholder="Buscar marca, modelo o versión"
+                  style={{ flex: '1 1 180px' }}
+                  value={modelSearch}
+                />
+                <select
+                  aria-labelledby="edit-operation-model"
+                  disabled={models === null}
+                  onChange={(event) => setVersionId(event.target.value)}
+                  style={{ flex: '2 1 240px' }}
+                  value={versionId}
+                >
+                  {!modelOptions.some((model) => model.id === operation.vehicle.versionId) && (
+                    <option value={operation.vehicle.versionId}>
+                      {operationModelLabel(operation)}
+                    </option>
+                  )}
+                  {modelOptions.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {modelLabel(model)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {models === null && <small>Cargando modelos…</small>}
+              {modelChanged && (
+                <small>
+                  Pasa a <strong>{selectedModel ? modelLabel(selectedModel) : 'el modelo elegido'}</strong>
+                  {operation.listPrice !== null && selectedModel?.pricePolicy
+                    ? `. Lista y mínimo pasan a ser los del modelo nuevo a la fecha de la venta (hoy en el catálogo: ${formatMoney(
+                        String(selectedModel.pricePolicy.listPrice),
+                        operation.currency,
+                      )}). El precio de cierre no cambia.`
+                    : '. El precio de cierre no cambia.'}
+                  {operation.vehicle.unit &&
+                    ` Tiene asignada la unidad ${operation.vehicle.unit.vin}: si es del modelo anterior, primero liberá la reserva.`}
+                </small>
+              )}
+            </div>
 
             <div className="field field--wide">
               <span id="edit-operation-client">Cliente *</span>
