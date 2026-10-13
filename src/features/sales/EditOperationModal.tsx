@@ -58,6 +58,7 @@ const DELIVERY: Array<{ value: SalesDeliveryStatus; label: string }> = [
 ]
 
 const CORRECTION_ERRORS: Record<string, string> = {
+  DELIVERY_DATE_REQUIRED: 'Elegí el día de la entrega.',
   CORRECTION_TRADE_IN_REQUIRED:
     'Esa forma de pago incluye una moto en parte de pago y la venta no tiene ninguna cargada. Elegí una forma de pago sin moto.',
   CORRECTION_TRADE_IN_PRESENT:
@@ -139,6 +140,8 @@ export function EditOperationModal({
   const [deliveryStatus, setDeliveryStatus] = useState<SalesDeliveryStatus>(
     operation.deliveryStatus,
   )
+  const initialDeliveryDate = operation.deliveryScheduledDate ?? ''
+  const [deliveryDate, setDeliveryDate] = useState(initialDeliveryDate)
   const [papersDelivered, setPapersDelivered] = useState(
     operation.papersDelivered,
   )
@@ -222,6 +225,8 @@ export function EditOperationModal({
     if (debt !== operation.debt) input.debt = debt
     if (deliveryStatus !== operation.deliveryStatus)
       input.deliveryStatus = deliveryStatus
+    if (deliveryStatus === 'PROGRAMADA' && deliveryDate !== initialDeliveryDate)
+      input.deliveryScheduledDate = deliveryDate
     if (papersDelivered !== operation.papersDelivered)
       input.papersDelivered = papersDelivered
     if (includesHelmet !== operation.includesHelmet)
@@ -244,6 +249,10 @@ export function EditOperationModal({
     }
     if (withCredit && !(Number(creditAmount) > 0)) {
       setError('Ingresá el monto del crédito.')
+      return
+    }
+    if (deliveryStatus === 'PROGRAMADA' && !deliveryDate) {
+      setError('Elegí el día de la entrega.')
       return
     }
     setSaving(true)
@@ -490,6 +499,18 @@ export function EditOperationModal({
                 ))}
               </select>
             </label>
+            {deliveryStatus === 'PROGRAMADA' && (
+              <label className="field">
+                <span>Día de entrega *</span>
+                <input
+                  min={operationDate}
+                  onChange={(event) => setDeliveryDate(event.target.value)}
+                  type="date"
+                  value={deliveryDate}
+                />
+                <small>El día que se acordó con el cliente para entregarle la moto.</small>
+              </label>
+            )}
             <label className="operation-check">
               <input
                 checked={papersDelivered}

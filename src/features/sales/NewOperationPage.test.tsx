@@ -587,6 +587,42 @@ describe('Nueva operación productiva', () => {
     expect(mocks.createOperation).not.toHaveBeenCalled()
   })
 
+  it('programa la entrega al cargar la operación, con el día acordado', async () => {
+    renderPage()
+    const user = await completeBaseData()
+    expect(screen.queryByLabelText(/^Día de entrega/)).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/^Estado de entrega/), {
+      target: { value: 'PROGRAMADA' },
+    })
+    await user.click(
+      screen.getByRole('button', { name: 'Guardar y enviar operación' }),
+    )
+    expect(await screen.findByText('Elegí el día de la entrega.')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/^Día de entrega/), {
+      target: { value: '2099-10-20' },
+    })
+    await user.click(
+      screen.getByRole('button', { name: 'Guardar y enviar operación' }),
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: /Confirmá la operación de moto/,
+    })
+    expect(
+      within(within(dialog).getByText('Entrega').closest('div') as HTMLElement).getByText(
+        'Programada para el 20/10/2099',
+      ),
+    ).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar y enviar' }))
+    expect(mocks.createOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deliveryStatus: 'PROGRAMADA',
+        deliveryScheduledDate: '2099-10-20',
+      }),
+    )
+  })
+
   it('previsualiza lo que se va a guardar y vuelve al formulario sin perder datos', async () => {
     renderPage()
     const user = await completeBaseData()

@@ -5,7 +5,6 @@ import {
   HardHat,
   LoaderCircle,
   RefreshCw,
-  Store,
   UserRound,
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
@@ -110,6 +109,7 @@ type FormField =
   | 'tradeInAmount'
   | 'licensingMode'
   | 'licensingAmount'
+  | 'deliveryScheduledDate'
 
 type FieldErrors = Partial<Record<FormField, string>>
 
@@ -315,6 +315,10 @@ export function NewOperationPage({
   const [sellerId, setSellerId] = useState('')
   const [contactId, setContactId] = useState('')
   const [debtStatus, setDebtStatus] = useState<SalesDebt>('NO')
+  // La entrega arranca sin programar o programada para el día que se acordó
+  // con el cliente (lista y entregada recién con la operación aprobada).
+  const [deliveryScheduled, setDeliveryScheduled] = useState(false)
+  const [deliveryScheduledDate, setDeliveryScheduledDate] = useState('')
   const [papersDelivered, setPapersDelivered] = useState(false)
   const [notes, setNotes] = useState('')
 
@@ -887,6 +891,12 @@ export function NewOperationPage({
     if (!licensingMode) {
       errors.licensingMode = 'Elegí la modalidad de patentamiento.'
     }
+    if (deliveryScheduled && !deliveryScheduledDate) {
+      errors.deliveryScheduledDate = 'Elegí el día de la entrega.'
+    } else if (deliveryScheduled && deliveryScheduledDate < operationDate) {
+      errors.deliveryScheduledDate =
+        'La entrega no puede ser antes de la fecha de la operación.'
+    }
     if (licensingMode === 'PAGA_CLIENTE' && licensingAmount.trim()) {
       const amount = Number(licensingAmount)
       if (!Number.isFinite(amount) || amount <= 0) {
@@ -976,7 +986,9 @@ export function NewOperationPage({
         sellerId,
         ...(contactId ? { contactId } : {}),
         operationDate,
-        deliveryStatus: 'NO_PROGRAMADA',
+        ...(deliveryScheduled
+          ? { deliveryStatus: 'PROGRAMADA' as const, deliveryScheduledDate }
+          : { deliveryStatus: 'NO_PROGRAMADA' as const }),
         papersDelivered,
         debt: debtStatus,
         submit: false,
@@ -1230,6 +1242,12 @@ export function NewOperationPage({
       {
         title: 'Entrega y patentamiento',
         rows: [
+          {
+            label: 'Entrega',
+            value: deliveryScheduled
+              ? `Programada para el ${deliveryScheduledDate.split('-').reverse().join('/')}`
+              : 'No programada',
+          },
           { label: 'Casco de regalo', value: includesHelmet ? 'Sí' : 'No' },
           {
             label: 'Patentamiento',
@@ -2032,14 +2050,43 @@ export function NewOperationPage({
               description="Estado inicial, documentación y pendientes de la operación."
             />
             <div className="operation-form-grid">
-              <div className="field">
+              <label className="field">
                 <span>Estado de entrega</span>
-                <div className="operation-readonly">
-                  <Store size={16} aria-hidden="true" />
-                  No programada
-                </div>
-                <small>Se programa después de aprobar la operación.</small>
-              </div>
+                <select
+                  onChange={(event) => {
+                    const scheduled = event.target.value === 'PROGRAMADA'
+                    setDeliveryScheduled(scheduled)
+                    if (!scheduled) setDeliveryScheduledDate('')
+                    clearError('deliveryScheduledDate')
+                  }}
+                  value={deliveryScheduled ? 'PROGRAMADA' : 'NO_PROGRAMADA'}
+                >
+                  <option value="NO_PROGRAMADA">No programada</option>
+                  <option value="PROGRAMADA">Programada</option>
+                </select>
+                <small>
+                  {deliveryScheduled
+                    ? 'Elegí el día que acordaste con el cliente.'
+                    : 'Si ya acordaste el día con el cliente, elegí Programada.'}
+                </small>
+              </label>
+              {deliveryScheduled && (
+                <label className="field">
+                  <span>Día de entrega *</span>
+                  <input
+                    aria-invalid={Boolean(fieldErrors.deliveryScheduledDate)}
+                    data-field="deliveryScheduledDate"
+                    min={operationDate}
+                    onChange={(event) => {
+                      setDeliveryScheduledDate(event.target.value)
+                      clearError('deliveryScheduledDate')
+                    }}
+                    type="date"
+                    value={deliveryScheduledDate}
+                  />
+                  <FieldError message={fieldErrors.deliveryScheduledDate} />
+                </label>
+              )}
               <label className="field">
                 <span>Debe</span>
                 <select

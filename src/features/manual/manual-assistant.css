@@ -6,7 +6,9 @@
   position: fixed;
   z-index: 40;
   right: 20px;
-  bottom: 20px;
+  /* --lumi-lift lo suben las pantallas con una barra de acciones abajo
+     (Guardar, Firmar), para que Lumi no tape esos botones. */
+  bottom: calc(20px + var(--lumi-lift, 0px));
   display: grid;
   justify-items: end;
   gap: 12px;
@@ -67,7 +69,7 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   width: min(384px, calc(100vw - 24px));
-  height: min(560px, calc(100dvh - 120px));
+  height: min(560px, calc(100dvh - 120px - var(--lumi-lift, 0px)));
   overflow: hidden;
   border-radius: 20px;
   background: white;
@@ -345,11 +347,11 @@
 @media (max-width: 640px) {
   .lumi {
     right: 12px;
-    bottom: 12px;
+    bottom: calc(12px + var(--lumi-lift, 0px));
   }
 
   .lumi__panel {
-    height: min(560px, calc(100dvh - 96px));
+    height: min(560px, calc(100dvh - 96px - var(--lumi-lift, 0px)));
   }
 
   .lumi__launcher {

@@ -114,6 +114,8 @@ export type SalesOperation = {
   operationDate: string
   status: SalesOperationStatus
   deliveryStatus: SalesDeliveryStatus
+  // Día de entrega acordado ("AAAA-MM-DD"); sólo con la entrega programada.
+  deliveryScheduledDate?: string | null
   documentationStatus: string
   papersDelivered: boolean
   papersDeliveredAt: string | null
@@ -364,6 +366,7 @@ type CreateSalesOperationBase = {
   operationDate?: string
   reservationExpiresAt?: string
   deliveryStatus?: SalesDeliveryStatus
+  deliveryScheduledDate?: string
   papersDelivered?: boolean
   debt?: SalesDebt
   submit?: boolean
@@ -404,6 +407,7 @@ export type UpdateSalesOperationInput = {
   guarantor?: string | null
   operationDate?: string
   deliveryStatus?: SalesDeliveryStatus
+  deliveryScheduledDate?: string
   papersDelivered?: boolean
   debt?: SalesDebt
   notes?: string | null
@@ -426,6 +430,7 @@ export type CorrectSalesOperationInput = {
   guarantor?: string | null
   operationDate?: string
   deliveryStatus?: SalesDeliveryStatus
+  deliveryScheduledDate?: string
   papersDelivered?: boolean
   debt?: SalesDebt
   notes?: string | null

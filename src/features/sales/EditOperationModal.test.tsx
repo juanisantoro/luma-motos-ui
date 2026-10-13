@@ -116,6 +116,27 @@ describe('Editar una venta ya cargada', () => {
     )
   })
 
+  it('al programar la entrega pide el día y lo manda', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await screen.findByRole('option', { name: 'Vendedor Dos' })
+
+    expect(screen.queryByLabelText(/^Día de entrega/)).not.toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Entrega'), 'PROGRAMADA')
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    expect(screen.getByText('Elegí el día de la entrega.')).toBeInTheDocument()
+    expect(mocks.correctSalesOperation).not.toHaveBeenCalled()
+
+    await user.type(screen.getByLabelText(/^Día de entrega/), '2026-10-20')
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(mocks.correctSalesOperation).toHaveBeenCalledWith('operation-1', {
+      expectedVersion: 4,
+      deliveryStatus: 'PROGRAMADA',
+      deliveryScheduledDate: '2026-10-20',
+    })
+  })
+
   it('permite cambiar el cliente buscándolo', async () => {
     const user = userEvent.setup()
     mocks.listClients.mockResolvedValue({

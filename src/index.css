@@ -8291,6 +8291,21 @@ span.service-task__notes {
   width: auto;
 }
 
+/* Lumi flota abajo a la derecha: en las pantallas con barra de acciones
+   abajo (nueva operación, orden de service) sube para no tapar Guardar o
+   Terminar y firmar. */
+body:has(.operation-form__actions),
+body:has(.service-page--work .service-actions) {
+  --lumi-lift: 76px;
+}
+
+@media (max-width: 640px) {
+  body:has(.operation-form__actions),
+  body:has(.service-page--work .service-actions) {
+    --lumi-lift: 120px;
+  }
+}
+
 /* En el celular las listas de órdenes son tarjetas: el botón queda a mano. */
 @media (max-width: 720px) {
   .financial-table.service-table {
