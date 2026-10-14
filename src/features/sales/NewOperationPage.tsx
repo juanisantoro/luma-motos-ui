@@ -61,6 +61,7 @@ import {
   replaceSalesPaymentPlan,
   submitSalesOperation,
 } from './api'
+import { reportValidationBlock } from '../../shared/api/clientLogs'
 import { salesErrorMessage } from './errors'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import {
@@ -820,6 +821,25 @@ export function NewOperationPage({
       ]
     : []
   const tradeIn = tradeInRequired ? Number(tradeInAmount) : 0
+  // Lo que paga el cliente por su cuenta cuando hay crédito o moto: se
+  // calcula solo y se muestra para que el vendedor sepa cuánto queda.
+  const remainderType = platformRemainder(paymentPlatform)
+  const remainderPreview =
+    remainderType && (creditRequired || tradeInRequired)
+      ? {
+          label: `Por ${REMAINDER_NAMES[remainderType] ?? 'el resto'}`,
+          minus: [creditRequired && 'crédito', tradeInRequired && 'valor de la moto']
+            .filter(Boolean)
+            .join(' y '),
+          value: !(Number.isFinite(price) && price > 0)
+            ? 'Completá el precio de cierre'
+            : !Number.isFinite(price - credit - tradeIn)
+              ? 'Completá los importes'
+              : price - credit - tradeIn > 0
+                ? formatMoney(String(price - credit - tradeIn), policy?.currency ?? 'ARS')
+                : 'No queda resto',
+        }
+      : null
   const eligiblePersonalCreditPlans = personalCreditPlans.filter((plan) => {
     if (!Number.isFinite(price) || price <= 0) return true
     if (plan.minimumAmount !== null && price < plan.minimumAmount) return false
@@ -985,6 +1005,28 @@ export function NewOperationPage({
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) {
       setFormError('Revisá los campos marcados antes de guardar la operación.')
+      reportValidationBlock('Nueva operación', errors, {
+        vehicleType,
+        branchId,
+        condition,
+        vehicle: catalogModel
+          ? [catalogModel.brand, catalogModel.model, catalogModel.version]
+              .filter(Boolean)
+              .join(' ')
+          : null,
+        listPrice: policy?.listPrice ?? null,
+        agreedPrice,
+        paymentPlatform,
+        creditAmount,
+        secondCreditAmount,
+        financialInstitutionId,
+        secondFinancialInstitutionId,
+        tradeInAmount,
+        hasGuarantor: guarantor.hasGuarantor,
+        licensingMode,
+        licensingAmount,
+        personalCreditPlanId,
+      })
       const first = Object.keys(errors)[0]
       window.requestAnimationFrame(() =>
         document.querySelector<HTMLElement>(`[data-field="${first}"]`)?.focus(),
@@ -2067,6 +2109,20 @@ export function NewOperationPage({
                     <FieldError message={fieldErrors.tradeInAmount} />
                   </label>
                 </>
+              )}
+
+              {remainderPreview && (
+                <label className="field">
+                  <span>{remainderPreview.label}</span>
+                  <input
+                    aria-describedby="operation-remainder-hint"
+                    readOnly
+                    value={remainderPreview.value}
+                  />
+                  <small className="field-hint" id="operation-remainder-hint">
+                    Se calcula solo: precio menos {remainderPreview.minus}.
+                  </small>
+                </label>
               )}
 
               {canOfferPersonalCredit && (

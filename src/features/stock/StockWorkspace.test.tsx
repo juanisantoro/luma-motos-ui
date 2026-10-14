@@ -136,6 +136,7 @@ function renderWorkspace(overrides?: {
 }) {
   const handlers = {
     onCreateUnits: vi.fn().mockResolvedValue(undefined),
+    onCreateCatalogModel: vi.fn().mockResolvedValue(undefined),
     onUpsertAvailability: vi.fn().mockResolvedValue(undefined),
     onConfigurePrice: vi.fn().mockResolvedValue(undefined),
     onUpdateCatalogModel: vi.fn().mockResolvedValue(undefined),
@@ -331,6 +332,75 @@ describe('workspace de stock', () => {
         name: /Zanella ZB · 110 · Sin precio configurado/,
       }),
     ).toBeInTheDocument()
+  })
+
+  it('da de alta un modelo con precio sin cargar stock', async () => {
+    const user = userEvent.setup()
+    const handlers = renderWorkspace({
+      capabilities: { ...capabilities, createCatalog: true },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Nuevo modelo' }))
+    const dialog = screen.getByRole('dialog', { name: 'Nuevo modelo de moto' })
+    await user.type(within(dialog).getByLabelText('Marca *'), 'Hero')
+    await user.type(within(dialog).getByLabelText('Modelo *'), 'NEX 125')
+    await user.type(within(dialog).getByLabelText('Precio de lista *'), '3125000')
+    await user.type(within(dialog).getByLabelText('Precio mínimo *'), '3125000')
+    await user.click(within(dialog).getByRole('button', { name: 'Crear modelo' }))
+
+    await waitFor(() =>
+      expect(handlers.onCreateCatalogModel).toHaveBeenCalledWith({
+        vehicleType: 'MOTO',
+        catalogModel: {
+          brandName: 'Hero',
+          modelName: 'NEX 125',
+          versionName: 'NEX 125',
+          scope: 'RESTRINGIDO',
+          listPrice: 3125000,
+          minimumPrice: 3125000,
+        },
+      }),
+    )
+    expect(handlers.onCreateUnits).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Nuevo modelo de moto' }),
+      ).not.toBeInTheDocument(),
+    )
+  })
+
+  it('no deja crear un modelo repetido ni con mínimo mayor a lista', async () => {
+    const user = userEvent.setup()
+    const handlers = renderWorkspace({
+      capabilities: { ...capabilities, createCatalog: true },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Nuevo modelo' }))
+    const dialog = screen.getByRole('dialog', { name: 'Nuevo modelo de moto' })
+    await user.type(within(dialog).getByLabelText('Marca *'), 'honda')
+    await user.type(within(dialog).getByLabelText('Modelo *'), 'wave')
+    await user.type(within(dialog).getByLabelText('Versión'), '110 s')
+    await user.type(within(dialog).getByLabelText('Precio de lista *'), '100')
+    await user.type(within(dialog).getByLabelText('Precio mínimo *'), '200')
+    await user.click(within(dialog).getByRole('button', { name: 'Crear modelo' }))
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(
+      'El precio mínimo no puede ser mayor',
+    )
+
+    await user.clear(within(dialog).getByLabelText('Precio mínimo *'))
+    await user.type(within(dialog).getByLabelText('Precio mínimo *'), '90')
+    await user.click(within(dialog).getByRole('button', { name: 'Crear modelo' }))
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(
+      'Ese modelo ya está en el catálogo',
+    )
+    expect(handlers.onCreateCatalogModel).not.toHaveBeenCalled()
+  })
+
+  it('sin permiso de catálogo no muestra Nuevo modelo', () => {
+    renderWorkspace()
+    expect(
+      screen.queryByRole('button', { name: 'Nuevo modelo' }),
+    ).not.toBeInTheDocument()
   })
 
   it('ofrece alta inline cuando no hay modelos cargados', async () => {

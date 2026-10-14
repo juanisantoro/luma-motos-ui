@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CatalogModelModal } from './CatalogModelModal'
+import { NewCatalogModelModal } from './NewCatalogModelModal'
 import { UnitColorModal } from './UnitColorModal'
 import { ProviderAvailabilityModal } from './ProviderAvailabilityModal'
 import { PricePolicyModal } from './PricePolicyModal'
@@ -44,6 +45,7 @@ import type {
   BranchOption,
   CatalogPricePolicy,
   ConfigurePriceInput,
+  CreateCatalogModelInput,
   CreateUnitsInput,
   PhysicalUnit,
   ReceiveSupplyInput,
@@ -69,6 +71,7 @@ type StockWorkspaceProps = {
   branchLocked?: boolean
   capabilities: StockCapabilities
   onCreateUnits: (input: CreateUnitsInput) => Promise<void>
+  onCreateCatalogModel?: (input: CreateCatalogModelInput) => Promise<void>
   onUpsertAvailability: (input: UpsertAvailabilityInput) => Promise<void>
   onConfigurePrice: (input: ConfigurePriceInput) => Promise<void>
   onUpdateCatalogModel: (input: UpdateCatalogModelInput) => Promise<void>
@@ -926,6 +929,7 @@ export function StockWorkspace({
   branchLocked = false,
   capabilities,
   onCreateUnits,
+  onCreateCatalogModel,
   onUpsertAvailability,
   onConfigurePrice,
   onUpdateCatalogModel,
@@ -939,6 +943,7 @@ export function StockWorkspace({
     [],
   )
   const priceLinkHandled = useRef(false)
+  const [newModelOpen, setNewModelOpen] = useState(false)
   const requestedTab = searchParams.get('tab')
   const [tab, setTab] = useState<StockTab>(
     requestedTab === 'catalog' ||
@@ -1284,6 +1289,19 @@ export function StockWorkspace({
             >
               <Store size={18} />
               + {vehicleType === 'MOTO' ? 'Motos' : 'Autos'} de proveedor
+            </button>
+          )}
+          {capabilities.createCatalog && onCreateCatalogModel && (
+            <button
+              className="button button--secondary"
+              onClick={() => {
+                setActionError(null)
+                setNewModelOpen(true)
+              }}
+              type="button"
+            >
+              <Plus size={18} />
+              Nuevo modelo
             </button>
           )}
           {capabilities.createUnits && (
@@ -1669,6 +1687,25 @@ export function StockWorkspace({
             )
           }
           submitting={busy}
+        />
+      )}
+      {newModelOpen && onCreateCatalogModel && (
+        <NewCatalogModelModal
+          catalog={data.catalog}
+          error={actionError}
+          onClose={() => setNewModelOpen(false)}
+          onSubmit={(input) =>
+            void runMutation(
+              () => onCreateCatalogModel(input),
+              () => {
+                setNewModelOpen(false)
+                setTab('catalog')
+              },
+              'El modelo se agregó al catálogo.',
+            )
+          }
+          submitting={busy}
+          vehicleType={vehicleType}
         />
       )}
       {editingCatalog && (

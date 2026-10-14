@@ -177,6 +177,11 @@ export function StockPage({
           gateway.createUnits(input, targetOrganizationId),
         )
       }
+      onCreateCatalogModel={(input) =>
+        mutateAndReload(() =>
+          gateway.createCatalogModel(input, targetOrganizationId),
+        )
+      }
       onReceiveSupply={(supplyId, input) =>
         mutateAndReload(() => gateway.receiveSupply(supplyId, input))
       }

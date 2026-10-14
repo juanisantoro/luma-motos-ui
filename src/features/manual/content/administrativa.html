@@ -684,7 +684,7 @@ a{color:var(--red)}
         <tr><td>Unidades físicas</td><td>Cada moto que está en la sucursal, con su chasis y estado.</td><td>Buscar, cambiar color y acabado, imprimir etiquetas.</td></tr>
         <tr><td>Disponibilidad de proveedores</td><td>Cuántas motos de cada modelo dice tener cada proveedor. No son motos tuyas todavía.</td><td>Informar o actualizar la cantidad.</td></tr>
         <tr><td>Abastecimientos</td><td>Los pedidos a proveedores y en qué estado están.</td><td>Avanzar el pedido y registrar la recepción.</td></tr>
-        <tr><td>Catálogo de modelos</td><td>Los modelos con sus precios.</td><td>Editar la versión y actualizar precios.</td></tr>
+        <tr><td>Catálogo de modelos</td><td>Los modelos con sus precios.</td><td>Agregar un modelo nuevo, editar la versión y actualizar precios.</td></tr>
       </tbody>
     </table></div>
     <p>El buscador filtra a medida que escribís. Los filtros de Condición, Sucursal, Origen y Estado quedan puestos aunque cambies de pestaña.</p>
@@ -732,7 +732,20 @@ a{color:var(--red)}
       <li><span>Para cargar varias 0 km del mismo modelo, tocá <strong>Agregar unidad</strong>. Los usados se cargan de a uno.</span></li>
       <li><span>Tocá <strong>Ingresar N unidades</strong>.</span></li>
     </ol>
-    <p class="warn">Dejá tildada la casilla "La marca o modelo no existe" sólo si la marca y el modelo ya están cargados en el sistema y falta la versión: pide Marca, Modelo, Precio sugerido y Precio mínimo, y crea la versión con su precio. Una marca o un modelo totalmente nuevos los tiene que crear un Administrador; si lo intentás vos, dice "No tenés permiso para realizar esta acción".</p>
+    <p class="warn">La casilla "La marca o modelo no existe" crea el modelo con su precio al mismo tiempo que ingresás las motos. Si todavía no llegó ninguna, usá <strong>Nuevo modelo</strong> (abajo).</p>
+  </section>
+
+  <section>
+    <h3>Agregar un modelo sin stock</h3>
+    <span class="where">Stock de motos → Nuevo modelo</span>
+    <p>Para tener un modelo en el catálogo, con precio, antes de que llegue la primera moto: así se puede vender o pedir al proveedor.</p>
+    <ol class="steps">
+      <li><span>Tocá <strong>Nuevo modelo</strong>.</span></li>
+      <li><span>Completá <strong>Marca</strong> y <strong>Modelo</strong> (por ejemplo, Hero y NEX 125). La <strong>Versión</strong> es opcional: si la dejás vacía, queda igual al modelo.</span></li>
+      <li><span>Cargá <strong>Precio de lista</strong> y <strong>Precio mínimo</strong>. El mínimo no puede ser mayor que el de lista.</span></li>
+      <li><span>Tocá <strong>Crear modelo</strong>. Aparece en la pestaña Catálogo de modelos.</span></li>
+    </ol>
+    <p>Si la marca o el modelo ya existen, los usa; no se duplican. Si el modelo ya está en el catálogo, avisa: para cambiarle el precio, buscalo en Catálogo de modelos y tocá Actualizar precios.</p>
   </section>
 
   <section>

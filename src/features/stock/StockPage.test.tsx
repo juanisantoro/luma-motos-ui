@@ -37,6 +37,7 @@ function gateway(
   return {
     loadWorkspace,
     createUnits: vi.fn().mockResolvedValue(undefined),
+    createCatalogModel: vi.fn().mockResolvedValue(undefined),
     upsertAvailability: vi.fn().mockResolvedValue(undefined),
     configurePrice: vi.fn().mockResolvedValue(undefined),
     updateCatalogModel: vi.fn().mockResolvedValue(undefined),

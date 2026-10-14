@@ -755,6 +755,17 @@ export const stockApiGateway: StockGateway = {
       body: { units },
     })
   },
+  // Alta de catálogo sola: marca, modelo y versión (reusa las que ya existen)
+  // y su precio de lista y mínimo, sin cargar unidades.
+  async createCatalogModel(input, organizationId) {
+    const versionId = await createVersion(input, organizationId)
+    await ensureDraftPrice(
+      versionId,
+      input.catalogModel,
+      input.vehicleType,
+      organizationId,
+    )
+  },
   async upsertAvailability(input: UpsertAvailabilityInput, organizationId) {
     const versionId = await createVersion(input, organizationId)
     await ensureDraftPrice(

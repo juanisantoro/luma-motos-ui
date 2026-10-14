@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { ApiError, NetworkError } from '../../shared/api/client'
+import { formatMoney } from './presentation'
 import { NewOperationPage } from './NewOperationPage'
 
 const mocks = vi.hoisted(() => ({
@@ -659,6 +660,10 @@ describe('Nueva operación productiva', () => {
     fireEvent.change(screen.getByLabelText('Precio de cierre *'), {
       target: { value: '4400000' },
     })
+    // El resto por transferencia se muestra solo, sin escribirlo.
+    expect(screen.getByLabelText(/^Por transferencia/)).toHaveValue(
+      formatMoney('3400000', 'ARS'),
+    )
     await confirmSave(user, 'Guardar y enviar operación')
 
     expect(mocks.replacePaymentPlan).toHaveBeenCalledWith('operation-1', {
@@ -675,6 +680,8 @@ describe('Nueva operación productiva', () => {
     const user = await completeBaseData()
     await user.selectOptions(screen.getByLabelText('Plataforma de pago *'), 'TARJETA')
     expect(screen.queryByLabelText('Monto del crédito *')).not.toBeInTheDocument()
+    // Sin crédito ni moto no hay resto que mostrar.
+    expect(screen.queryByLabelText(/^Por tarjeta/)).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Precio de cierre *'), {
       target: { value: '4400000' },
     })

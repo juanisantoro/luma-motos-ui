@@ -173,6 +173,12 @@ export type UnitDraft = {
   supplierId?: string
 }
 
+/** Alta de un modelo en el catálogo, con su precio, sin unidades en stock. */
+export type CreateCatalogModelInput = {
+  vehicleType: VehicleKind
+  catalogModel: CatalogModelDraft
+}
+
 export type CreateUnitsInput = {
   vehicleType: VehicleKind
   condition: VehicleCondition

@@ -1,5 +1,6 @@
 import type {
   ConfigurePriceInput,
+  CreateCatalogModelInput,
   CreateUnitsInput,
   ReceiveSupplyInput,
   StockCapabilities,
@@ -19,6 +20,10 @@ export type StockGateway = {
   ) => Promise<StockWorkspaceData>
   createUnits: (
     input: CreateUnitsInput,
+    organizationId?: string,
+  ) => Promise<void>
+  createCatalogModel: (
+    input: CreateCatalogModelInput,
     organizationId?: string,
   ) => Promise<void>
   upsertAvailability: (
