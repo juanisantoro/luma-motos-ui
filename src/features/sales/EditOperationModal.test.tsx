@@ -137,7 +137,41 @@ describe('Editar una venta ya cargada', () => {
       paymentPlatform: 'EFECTIVO_CREDITO',
       creditAmount: 2000000,
       financialInstitutionId: 'fin-1',
+      // Sin tildar "Tiene garante", el garante es el mismo cliente.
+      hasGuarantor: false,
     })
+  })
+
+  it('al tildar garante exige y manda nombre, apellido y DNI', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.selectOptions(
+      screen.getByLabelText('Forma de pago'),
+      'EFECTIVO_CREDITO',
+    )
+    await user.type(screen.getByLabelText('Monto del crédito *'), '2000000')
+    await screen.findByRole('option', { name: 'Banco Demo' })
+    await user.selectOptions(screen.getByLabelText('Financiera *'), 'fin-1')
+    await user.click(screen.getByLabelText('Tiene garante'))
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    expect(
+      await screen.findByText('Ingresá el nombre del garante.'),
+    ).toBeInTheDocument()
+    expect(mocks.correctSalesOperation).not.toHaveBeenCalled()
+
+    await user.type(screen.getByLabelText('Nombre del garante *'), 'Juan')
+    await user.type(screen.getByLabelText('Apellido del garante *'), 'Pérez')
+    await user.type(screen.getByLabelText('DNI del garante *'), '30111222')
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    expect(mocks.correctSalesOperation).toHaveBeenCalledWith(
+      'operation-1',
+      expect.objectContaining({
+        hasGuarantor: true,
+        guarantorFirstName: 'Juan',
+        guarantorLastName: 'Pérez',
+        guarantorDocument: '30111222',
+      }),
+    )
   })
 
   it('no guarda si no cambió nada y explica los rechazos del servidor', async () => {

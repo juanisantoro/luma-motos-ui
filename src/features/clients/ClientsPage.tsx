@@ -168,7 +168,7 @@ export function ClientsPage() {
             <input
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
-              placeholder="Buscar por nombre, documento o email"
+              placeholder="Buscar por nombre, documento, email o garante"
               type="search"
             />
           </label>

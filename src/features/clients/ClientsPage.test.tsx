@@ -59,7 +59,7 @@ describe('ClientsPage', () => {
     render(<ClientsPage />)
     await screen.findAllByText('Ana Cliente')
 
-    await user.type(screen.getByPlaceholderText('Buscar por nombre, documento o email'), 'Ana')
+    await user.type(screen.getByPlaceholderText('Buscar por nombre, documento, email o garante'), 'Ana')
     await user.click(screen.getByRole('button', { name: 'Buscar' }))
     await user.selectOptions(screen.getByLabelText('Filtrar por estado'), 'inactive')
     await waitFor(() =>

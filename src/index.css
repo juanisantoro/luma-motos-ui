@@ -2041,6 +2041,82 @@ a {
   width: min(520px, 100%);
 }
 
+/* Pago de un gasto repartido entre varias cajas. */
+.settlement-split__summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settlement-split {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settlement-split legend {
+  padding: 0;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.settlement-split__hint {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settlement-split__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(40px, auto);
+  gap: 0 10px;
+  align-items: end;
+}
+
+.settlement-split__row .field {
+  margin: 12px 0 0;
+}
+
+.settlement-split__row--saved {
+  opacity: 0.75;
+}
+
+.settlement-split__row .status-badge {
+  justify-self: start;
+  padding-inline: 6px;
+  font-size: 10px;
+}
+
+.settlement-split__add {
+  margin: 12px 0 10px;
+}
+
+.settlement-split__total {
+  margin: 0 0 6px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #fafbfc;
+  font-size: 13px;
+}
+
+.settlement-split__total--error {
+  background: #fff1f1;
+  color: var(--red);
+}
+
+@media (max-width: 560px) {
+  .settlement-split__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-split__row {
+    grid-template-columns: minmax(0, 1fr) minmax(40px, auto);
+  }
+
+  .settlement-split__row .field:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
 .financial-modal h2,
 .settlement-modal h2 {
   margin: 4px 0 0;
@@ -8640,4 +8716,121 @@ body:has(.service-page--work .service-actions) {
 .stock-unit-supplier {
   max-width: 420px;
   margin-bottom: 14px;
+}
+
+/* Avisos de service. */
+.reminders-branch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.reminders-branch select {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #d9dde2;
+  border-radius: 9px;
+  background: white;
+}
+
+.reminders-table {
+  min-width: 1120px;
+}
+
+.reminders-table td {
+  vertical-align: top;
+}
+
+.reminders-table .reminders-overdue {
+  color: #a61724;
+  font-weight: 750;
+}
+
+.reminders-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.reminders-actions small {
+  display: block;
+}
+
+.button.reminders-whatsapp {
+  border-color: #1f9d55;
+  background: #1f9d55;
+}
+
+.button.reminders-whatsapp:hover:not(:disabled) {
+  border-color: #17803f;
+  background: #17803f;
+}
+
+/* Garante del crédito (nueva operación y corrección de una venta). */
+.guarantor-fields {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.guarantor-fields legend {
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.guarantor-fields .operation-check {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.guarantor-fields .operation-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--red);
+}
+
+.guarantor-fields__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 12px;
+}
+
+.guarantor-fields__grid .field {
+  margin: 6px 0;
+}
+
+.guarantor-fields__grid input[readonly] {
+  color: #4b535d;
+  background: #f0f2f4;
+}
+
+.guarantor-fields__grid--client {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.guarantor-fields__hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  .guarantor-fields__grid,
+  .guarantor-fields__grid--client {
+    grid-template-columns: 1fr;
+  }
 }

@@ -69,6 +69,14 @@ import {
   useLicensingHolidays,
 } from './licensing'
 import { formatMoney } from './presentation'
+import {
+  emptyGuarantor,
+  GuarantorFields,
+  guarantorLabel,
+  guarantorPayload,
+  type GuarantorState,
+  validateGuarantor,
+} from './GuarantorFields'
 import { localIsoDate } from '../../shared/utils/date'
 import {
   CreatedOperationPanel,
@@ -110,6 +118,9 @@ type FormField =
   | 'licensingMode'
   | 'licensingAmount'
   | 'deliveryScheduledDate'
+  | 'guarantorFirstName'
+  | 'guarantorLastName'
+  | 'guarantorDocument'
 
 type FieldErrors = Partial<Record<FormField, string>>
 
@@ -300,7 +311,7 @@ export function NewOperationPage({
   const [personalCreditPlanId, setPersonalCreditPlanId] = useState('')
   const [personalCreditAmount, setPersonalCreditAmount] = useState('')
   const [personalCreditFirstDueDate, setPersonalCreditFirstDueDate] = useState('')
-  const [guarantor, setGuarantor] = useState('')
+  const [guarantor, setGuarantor] = useState<GuarantorState>(emptyGuarantor)
   const [ticketNumber, setTicketNumber] = useState('')
   const [includesHelmet, setIncludesHelmet] = useState(false)
   const [licensingMode, setLicensingMode] = useState<SalesLicensingMode | ''>(
@@ -862,6 +873,7 @@ export function NewOperationPage({
         errors.creditAmount = 'El crédito no puede superar el precio de cierre.'
       }
     }
+    if (creditRequired) Object.assign(errors, validateGuarantor(guarantor))
     if (tradeInRequired) {
       if (!tradeInDescription.trim()) {
         errors.tradeInDescription = 'Describí la unidad recibida como parte de pago.'
@@ -971,7 +983,7 @@ export function NewOperationPage({
         agreedPrice: price,
         paymentPlatform,
         ...(creditRequired ? { creditAmount: credit } : {}),
-        ...(guarantor.trim() ? { guarantor: guarantor.trim() } : {}),
+        ...(creditRequired ? guarantorPayload(guarantor) : {}),
         ...(selectedVehicle.source === 'PHYSICAL'
           ? { unitId: selectedVehicle.unit.id }
           : selectedVehicle.source === 'SUPPLIER'
@@ -1226,8 +1238,16 @@ export function NewOperationPage({
           ...(tradeInRequired && tradeInDescription.trim()
             ? [{ label: 'Unidad tomada', value: tradeInDescription.trim() }]
             : []),
-          ...(guarantor.trim()
-            ? [{ label: 'Garante', value: guarantor.trim() }]
+          ...(creditRequired
+            ? [
+                {
+                  label: 'Garante',
+                  value: guarantorLabel(guarantor, {
+                    name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+                    documentNumber: normalizeDocument(documentNumber),
+                  }),
+                },
+              ]
             : []),
           ...(selectedPersonalCreditPlan
             ? [
@@ -1816,6 +1836,7 @@ export function NewOperationPage({
                     if (!platform.includes('CREDITO')) {
                       setCreditAmount('')
                       setFinancialInstitutionId('')
+                      setGuarantor(emptyGuarantor())
                     }
                     if (!platform.startsWith('MOTO_')) {
                       setTradeInDescription('')
@@ -1875,14 +1896,17 @@ export function NewOperationPage({
                     </select>
                     <FieldError message={fieldErrors.financialInstitution} />
                   </label>
-                  <label className="field">
-                    <span>Respaldo / garante</span>
-                    <input
-                      maxLength={500}
-                      onChange={(event) => setGuarantor(event.target.value)}
-                      value={guarantor}
-                    />
-                  </label>
+                  <GuarantorFields
+                    className="operation-span-3"
+                    client={{
+                      name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+                      documentNumber: normalizeDocument(documentNumber),
+                    }}
+                    errors={fieldErrors}
+                    onChange={setGuarantor}
+                    onClearError={clearError}
+                    value={guarantor}
+                  />
                   {financialStatus === 'error' && (
                     <div className="operation-field-retry" role="alert">
                       <span>{financialError}</span>

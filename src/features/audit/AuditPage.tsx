@@ -633,7 +633,7 @@ function MoneyTab({
                 setDraft({ ...draft, search: event.target.value })
               }
               maxLength={120}
-              placeholder="Cliente, concepto, referencia…"
+              placeholder="Cliente, garante, concepto, referencia…"
               value={draft.search ?? ''}
             />
           </label>

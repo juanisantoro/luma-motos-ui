@@ -48,6 +48,7 @@ export type PendingTaskKey =
   | 'LICENSING_PENDING_COLLECTION'
   | 'EXPENSES_PENDING_PAYMENT'
   | 'SERVICE_READY_TO_DELIVER'
+  | 'SERVICE_REMINDERS_DUE'
 
 export type PendingTasks = {
   branches: Array<{

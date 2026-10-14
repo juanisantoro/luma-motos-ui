@@ -16,6 +16,13 @@ import {
 } from './api'
 import { salesErrorMessage } from './errors'
 import { formatMoney, operationStatusLabels } from './presentation'
+import {
+  GuarantorFields,
+  guarantorPayload,
+  type GuarantorState,
+  guarantorStateFrom,
+  validateGuarantor,
+} from './GuarantorFields'
 import type {
   CorrectSalesOperationInput,
   SalesDebt,
@@ -165,9 +172,14 @@ export function EditOperationModal({
   const [operationDate, setOperationDate] = useState(
     operation.operationDate.slice(0, 10),
   )
-  const [client, setClient] = useState<{ id: string; fullName: string }>({
+  const [client, setClient] = useState<{
+    id: string
+    fullName: string
+    documentNumber: string
+  }>({
     id: operation.client.id,
     fullName: operation.client.fullName,
+    documentNumber: operation.client.documentNumber ?? '',
   })
   const [clientSearch, setClientSearch] = useState('')
   const [clientOptions, setClientOptions] = useState<Client[] | null>(null)
@@ -181,7 +193,11 @@ export function EditOperationModal({
   const [creditAmount, setCreditAmount] = useState(operation.creditAmount ?? '')
   const initialInstitutionId = currentFinancialInstitutionId(operation)
   const [institutionId, setInstitutionId] = useState(initialInstitutionId)
-  const [guarantor, setGuarantor] = useState(operation.guarantor ?? '')
+  const initialGuarantor = guarantorStateFrom(operation.guarantor)
+  const [guarantor, setGuarantor] = useState<GuarantorState>(initialGuarantor)
+  // Ventas con crédito cargadas antes del garante: quedan sin garante hasta
+  // que alguien lo indique acá.
+  const [guarantorTouched, setGuarantorTouched] = useState(false)
   const [ticketNumber, setTicketNumber] = useState(operation.ticketNumber ?? '')
   const [debt, setDebt] = useState<SalesDebt>(operation.debt)
   const [deliveryStatus, setDeliveryStatus] = useState<SalesDeliveryStatus>(
@@ -301,8 +317,19 @@ export function EditOperationModal({
       if (institutionId && institutionId !== initialInstitutionId)
         input.financialInstitutionId = institutionId
     }
-    if (guarantor.trim() !== (operation.guarantor ?? ''))
-      input.guarantor = guarantor.trim() || null
+    // El garante se manda cuando cambió, o cuando cambian la forma de pago o
+    // el cliente (sin garante propio, el garante es el cliente).
+    const guarantorChanged =
+      guarantorTouched &&
+      (!operation.guarantor ||
+        JSON.stringify(guarantor) !== JSON.stringify(initialGuarantor))
+    if (
+      withCredit &&
+      (guarantorChanged ||
+        input.paymentPlatform !== undefined ||
+        input.clientId !== undefined)
+    )
+      Object.assign(input, guarantorPayload(guarantor))
     if (ticketNumber.trim() !== (operation.ticketNumber ?? ''))
       input.ticketNumber = ticketNumber.trim() || null
     if (debt !== operation.debt) input.debt = debt
@@ -333,6 +360,13 @@ export function EditOperationModal({
     if (withCredit && !(Number(creditAmount) > 0)) {
       setError('Ingresá el monto del crédito.')
       return
+    }
+    if (withCredit && input.hasGuarantor !== undefined) {
+      const guarantorErrors = Object.values(validateGuarantor(guarantor))
+      if (guarantorErrors.length) {
+        setError(guarantorErrors[0] ?? '')
+        return
+      }
     }
     if (deliveryStatus === 'PROGRAMADA' && !deliveryDate) {
       setError('Elegí el día de la entrega.')
@@ -519,7 +553,11 @@ export function EditOperationModal({
                       className="button button--secondary button--compact"
                       key={option.id}
                       onClick={() => {
-                        setClient({ id: option.id, fullName: option.fullName })
+                        setClient({
+                          id: option.id,
+                          fullName: option.fullName,
+                          documentNumber: option.documentNumber ?? '',
+                        })
                         setClientOptions(null)
                         setClientSearch('')
                       }}
@@ -615,14 +653,27 @@ export function EditOperationModal({
                     ))}
                   </select>
                 </label>
-                <label className="field field--wide">
-                  <span>Respaldo / garante</span>
-                  <input
-                    maxLength={500}
-                    onChange={(event) => setGuarantor(event.target.value)}
-                    value={guarantor}
-                  />
-                </label>
+                {!operation.guarantor && !guarantorTouched && (
+                  <p className="field field--wide guarantor-fields__hint">
+                    Esta venta no tiene el garante cargado
+                    {operation.legacyGuarantor
+                      ? ` (antes figuraba: "${operation.legacyGuarantor}")`
+                      : ''}
+                    . Indicá si tiene garante para completarlo.
+                  </p>
+                )}
+                <GuarantorFields
+                  className="field--wide"
+                  client={{
+                    name: client.fullName,
+                    documentNumber: client.documentNumber,
+                  }}
+                  onChange={(value) => {
+                    setGuarantor(value)
+                    setGuarantorTouched(true)
+                  }}
+                  value={guarantor}
+                />
               </>
             )}
 

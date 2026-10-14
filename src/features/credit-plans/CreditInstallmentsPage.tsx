@@ -158,7 +158,7 @@ export function CreditInstallmentsPage() {
             <input
               id="ci-search"
               onChange={(event) => changeDraft('search', event.target.value)}
-              placeholder="Cliente u operación…"
+              placeholder="Cliente, operación o garante…"
               value={draft.search ?? ''}
             />
           </div>

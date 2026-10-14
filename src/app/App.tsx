@@ -47,6 +47,7 @@ import { WorkMonthsPage } from '../features/work-months/WorkMonthsPage'
 import { BalancePage } from '../features/balance/BalancePage'
 import { ServiceOrderPage } from '../features/service/ServiceOrderPage'
 import { ServiceOrdersPage } from '../features/service/ServiceOrdersPage'
+import { ServiceRemindersPage } from '../features/service/ServiceRemindersPage'
 import { ServiceTypesPage } from '../features/service/ServiceTypesPage'
 import { AppLayout } from './layout/AppLayout'
 import { ForbiddenPage, NotFoundPage } from './pages/ErrorPages'
@@ -75,6 +76,7 @@ export function App() {
                 element={<PermissionRoute permission="service.consultar" />}
               >
                 <Route path="service" element={<ServiceOrdersPage />} />
+                <Route path="service/avisos" element={<ServiceRemindersPage />} />
                 <Route path="service/:id" element={<ServiceOrderPage />} />
               </Route>
               <Route

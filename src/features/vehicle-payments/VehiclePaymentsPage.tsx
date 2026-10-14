@@ -429,7 +429,7 @@ export function VehiclePaymentsPage({
             <input
               id="vp-search"
               onChange={(event) => changeDraft('search', event.target.value)}
-              placeholder="Concepto, detalle, proveedor, VIN, boleto, operación…"
+              placeholder="Concepto, detalle, proveedor, VIN, boleto, operación, garante…"
               value={draft.search ?? ''}
             />
           </div>

@@ -846,7 +846,7 @@ export function FinancialRecordForm({
                             setPaySearch(event.target.value)
                             if (payOperation) selectPayOperation(null)
                           }}
-                          placeholder="Buscá por boleto, cliente, chasis o número de operación"
+                          placeholder="Buscá por boleto, cliente, garante, chasis o número de operación"
                           value={
                             payOperation
                               ? operationTitle(payOperation)
@@ -1057,7 +1057,7 @@ export function FinancialRecordForm({
                           setIncomeOperationSearch(event.target.value)
                           setSelectedIncomeOperation(null)
                         }}
-                        placeholder="Buscá por número de operación, cliente o VIN"
+                        placeholder="Buscá por número de operación, cliente, garante o VIN"
                         value={
                           selectedIncomeOperation
                             ? `${selectedIncomeOperation.number} · ${selectedIncomeOperation.client.fullName}`

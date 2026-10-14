@@ -498,7 +498,7 @@ export function OperationTrackingPanel({
           <input
             maxLength={80}
             onChange={(event) => change('search', event.target.value)}
-            placeholder="Operación, boleto o cliente"
+            placeholder="Operación, boleto, cliente o garante"
             type="search"
             value={draft.search}
           />

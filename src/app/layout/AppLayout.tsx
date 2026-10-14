@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   BadgeDollarSign,
   BanknoteArrowDown,
+  BellRing,
   Bike,
   BookOpen,
   CalendarRange,
@@ -412,6 +413,13 @@ const navigationGroups: NavGroup[] = [
         to: '/service',
         activePrefix: '/service',
         icon: Wrench,
+        permissions: ['service.consultar'],
+      },
+      {
+        label: 'Avisos de service',
+        description: 'Clientes a contactar esta semana',
+        to: '/service/avisos',
+        icon: BellRing,
         permissions: ['service.consultar'],
       },
       {

@@ -524,8 +524,19 @@ describe('Nueva operación productiva', () => {
       target: { value: '1000000' },
     })
     await user.selectOptions(screen.getByLabelText('Financiera *'), 'bank-1')
-    fireEvent.change(screen.getByLabelText('Respaldo / garante'), {
-      target: { value: 'Garantía personal' },
+    // Sin tildar, el garante es el mismo cliente.
+    expect(screen.getByLabelText('Garante (el mismo cliente)')).toHaveValue(
+      'Ana Cliente',
+    )
+    await user.click(screen.getByLabelText('Tiene garante'))
+    fireEvent.change(screen.getByLabelText('Nombre del garante *'), {
+      target: { value: 'Juan' },
+    })
+    fireEvent.change(screen.getByLabelText('Apellido del garante *'), {
+      target: { value: 'Pérez' },
+    })
+    fireEvent.change(screen.getByLabelText('DNI del garante *'), {
+      target: { value: '30.111.222' },
     })
     const closingPrice = screen.getByLabelText('Precio de cierre *')
     fireEvent.change(closingPrice, { target: { value: '4400000' } })
@@ -547,6 +558,10 @@ describe('Nueva operación productiva', () => {
         agreedPrice: 4_400_000,
         paymentPlatform: 'EFECTIVO_CREDITO',
         creditAmount: 1_000_000,
+        hasGuarantor: true,
+        guarantorFirstName: 'Juan',
+        guarantorLastName: 'Pérez',
+        guarantorDocument: '30111222',
         submit: false,
       }),
     )
@@ -568,6 +583,40 @@ describe('Nueva operación productiva', () => {
     expect(
       await screen.findByRole('heading', { name: 'Operación #105' }),
     ).toBeInTheDocument()
+  })
+
+  it('con garante exige nombre, apellido y DNI; sin garante manda que es el cliente', async () => {
+    renderPage()
+    const user = await completeBaseData()
+    await user.selectOptions(
+      screen.getByLabelText('Plataforma de pago *'),
+      'EFECTIVO_CREDITO',
+    )
+    fireEvent.change(screen.getByLabelText('Monto del crédito *'), {
+      target: { value: '1000000' },
+    })
+    await user.selectOptions(screen.getByLabelText('Financiera *'), 'bank-1')
+    fireEvent.change(screen.getByLabelText('Precio de cierre *'), {
+      target: { value: '4400000' },
+    })
+    await user.click(screen.getByLabelText('Tiene garante'))
+    await user.click(
+      screen.getByRole('button', { name: 'Guardar y enviar operación' }),
+    )
+    expect(
+      await screen.findByText('Ingresá el nombre del garante.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Ingresá el apellido del garante.')).toBeInTheDocument()
+    expect(screen.getByText('Ingresá el DNI del garante.')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await user.click(screen.getByLabelText('Tiene garante'))
+    await confirmSave(user, 'Guardar y enviar operación')
+    expect(mocks.createOperation).toHaveBeenCalledWith(
+      expect.objectContaining({ hasGuarantor: false }),
+    )
+    const payload = mocks.createOperation.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(payload.guarantorFirstName).toBeUndefined()
   })
 
   it('exige la modalidad de patentamiento antes de previsualizar', async () => {

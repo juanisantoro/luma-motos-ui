@@ -34,10 +34,19 @@ import {
   vehicleLabel,
 } from './presentation'
 import type { SalesOperation } from './types'
+import { guarantorSummary } from './GuarantorFields'
 
 /** Una venta propia de otra sucursal se ve pero no se modifica. */
 export function isReadOnly(operation: SalesOperation) {
   return operation.readOnly === true
+}
+
+// Garante de la venta: el estructurado o, en ventas viejas, el texto libre.
+function guarantorText(operation: SalesOperation) {
+  return (
+    guarantorSummary(operation.guarantor) ??
+    (operation.legacyGuarantor ? operation.legacyGuarantor : null)
+  )
 }
 
 function ReadOnlyBadge({ operation }: { operation: SalesOperation }) {
@@ -589,6 +598,12 @@ export function SalesOperationList({
                   <dd>{operation.ticketNumber}</dd>
                 </div>
               )}
+              {guarantorText(operation) && (
+                <div>
+                  <dt>Garante</dt>
+                  <dd>{guarantorText(operation)}</dd>
+                </div>
+              )}
               {showLicensing && (
                 <div>
                   <dt>Patentamiento</dt>
@@ -831,6 +846,12 @@ export function SalesOperationList({
                           <dt>Vendedor</dt>
                           <dd>{operation.seller?.fullName ?? 'Sin asignar'}</dd>
                         </div>
+                        {guarantorText(operation) && (
+                          <div>
+                            <dt>Garante</dt>
+                            <dd>{guarantorText(operation)}</dd>
+                          </div>
+                        )}
                         {showLicensing && (
                           <div>
                             <dt>Patentamiento</dt>

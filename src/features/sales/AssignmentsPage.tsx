@@ -205,7 +205,7 @@ export function AssignmentsPage({ vehicleType }: { vehicleType: VehicleKind }) {
             <input
               maxLength={80}
               onChange={(event) => setSearchDraft(event.target.value)}
-              placeholder="Operación, cliente o boleto"
+              placeholder="Operación, cliente, boleto o garante"
               type="search"
               value={searchDraft}
             />

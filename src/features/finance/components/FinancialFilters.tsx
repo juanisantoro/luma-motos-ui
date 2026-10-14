@@ -170,7 +170,11 @@ export function FinancialFilters({
           <Search size={18} aria-hidden="true" />
           <input
             type="search"
-            placeholder="Buscar por referencia, descripción o VIN"
+            placeholder={
+              kind === 'income'
+                ? 'Buscar por referencia, descripción, VIN, cliente o garante'
+                : 'Buscar por referencia, descripción o VIN'
+            }
             value={draft.search ?? ''}
             onChange={(event) => change('search', event.target.value)}
           />

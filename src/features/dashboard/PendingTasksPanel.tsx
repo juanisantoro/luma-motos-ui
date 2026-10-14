@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   Banknote,
+  BellRing,
   CalendarClock,
   CircleCheck,
   ClipboardCheck,
@@ -68,6 +69,11 @@ const TASKS: Record<
     label: 'Service terminados para entregar',
     to: '/service?tab=entregar',
     icon: Wrench,
+  },
+  SERVICE_REMINDERS_DUE: {
+    label: 'Clientes a contactar por el service',
+    to: '/service/avisos',
+    icon: BellRing,
   },
 }
 

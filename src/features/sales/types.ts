@@ -127,7 +127,11 @@ export type SalesOperation = {
   currency: string
   paymentPlatform: SalesPaymentPlatform | null
   creditAmount: string | null
-  guarantor: string | null
+  // Garante del crédito. null: sin crédito, o venta con crédito cargada antes
+  // de que existiera el garante.
+  guarantor?: SalesGuarantor | null
+  // Texto libre "respaldo / garante" de las ventas viejas (sólo lectura).
+  legacyGuarantor?: string | null
   ticketNumber: string | null
   requestedColor?: string | null
   fulfillment?: SalesFulfillment
@@ -362,7 +366,10 @@ type CreateSalesOperationBase = {
   contactId?: string
   paymentPlatform: SalesPaymentPlatform
   creditAmount?: number
-  guarantor?: string
+  hasGuarantor?: boolean
+  guarantorFirstName?: string
+  guarantorLastName?: string
+  guarantorDocument?: string
   operationDate?: string
   reservationExpiresAt?: string
   deliveryStatus?: SalesDeliveryStatus
@@ -395,6 +402,16 @@ export type CreateSalesOperationInput = CreateSalesOperationBase &
       }
   )
 
+export type SalesGuarantor = {
+  hasGuarantor: boolean
+  // Sin garante propio, el garante es el mismo cliente.
+  sameAsClient: boolean
+  firstName: string | null
+  lastName: string | null
+  documentNumber: string | null
+  fullName: string
+}
+
 export type UpdateSalesOperationInput = {
   expectedVersion: number
   branchId?: string
@@ -404,7 +421,10 @@ export type UpdateSalesOperationInput = {
   agreedPrice?: number
   paymentPlatform?: SalesPaymentPlatform
   creditAmount?: number | null
-  guarantor?: string | null
+  hasGuarantor?: boolean
+  guarantorFirstName?: string | null
+  guarantorLastName?: string | null
+  guarantorDocument?: string | null
   operationDate?: string
   deliveryStatus?: SalesDeliveryStatus
   deliveryScheduledDate?: string
@@ -429,7 +449,10 @@ export type CorrectSalesOperationInput = {
   paymentPlatform?: SalesPaymentPlatform
   creditAmount?: number | null
   financialInstitutionId?: string
-  guarantor?: string | null
+  hasGuarantor?: boolean
+  guarantorFirstName?: string | null
+  guarantorLastName?: string | null
+  guarantorDocument?: string | null
   operationDate?: string
   deliveryStatus?: SalesDeliveryStatus
   deliveryScheduledDate?: string
