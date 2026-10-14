@@ -427,19 +427,24 @@ a{color:var(--red)}
     <div class="tablebox"><table>
       <thead><tr><th>Plataforma de pago</th><th>Cuándo usarla</th><th>Qué te pide</th></tr></thead>
       <tbody>
-        <tr><td>Efectivo</td><td>Paga todo él (efectivo, transferencia o tarjeta).</td><td>Nada más.</td></tr>
+        <tr><td>Efectivo</td><td>Paga todo él en efectivo.</td><td>Nada más.</td></tr>
+        <tr><td>Transferencia</td><td>Paga todo él por transferencia.</td><td>Nada más.</td></tr>
+        <tr><td>Tarjeta de crédito</td><td>Paga todo con tarjeta.</td><td>Nada más.</td></tr>
         <tr><td>Crédito</td><td>Todo lo financia una financiera.</td><td>Monto del crédito y Financiera.</td></tr>
-        <tr><td>Efectivo + crédito</td><td>Una parte la pone él y otra la financiera.</td><td>Monto del crédito y Financiera.</td></tr>
+        <tr><td>Crédito + crédito</td><td>Lo financian dos financieras distintas (p. ej. Santander y Directo).</td><td>Monto y Financiera de cada crédito.</td></tr>
+        <tr><td>Efectivo + crédito</td><td>Una parte la pone él en efectivo y otra la financiera.</td><td>Monto del crédito y Financiera.</td></tr>
+        <tr><td>Transferencia + crédito</td><td>Una parte la pone él por transferencia y otra la financiera.</td><td>Monto del crédito y Financiera.</td></tr>
         <tr><td>Moto + efectivo</td><td>Entrega una moto y paga el resto.</td><td>Unidad recibida como parte de pago y Valor aceptado.</td></tr>
         <tr><td>Moto + crédito</td><td>Entrega una moto y el resto lo financia.</td><td>Los cuatro campos anteriores.</td></tr>
         <tr><td>Moto + efectivo + crédito</td><td>Las tres cosas.</td><td>Los cuatro campos anteriores.</td></tr>
       </tbody>
     </table></div>
     <ul>
-      <li>El <strong>efectivo</strong> no se escribe: el sistema lo calcula solo (precio menos crédito menos parte de pago).</li>
-      <li>"Efectivo" acá quiere decir "lo que paga el cliente por su cuenta". Si después paga por transferencia o tarjeta, lo indica la administrativa al cobrar.</li>
-      <li><strong>Respaldo / garante</strong> aparece cuando la venta incluye crédito y es opcional.</li>
-      <li>En "Crédito" y "Moto + crédito", el crédito y la parte de pago tienen que completar justo el precio.</li>
+      <li>Lo que paga el cliente por su cuenta (<strong>efectivo o transferencia</strong>) no se escribe: el sistema lo calcula solo (precio menos crédito menos parte de pago).</li>
+      <li>Si al final paga de otra forma, lo indica la administrativa al cobrar.</li>
+      <li>Cuando la venta incluye crédito aparece <strong>Tiene garante</strong>: tildalo y cargá nombre, apellido y DNI del garante. Si no lo tildás, el garante es el mismo cliente.</li>
+      <li>En "Crédito", "Crédito + crédito" y "Moto + crédito", los créditos y la parte de pago tienen que completar justo el precio.</li>
+      <li>En "Crédito + crédito" los dos créditos tienen que ser de financieras distintas.</li>
     </ul>
     <h4>Crédito personal (de la casa)</h4>
     <p>Si la agencia le financia en cuotas propias, hay que cargarlo en <strong>dos lugares</strong>:</p>

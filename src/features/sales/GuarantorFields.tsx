@@ -1,20 +1,14 @@
 import { ShieldCheck } from 'lucide-react'
-import type { SalesGuarantor, SalesPaymentPlatform } from './types'
+import { CREDIT_PAYMENT_PLATFORMS, platformHasCredit } from './paymentPlatforms'
+import type { SalesGuarantor } from './types'
 
 // Garante del crédito. Cuando alguna parte se paga con crédito, se indica si
 // tiene un garante propio (nombre, apellido y DNI obligatorios). Si no lo
 // tiene, el garante es el mismo cliente y sus datos se completan solos.
 
-export const GUARANTOR_CREDIT_PLATFORMS: SalesPaymentPlatform[] = [
-  'CREDITO',
-  'EFECTIVO_CREDITO',
-  'MOTO_CREDITO',
-  'MOTO_EFECTIVO_CREDITO',
-]
+export const GUARANTOR_CREDIT_PLATFORMS = CREDIT_PAYMENT_PLATFORMS
 
-export function platformHasCredit(platform: SalesPaymentPlatform | '' | null) {
-  return Boolean(platform && GUARANTOR_CREDIT_PLATFORMS.includes(platform))
-}
+export { platformHasCredit }
 
 export type GuarantorState = {
   hasGuarantor: boolean

@@ -43,7 +43,10 @@ beforeEach(() => {
   })
   mocks.listSalesContacts.mockResolvedValue({ items: [] })
   mocks.listSalesFinancialInstitutions.mockResolvedValue({
-    items: [{ id: 'fin-1', name: 'Banco Demo', taxId: null, active: true }],
+    items: [
+      { id: 'fin-1', name: 'Banco Demo', taxId: null, active: true },
+      { id: 'fin-2', name: 'Directo', taxId: null, active: true },
+    ],
   })
   mocks.correctSalesOperation.mockResolvedValue(operation)
   mocks.listSalesCatalogModels.mockResolvedValue([
@@ -140,6 +143,36 @@ describe('Editar una venta ya cargada', () => {
       // Sin tildar "Tiene garante", el garante es el mismo cliente.
       hasGuarantor: false,
     })
+  })
+
+  it('al pasar a crédito + crédito manda el total y el segundo crédito', async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    await user.selectOptions(screen.getByLabelText('Forma de pago'), 'CREDITO_CREDITO')
+    await user.type(screen.getByLabelText('Monto del primer crédito *'), '3000000')
+    await screen.findAllByRole('option', { name: 'Banco Demo' })
+    await user.selectOptions(screen.getByLabelText('Financiera del primer crédito *'), 'fin-1')
+    await user.type(screen.getByLabelText('Monto del segundo crédito *'), '2000000')
+    await user.selectOptions(screen.getByLabelText('Financiera del segundo crédito *'), 'fin-1')
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Los dos créditos tienen que ser de financieras distintas.',
+    )
+
+    await user.selectOptions(screen.getByLabelText('Financiera del segundo crédito *'), 'fin-2')
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(mocks.correctSalesOperation).toHaveBeenCalledWith(
+      'operation-1',
+      expect.objectContaining({
+        paymentPlatform: 'CREDITO_CREDITO',
+        creditAmount: 5000000,
+        financialInstitutionId: 'fin-1',
+        secondCreditAmount: 2000000,
+        secondFinancialInstitutionId: 'fin-2',
+      }),
+    )
   })
 
   it('al tildar garante exige y manda nombre, apellido y DNI', async () => {

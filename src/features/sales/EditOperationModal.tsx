@@ -32,25 +32,17 @@ import type {
   SalesPaymentPlatform,
   SalesSeller,
 } from './types'
+import {
+  PAYMENT_PLATFORM_OPTIONS,
+  platformHasCredit,
+  platformHasTwoCredits,
+} from './paymentPlatforms'
 
 // Corrección de una venta ya cargada desde la grilla (operaciones migradas):
 // edita los datos de la venta en cualquier estado, sin cambiar el estado.
 // Sólo manda los campos que cambiaron.
 
-const PLATFORMS: Array<{ value: SalesPaymentPlatform; label: string }> = [
-  { value: 'EFECTIVO', label: 'Efectivo' },
-  { value: 'CREDITO', label: 'Crédito' },
-  { value: 'EFECTIVO_CREDITO', label: 'Efectivo + crédito' },
-  { value: 'MOTO_EFECTIVO', label: 'Moto + efectivo' },
-  { value: 'MOTO_CREDITO', label: 'Moto + crédito' },
-  { value: 'MOTO_EFECTIVO_CREDITO', label: 'Moto + efectivo + crédito' },
-]
-const CREDIT_PLATFORMS: SalesPaymentPlatform[] = [
-  'CREDITO',
-  'EFECTIVO_CREDITO',
-  'MOTO_CREDITO',
-  'MOTO_EFECTIVO_CREDITO',
-]
+const PLATFORMS = PAYMENT_PLATFORM_OPTIONS
 const DEBTS: Array<{ value: SalesDebt; label: string }> = [
   { value: 'NO', label: 'No' },
   { value: 'RESERVA', label: 'Reserva' },
@@ -77,6 +69,10 @@ const CORRECTION_ERRORS: Record<string, string> = {
     'El precio, el crédito y la moto tomada no cierran con esa forma de pago. Revisá los importes.',
   CORRECTION_FINANCIAL_INSTITUTION_REQUIRED:
     'Elegí la financiera del crédito.',
+  CORRECTION_SECOND_CREDIT_REQUIRED:
+    'Ingresá el monto del segundo crédito: tiene que ser menor que el total financiado.',
+  DOUBLE_CREDIT_INSTITUTIONS_REQUIRED:
+    'Los dos créditos tienen que ser de financieras distintas.',
   CORRECTION_OWN_CREDIT_ACTIVE:
     'La venta tiene un crédito propio con cuotas generadas: el crédito no se puede corregir desde acá. El resto de los datos sí.',
   CORRECTION_UNIT_OTHER_MODEL:
@@ -141,13 +137,10 @@ function correctionErrorMessage(error: unknown) {
   return salesErrorMessage(error)
 }
 
-function currentFinancialInstitutionId(operation: SalesOperation) {
-  return (
-    operation.paymentComponents.find(
-      (component) =>
-        component.type === 'FINANCIACION' &&
-        component.paymentStatus !== 'CANCELADA',
-    )?.financialInstitutionId ?? ''
+function activeFinancing(operation: SalesOperation) {
+  return operation.paymentComponents.filter(
+    (component) =>
+      component.type === 'FINANCIACION' && component.paymentStatus !== 'CANCELADA',
   )
 }
 
@@ -190,9 +183,25 @@ export function EditOperationModal({
   const [platform, setPlatform] = useState<SalesPaymentPlatform | ''>(
     operation.paymentPlatform ?? '',
   )
-  const [creditAmount, setCreditAmount] = useState(operation.creditAmount ?? '')
-  const initialInstitutionId = currentFinancialInstitutionId(operation)
+  // Con crédito + crédito, cada crédito por separado; la API recibe el total
+  // en creditAmount y el segundo aparte.
+  const financing = activeFinancing(operation)
+  const initialDouble =
+    platformHasTwoCredits(operation.paymentPlatform) && financing.length >= 2
+  const initialCreditAmount = initialDouble
+    ? (financing[0]?.expectedAmount ?? '')
+    : (operation.creditAmount ?? '')
+  const initialSecondAmount = initialDouble ? (financing[1]?.expectedAmount ?? '') : ''
+  const [creditAmount, setCreditAmount] = useState(initialCreditAmount)
+  const initialInstitutionId = financing[0]?.financialInstitutionId ?? ''
   const [institutionId, setInstitutionId] = useState(initialInstitutionId)
+  const initialSecondInstitutionId = initialDouble
+    ? (financing[1]?.financialInstitutionId ?? '')
+    : ''
+  const [secondCreditAmount, setSecondCreditAmount] = useState(initialSecondAmount)
+  const [secondInstitutionId, setSecondInstitutionId] = useState(
+    initialSecondInstitutionId,
+  )
   const initialGuarantor = guarantorStateFrom(operation.guarantor)
   const [guarantor, setGuarantor] = useState<GuarantorState>(initialGuarantor)
   // Ventas con crédito cargadas antes del garante: quedan sin garante hasta
@@ -213,7 +222,10 @@ export function EditOperationModal({
   const [versionId, setVersionId] = useState(operation.vehicle.versionId)
   const [models, setModels] = useState<CatalogModel[] | null>(null)
   const [modelSearch, setModelSearch] = useState('')
-  const withCredit = platform !== '' && CREDIT_PLATFORMS.includes(platform)
+  const withCredit = platformHasCredit(platform)
+  const doubleCredit = platformHasTwoCredits(platform)
+  const creditTotal =
+    Number(creditAmount) + (doubleCredit ? Number(secondCreditAmount) : 0)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -312,10 +324,28 @@ export function EditOperationModal({
     if (platform && platform !== operation.paymentPlatform)
       input.paymentPlatform = platform
     if (withCredit) {
-      if (Number(creditAmount) !== Number(operation.creditAmount ?? 0))
-        input.creditAmount = Number(creditAmount)
+      if (creditTotal !== Number(operation.creditAmount ?? 0))
+        input.creditAmount = creditTotal
       if (institutionId && institutionId !== initialInstitutionId)
         input.financialInstitutionId = institutionId
+    }
+    if (doubleCredit) {
+      if (Number(secondCreditAmount) !== Number(initialSecondAmount || 0)) {
+        input.secondCreditAmount = Number(secondCreditAmount)
+        // El primero es la diferencia: el total viaja aunque no cambie.
+        input.creditAmount = creditTotal
+      }
+      if (secondInstitutionId && secondInstitutionId !== initialSecondInstitutionId)
+        input.secondFinancialInstitutionId = secondInstitutionId
+      if (Number(creditAmount) !== Number(initialCreditAmount || 0))
+        input.creditAmount = creditTotal
+      // Al pasar a crédito + crédito la API necesita los dos créditos.
+      if (input.paymentPlatform !== undefined) {
+        input.creditAmount = creditTotal
+        input.secondCreditAmount = Number(secondCreditAmount)
+        if (institutionId) input.financialInstitutionId = institutionId
+        if (secondInstitutionId) input.secondFinancialInstitutionId = secondInstitutionId
+      }
     }
     // El garante se manda cuando cambió, o cuando cambian la forma de pago o
     // el cliente (sin garante propio, el garante es el cliente).
@@ -355,6 +385,14 @@ export function EditOperationModal({
     }
     if (!(Number(agreedPrice) > 0)) {
       setError('El precio tiene que ser mayor a cero.')
+      return
+    }
+    if (doubleCredit && !(Number(secondCreditAmount) > 0)) {
+      setError('Ingresá el monto del segundo crédito.')
+      return
+    }
+    if (doubleCredit && (!secondInstitutionId || secondInstitutionId === institutionId)) {
+      setError('Los dos créditos tienen que ser de financieras distintas.')
       return
     }
     if (withCredit && !(Number(creditAmount) > 0)) {
@@ -630,7 +668,9 @@ export function EditOperationModal({
             {withCredit && (
               <>
                 <label className="field">
-                  <span>Monto del crédito *</span>
+                  <span>
+                    {doubleCredit ? 'Monto del primer crédito *' : 'Monto del crédito *'}
+                  </span>
                   <input
                     min="0.01"
                     onChange={(event) => setCreditAmount(event.target.value)}
@@ -640,7 +680,9 @@ export function EditOperationModal({
                   />
                 </label>
                 <label className="field">
-                  <span>Financiera *</span>
+                  <span>
+                    {doubleCredit ? 'Financiera del primer crédito *' : 'Financiera *'}
+                  </span>
                   <select
                     onChange={(event) => setInstitutionId(event.target.value)}
                     value={institutionId}
@@ -653,6 +695,34 @@ export function EditOperationModal({
                     ))}
                   </select>
                 </label>
+                {doubleCredit && (
+                  <>
+                    <label className="field">
+                      <span>Monto del segundo crédito *</span>
+                      <input
+                        min="0.01"
+                        onChange={(event) => setSecondCreditAmount(event.target.value)}
+                        step="0.01"
+                        type="number"
+                        value={secondCreditAmount}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Financiera del segundo crédito *</span>
+                      <select
+                        onChange={(event) => setSecondInstitutionId(event.target.value)}
+                        value={secondInstitutionId}
+                      >
+                        <option value="">Elegí una financiera</option>
+                        {institutions.map((institution) => (
+                          <option key={institution.id} value={institution.id}>
+                            {institution.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                )}
                 {!operation.guarantor && !guarantorTouched && (
                   <p className="field field--wide guarantor-fields__hint">
                     Esta venta no tiene el garante cargado

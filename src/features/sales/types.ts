@@ -29,6 +29,10 @@ export type SalesPaymentPlatform =
   | 'MOTO_EFECTIVO'
   | 'MOTO_CREDITO'
   | 'MOTO_EFECTIVO_CREDITO'
+  | 'TRANSFERENCIA'
+  | 'TARJETA'
+  | 'TRANSFERENCIA_CREDITO'
+  | 'CREDITO_CREDITO'
 
 export type SalesDeliveryStatus =
   | 'NO_PROGRAMADA'
@@ -449,6 +453,9 @@ export type CorrectSalesOperationInput = {
   paymentPlatform?: SalesPaymentPlatform
   creditAmount?: number | null
   financialInstitutionId?: string
+  // Crédito + crédito: el segundo crédito; creditAmount es el total.
+  secondCreditAmount?: number
+  secondFinancialInstitutionId?: string
   hasGuarantor?: boolean
   guarantorFirstName?: string | null
   guarantorLastName?: string | null

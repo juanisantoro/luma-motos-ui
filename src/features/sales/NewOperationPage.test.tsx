@@ -228,6 +228,7 @@ beforeEach(() => {
   mocks.listFinancialInstitutions.mockResolvedValue({
     items: [
       { id: 'bank-1', name: 'Banco Uno', taxId: null, active: true },
+      { id: 'bank-2', name: 'Directo', taxId: null, active: true },
     ],
     total: 1,
     page: 1,
@@ -583,6 +584,106 @@ describe('Nueva operación productiva', () => {
     expect(
       await screen.findByRole('heading', { name: 'Operación #105' }),
     ).toBeInTheDocument()
+  })
+
+  it('carga crédito + crédito con dos financieras', async () => {
+    renderPage()
+    const user = await completeBaseData()
+    await user.selectOptions(
+      screen.getByLabelText('Plataforma de pago *'),
+      'CREDITO_CREDITO',
+    )
+    fireEvent.change(screen.getByLabelText('Precio de cierre *'), {
+      target: { value: '4400000' },
+    })
+    fireEvent.change(screen.getByLabelText('Monto del primer crédito *'), {
+      target: { value: '3000000' },
+    })
+    await user.selectOptions(
+      screen.getByLabelText('Financiera del primer crédito *'),
+      'bank-1',
+    )
+    fireEvent.change(screen.getByLabelText('Monto del segundo crédito *'), {
+      target: { value: '1000000' },
+    })
+    await user.selectOptions(
+      screen.getByLabelText('Financiera del segundo crédito *'),
+      'bank-1',
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Guardar y enviar operación' }),
+    )
+    expect(
+      await screen.findByText('Los dos créditos tienen que ser de financieras distintas.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Los dos créditos tienen que completar el precio.'),
+    ).toBeInTheDocument()
+
+    // Con el error a la vista, el texto del campo incluye el mensaje.
+    await user.selectOptions(
+      screen.getByLabelText(/^Financiera del segundo crédito \*/),
+      'bank-2',
+    )
+    fireEvent.change(screen.getByLabelText(/^Monto del segundo crédito \*/), {
+      target: { value: '1400000' },
+    })
+    await confirmSave(user, 'Guardar y enviar operación')
+
+    expect(mocks.createOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentPlatform: 'CREDITO_CREDITO',
+        creditAmount: 4_400_000,
+      }),
+    )
+    expect(mocks.replacePaymentPlan).toHaveBeenCalledWith('operation-1', {
+      expectedVersion: 1,
+      components: [
+        { type: 'FINANCIACION', amount: 3_000_000, financialInstitutionId: 'bank-1' },
+        { type: 'FINANCIACION', amount: 1_400_000, financialInstitutionId: 'bank-2' },
+      ],
+    })
+  })
+
+  it('paga el resto por transferencia en transferencia + crédito', async () => {
+    renderPage()
+    const user = await completeBaseData()
+    await user.selectOptions(
+      screen.getByLabelText('Plataforma de pago *'),
+      'TRANSFERENCIA_CREDITO',
+    )
+    fireEvent.change(screen.getByLabelText('Monto del crédito *'), {
+      target: { value: '1000000' },
+    })
+    await user.selectOptions(screen.getByLabelText('Financiera *'), 'bank-2')
+    fireEvent.change(screen.getByLabelText('Precio de cierre *'), {
+      target: { value: '4400000' },
+    })
+    await confirmSave(user, 'Guardar y enviar operación')
+
+    expect(mocks.replacePaymentPlan).toHaveBeenCalledWith('operation-1', {
+      expectedVersion: 1,
+      components: [
+        { type: 'FINANCIACION', amount: 1_000_000, financialInstitutionId: 'bank-2' },
+        { type: 'TRANSFERENCIA_BANCARIA', amount: 3_400_000 },
+      ],
+    })
+  })
+
+  it('manda todo con tarjeta sin pedir crédito', async () => {
+    renderPage()
+    const user = await completeBaseData()
+    await user.selectOptions(screen.getByLabelText('Plataforma de pago *'), 'TARJETA')
+    expect(screen.queryByLabelText('Monto del crédito *')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Precio de cierre *'), {
+      target: { value: '4400000' },
+    })
+    await confirmSave(user, 'Guardar y enviar operación')
+
+    expect(mocks.replacePaymentPlan).toHaveBeenCalledWith('operation-1', {
+      expectedVersion: 1,
+      components: [{ type: 'TARJETA', amount: 4_400_000 }],
+    })
   })
 
   it('con garante exige nombre, apellido y DNI; sin garante manda que es el cliente', async () => {

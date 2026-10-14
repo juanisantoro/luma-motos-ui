@@ -14,6 +14,13 @@ import {
   ConfirmPreviewModal,
   type ConfirmPreviewSection,
 } from '../../shared/components/ConfirmPreviewModal'
+import {
+  PAYMENT_PLATFORM_OPTIONS,
+  platformHasCredit,
+  platformHasTradeIn,
+  platformHasTwoCredits,
+  platformRemainder,
+} from './paymentPlatforms'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { useAuth } from '../auth/AuthContext'
 import {
@@ -111,6 +118,8 @@ type FormField =
   | 'seller'
   | 'financialInstitution'
   | 'creditAmount'
+  | 'secondFinancialInstitution'
+  | 'secondCreditAmount'
   | 'personalCreditAmount'
   | 'personalCreditFirstDueDate'
   | 'tradeInDescription'
@@ -124,14 +133,14 @@ type FormField =
 
 type FieldErrors = Partial<Record<FormField, string>>
 
-const paymentOptions: Array<{ value: SalesPaymentPlatform; label: string }> = [
-  { value: 'EFECTIVO', label: 'Efectivo' },
-  { value: 'CREDITO', label: 'Crédito' },
-  { value: 'EFECTIVO_CREDITO', label: 'Efectivo + crédito' },
-  { value: 'MOTO_EFECTIVO', label: 'Moto + efectivo' },
-  { value: 'MOTO_CREDITO', label: 'Moto + crédito' },
-  { value: 'MOTO_EFECTIVO_CREDITO', label: 'Moto + efectivo + crédito' },
-]
+const paymentOptions = PAYMENT_PLATFORM_OPTIONS
+
+// Cómo se nombra el resto en los mensajes.
+const REMAINDER_NAMES: Partial<Record<SalesPaymentComponentInput['type'], string>> = {
+  EFECTIVO: 'efectivo',
+  TRANSFERENCIA_BANCARIA: 'transferencia',
+  TARJETA: 'tarjeta',
+}
 
 // Fecha de hoy en huso local: usar UTC (toISOString) acá adelanta el día
 // varias horas antes de medianoche en Argentina (UTC-3).
@@ -238,11 +247,12 @@ function SectionHeading({
   )
 }
 
+type CreditInput = { amount: number; financialInstitutionId: string }
+
 function paymentPlan(
   platform: SalesPaymentPlatform,
   price: number,
-  creditAmount: number,
-  financialInstitutionId: string,
+  credits: CreditInput[],
   tradeInAmount: number,
   tradeInVehicleId?: string,
 ) {
@@ -254,15 +264,17 @@ function paymentPlan(
       tradeInVehicleId,
     })
   }
-  if (platform.includes('CREDITO')) {
+  for (const credit of credits) {
     components.push({
       type: 'FINANCIACION',
-      amount: creditAmount,
-      financialInstitutionId,
+      amount: credit.amount,
+      financialInstitutionId: credit.financialInstitutionId,
     })
   }
-  const cashAmount = price - creditAmount - tradeInAmount
-  if (cashAmount > 0) components.push({ type: 'EFECTIVO', amount: cashAmount })
+  const creditTotal = credits.reduce((total, credit) => total + credit.amount, 0)
+  const remainder = platformRemainder(platform)
+  const rest = price - creditTotal - tradeInAmount
+  if (remainder && rest > 0) components.push({ type: remainder, amount: rest })
   return components
 }
 
@@ -304,6 +316,10 @@ export function NewOperationPage({
     useState<SalesPaymentPlatform>('EFECTIVO')
   const [creditAmount, setCreditAmount] = useState('')
   const [financialInstitutionId, setFinancialInstitutionId] = useState('')
+  // Crédito + crédito: el segundo crédito, de otra financiera.
+  const [secondCreditAmount, setSecondCreditAmount] = useState('')
+  const [secondFinancialInstitutionId, setSecondFinancialInstitutionId] =
+    useState('')
   const [personalCreditPlans, setPersonalCreditPlans] = useState<CreditPlan[]>([])
   const [personalCreditStatus, setPersonalCreditStatus] = useState<
     'idle' | 'loading' | 'success' | 'error'
@@ -395,8 +411,9 @@ export function NewOperationPage({
     documentNumber,
     enabled: normalizeDocument(documentNumber).length >= 5,
   })
-  const creditRequired = paymentPlatform.includes('CREDITO')
-  const tradeInRequired = paymentPlatform.startsWith('MOTO_')
+  const creditRequired = platformHasCredit(paymentPlatform)
+  const doubleCredit = platformHasTwoCredits(paymentPlatform)
+  const tradeInRequired = platformHasTradeIn(paymentPlatform)
   const creditBlocksSale =
     creditCheck.state.status === 'success' && creditCheck.state.data.blocksSale
 
@@ -785,7 +802,23 @@ export function NewOperationPage({
   ])
 
   const price = Number(agreedPrice)
-  const credit = creditRequired ? Number(creditAmount) : 0
+  const firstCredit = creditRequired ? Number(creditAmount) : 0
+  const secondCredit = doubleCredit ? Number(secondCreditAmount) : 0
+  // Total financiado: con crédito + crédito, la suma de los dos.
+  const credit = firstCredit + secondCredit
+  const credits: CreditInput[] = creditRequired
+    ? [
+        { amount: firstCredit, financialInstitutionId },
+        ...(doubleCredit
+          ? [
+              {
+                amount: secondCredit,
+                financialInstitutionId: secondFinancialInstitutionId,
+              },
+            ]
+          : []),
+      ]
+    : []
   const tradeIn = tradeInRequired ? Number(tradeInAmount) : 0
   const eligiblePersonalCreditPlans = personalCreditPlans.filter((plan) => {
     if (!Number.isFinite(price) || price <= 0) return true
@@ -867,10 +900,21 @@ export function NewOperationPage({
       if (!financialInstitutionId) {
         errors.financialInstitution = 'Seleccioná la financiera.'
       }
-      if (!Number.isFinite(credit) || credit <= 0) {
+      if (!Number.isFinite(firstCredit) || firstCredit <= 0) {
         errors.creditAmount = 'Ingresá el monto financiado.'
       } else if (credit > price) {
         errors.creditAmount = 'El crédito no puede superar el precio de cierre.'
+      }
+    }
+    if (doubleCredit) {
+      if (!secondFinancialInstitutionId) {
+        errors.secondFinancialInstitution = 'Seleccioná la financiera del segundo crédito.'
+      } else if (secondFinancialInstitutionId === financialInstitutionId) {
+        errors.secondFinancialInstitution =
+          'Los dos créditos tienen que ser de financieras distintas.'
+      }
+      if (!Number.isFinite(secondCredit) || secondCredit <= 0) {
+        errors.secondCreditAmount = 'Ingresá el monto del segundo crédito.'
       }
     }
     if (creditRequired) Object.assign(errors, validateGuarantor(guarantor))
@@ -883,22 +927,20 @@ export function NewOperationPage({
       }
     }
     const remaining = price - credit - tradeIn
+    const remainder = platformRemainder(paymentPlatform)
     if (
-      (paymentPlatform === 'CREDITO' ||
-        paymentPlatform === 'MOTO_CREDITO') &&
+      creditRequired &&
+      !remainder &&
       Number.isFinite(remaining) &&
-      remaining !== 0
+      remaining !== 0 &&
+      !errors.creditAmount
     ) {
-      errors.creditAmount =
-        'En esta combinación, crédito y parte de pago deben completar el precio.'
+      errors.creditAmount = doubleCredit
+        ? 'Los dos créditos tienen que completar el precio.'
+        : 'En esta combinación, crédito y parte de pago deben completar el precio.'
     }
-    if (
-      paymentPlatform.includes('EFECTIVO') &&
-      Number.isFinite(remaining) &&
-      remaining <= 0
-    ) {
-      errors.agreedPrice =
-        'La combinación debe dejar un importe positivo para efectivo.'
+    if (remainder && Number.isFinite(remaining) && remaining <= 0) {
+      errors.agreedPrice = `La combinación debe dejar un importe positivo para ${REMAINDER_NAMES[remainder] ?? 'el resto'}.`
     }
     if (!licensingMode) {
       errors.licensingMode = 'Elegí la modalidad de patentamiento.'
@@ -1033,8 +1075,7 @@ export function NewOperationPage({
         components: paymentPlan(
           paymentPlatform,
           price,
-          credit,
-          financialInstitutionId,
+          credits,
           tradeIn,
           tradeInVehicleId,
         ),
@@ -1123,17 +1164,15 @@ export function NewOperationPage({
     const branch = branches.find((item) => item.id === branchId)
     const seller = sellers.find((item) => item.id === sellerId)
     const contact = contacts.find((item) => item.id === contactId)
-    const institution = financialInstitutions.find(
-      (item) => item.id === financialInstitutionId,
-    )
+    const institutionName = (id: string | undefined) =>
+      financialInstitutions.find((item) => item.id === id)?.name
     const platformLabel =
       paymentOptions.find((option) => option.value === paymentPlatform)?.label ??
       paymentPlatform
     const components = paymentPlan(
       paymentPlatform,
       price,
-      credit,
-      financialInstitutionId,
+      credits,
       tradeIn,
       tradeInRequired ? 'pending' : undefined,
     )
@@ -1141,11 +1180,18 @@ export function NewOperationPage({
       EFECTIVO: 'Efectivo',
       TRANSFERENCIA_BANCARIA: 'Transferencia',
       TARJETA: 'Tarjeta',
-      FINANCIACION: institution
-        ? `Financiación · ${institution.name}`
-        : 'Financiación',
+      FINANCIACION: 'Financiación',
       TOMA_PARTE_PAGO: 'Toma en parte de pago',
       OTRO: 'Otro',
+    }
+    const componentLabel = (component: SalesPaymentComponentInput) => {
+      const name =
+        component.type === 'FINANCIACION'
+          ? institutionName(component.financialInstitutionId)
+          : undefined
+      return name
+        ? `${componentLabels[component.type]} · ${name}`
+        : componentLabels[component.type]
     }
     const estimate = licensingEstimate(operationDate, licensingHolidays)
     const vehicleName = catalogModel
@@ -1232,7 +1278,7 @@ export function NewOperationPage({
         rows: [
           { label: 'Plataforma', value: platformLabel },
           ...components.map((component) => ({
-            label: componentLabels[component.type],
+            label: componentLabel(component),
             value: money(component.amount),
           })),
           ...(tradeInRequired && tradeInDescription.trim()
@@ -1843,12 +1889,16 @@ export function NewOperationPage({
                   onChange={(event) => {
                     const platform = event.target.value as SalesPaymentPlatform
                     setPaymentPlatform(platform)
-                    if (!platform.includes('CREDITO')) {
+                    if (!platformHasCredit(platform)) {
                       setCreditAmount('')
                       setFinancialInstitutionId('')
                       setGuarantor(emptyGuarantor())
                     }
-                    if (!platform.startsWith('MOTO_')) {
+                    if (!platformHasTwoCredits(platform)) {
+                      setSecondCreditAmount('')
+                      setSecondFinancialInstitutionId('')
+                    }
+                    if (!platformHasTradeIn(platform)) {
                       setTradeInDescription('')
                       setTradeInAmount('')
                     }
@@ -1866,7 +1916,9 @@ export function NewOperationPage({
               {creditRequired && (
                 <>
                   <label className="field">
-                    <span>Monto del crédito *</span>
+                    <span>
+                      {doubleCredit ? 'Monto del primer crédito *' : 'Monto del crédito *'}
+                    </span>
                     <input
                       aria-invalid={Boolean(fieldErrors.creditAmount)}
                       data-field="creditAmount"
@@ -1882,7 +1934,9 @@ export function NewOperationPage({
                     <FieldError message={fieldErrors.creditAmount} />
                   </label>
                   <label className="field">
-                    <span>Financiera *</span>
+                    <span>
+                      {doubleCredit ? 'Financiera del primer crédito *' : 'Financiera *'}
+                    </span>
                     <select
                       aria-invalid={Boolean(fieldErrors.financialInstitution)}
                       data-field="financialInstitution"
@@ -1906,6 +1960,52 @@ export function NewOperationPage({
                     </select>
                     <FieldError message={fieldErrors.financialInstitution} />
                   </label>
+                  {doubleCredit && (
+                    <>
+                      <label className="field">
+                        <span>Monto del segundo crédito *</span>
+                        <input
+                          aria-invalid={Boolean(fieldErrors.secondCreditAmount)}
+                          data-field="secondCreditAmount"
+                          min="0.01"
+                          onChange={(event) => {
+                            setSecondCreditAmount(event.target.value)
+                            clearError('secondCreditAmount')
+                            clearError('creditAmount')
+                          }}
+                          step="0.01"
+                          type="number"
+                          value={secondCreditAmount}
+                        />
+                        <FieldError message={fieldErrors.secondCreditAmount} />
+                      </label>
+                      <label className="field">
+                        <span>Financiera del segundo crédito *</span>
+                        <select
+                          aria-invalid={Boolean(fieldErrors.secondFinancialInstitution)}
+                          data-field="secondFinancialInstitution"
+                          disabled={financialStatus === 'loading'}
+                          onChange={(event) => {
+                            setSecondFinancialInstitutionId(event.target.value)
+                            clearError('secondFinancialInstitution')
+                          }}
+                          value={secondFinancialInstitutionId}
+                        >
+                          <option value="">
+                            {financialStatus === 'loading'
+                              ? 'Cargando financieras…'
+                              : 'Seleccionar financiera'}
+                          </option>
+                          {financialInstitutions.map((institution) => (
+                            <option key={institution.id} value={institution.id}>
+                              {institution.name}
+                            </option>
+                          ))}
+                        </select>
+                        <FieldError message={fieldErrors.secondFinancialInstitution} />
+                      </label>
+                    </>
+                  )}
                   <GuarantorFields
                     className="operation-span-3"
                     client={{
