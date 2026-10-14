@@ -1260,20 +1260,26 @@ export function NewOperationPage({
         ],
       },
       {
-        title: 'Entrega y patentamiento',
+        title: isSeller ? 'Patentamiento y casco' : 'Entrega y patentamiento',
         rows: [
-          {
-            label: 'Entrega',
-            value: deliveryScheduled
-              ? `Programada para el ${deliveryScheduledDate.split('-').reverse().join('/')}`
-              : 'No programada',
-          },
+          // Entrega, llegada de la patente y papeles: los carga la
+          // administrativa; el vendedor no los ve.
+          ...(isSeller
+            ? []
+            : [
+                {
+                  label: 'Entrega',
+                  value: deliveryScheduled
+                    ? `Programada para el ${deliveryScheduledDate.split('-').reverse().join('/')}`
+                    : 'No programada',
+                },
+              ]),
           { label: 'Casco de regalo', value: includesHelmet ? 'Sí' : 'No' },
           {
             label: 'Patentamiento',
             value: licensingMode ? licensingModeLabels[licensingMode] : '',
           },
-          ...(licensingMode === 'PAGA_CLIENTE'
+          ...(!isSeller && licensingMode === 'PAGA_CLIENTE'
             ? [
                 {
                   label: 'Importe de patente',
@@ -1283,16 +1289,20 @@ export function NewOperationPage({
                 },
               ]
             : []),
-          {
-            label: 'Llegada estimada',
-            value: estimate
-              ? licensingWindowLabel(estimate.from, estimate.to)
-              : '',
-          },
-          {
-            label: 'Papeles entregados',
-            value: papersDelivered ? 'Sí' : 'No',
-          },
+          ...(isSeller
+            ? []
+            : [
+                {
+                  label: 'Llegada estimada',
+                  value: estimate
+                    ? licensingWindowLabel(estimate.from, estimate.to)
+                    : '',
+                },
+                {
+                  label: 'Papeles entregados',
+                  value: papersDelivered ? 'Sí' : 'No',
+                },
+              ]),
         ],
       },
       {
@@ -2070,10 +2080,17 @@ export function NewOperationPage({
             <SectionHeading
               id="operation-delivery-title"
               number={4}
-              title="Entrega y documentación"
-              description="Estado inicial, documentación y pendientes de la operación."
+              title={isSeller ? 'Patente, casco y boleto' : 'Entrega y documentación'}
+              description={
+                isSeller
+                  ? 'Cómo se paga la patente, si lleva casco, el boleto y observaciones. La entrega y los papeles los carga la administrativa.'
+                  : 'Estado inicial, documentación y pendientes de la operación.'
+              }
             />
             <div className="operation-form-grid">
+              {/* Entrega, deuda, mes y chasis: los maneja la administrativa. */}
+              {!isSeller && (
+                <>
               <label className="field">
                 <span>Estado de entrega</span>
                 <select
@@ -2145,6 +2162,8 @@ export function NewOperationPage({
                         : 'Seleccioná un vehículo'}
                 </div>
               </div>
+                </>
+              )}
               <label className="field">
                 <span>Número de boleto</span>
                 <input
@@ -2183,7 +2202,7 @@ export function NewOperationPage({
                 )}
                 <FieldError message={fieldErrors.licensingMode} />
               </div>
-              {licensingMode === 'PAGA_CLIENTE' && (
+              {!isSeller && licensingMode === 'PAGA_CLIENTE' && (
                 <div className="field">
                   <span id="operation-licensing-amount-label">
                     Importe de patente
@@ -2206,6 +2225,7 @@ export function NewOperationPage({
                   <FieldError message={fieldErrors.licensingAmount} />
                 </div>
               )}
+              {!isSeller && (
               <div className="field">
                 <span>Llegada estimada de la patente</span>
                 <div className="operation-readonly">
@@ -2218,6 +2238,7 @@ export function NewOperationPage({
                 </div>
                 <small>Informativa: 10 a 15 días hábiles (sin fines de semana ni feriados nacionales) desde la operación.</small>
               </div>
+              )}
               <label className="operation-check">
                 <input
                   checked={includesHelmet}
@@ -2227,6 +2248,7 @@ export function NewOperationPage({
                 <HardHat size={17} aria-hidden="true" />
                 <span>Casco de regalo</span>
               </label>
+              {!isSeller && (
               <label className="operation-check">
                 <input
                   checked={papersDelivered}
@@ -2236,6 +2258,7 @@ export function NewOperationPage({
                 <FileCheck2 size={17} aria-hidden="true" />
                 <span>Papeles entregados</span>
               </label>
+              )}
               <label className="field operation-span-3">
                 <span>Observaciones</span>
                 <textarea

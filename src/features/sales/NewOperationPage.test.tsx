@@ -637,6 +637,8 @@ describe('Nueva operación productiva', () => {
   })
 
   it('programa la entrega al cargar la operación, con el día acordado', async () => {
+    // La entrega la carga la administrativa: el vendedor no la ve.
+    mocks.authRoleCode = 'ADMINISTRATIVA'
     renderPage()
     const user = await completeBaseData()
     expect(screen.queryByLabelText(/^Día de entrega/)).not.toBeInTheDocument()
@@ -672,7 +674,25 @@ describe('Nueva operación productiva', () => {
     )
   })
 
+  it('al vendedor sólo le pide patentamiento, casco, boleto y observaciones', async () => {
+    renderPage()
+    await completeBaseData()
+    expect(
+      screen.getByRole('heading', { name: 'Patente, casco y boleto' }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Patentamiento *')).toBeInTheDocument()
+    expect(screen.getByLabelText('Casco de regalo')).toBeInTheDocument()
+    expect(screen.getByLabelText('Número de boleto')).toBeInTheDocument()
+    expect(screen.getByLabelText('Observaciones')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Estado de entrega/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Debe')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Papeles entregados')).not.toBeInTheDocument()
+    expect(screen.queryByText('Llegada estimada de la patente')).not.toBeInTheDocument()
+    expect(screen.queryByText('Chasis de la operación')).not.toBeInTheDocument()
+  })
+
   it('previsualiza lo que se va a guardar y vuelve al formulario sin perder datos', async () => {
+    mocks.authRoleCode = 'ADMINISTRATIVA'
     renderPage()
     const user = await completeBaseData()
     chooseLicensing('PAGA_CLIENTE')

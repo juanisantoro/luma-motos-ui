@@ -8764,7 +8764,7 @@ body:has(.service-page--work .service-actions) {
 }
 
 .reminders-table {
-  min-width: 1120px;
+  min-width: 940px;
 }
 
 .reminders-table td {
@@ -8785,6 +8785,20 @@ body:has(.service-page--work .service-actions) {
 
 .reminders-actions small {
   display: block;
+}
+
+/* Acciones chicas: WhatsApp con texto, el resto sólo con el ícono. */
+.reminders-actions .button {
+  min-height: 30px;
+  padding: 4px 10px;
+  gap: 5px;
+  font-size: 11px;
+}
+
+.reminders-actions .button.reminders-icon {
+  width: 30px;
+  padding: 0;
+  justify-content: center;
 }
 
 .button.reminders-whatsapp {

@@ -272,32 +272,32 @@ export function ServiceRemindersPage() {
                                 onClick={() => openWhatsapp(reminder, link)}
                                 type="button"
                               >
-                                <MessageCircle size={15} />
+                                <MessageCircle size={14} />
                                 WhatsApp
                               </button>
                             ) : (
                               <small>El teléfono no parece un celular.</small>
                             )}
+                            {/* Sólo el ícono, con la explicación al pasar el mouse. */}
                             <button
-                              className="button button--secondary button--compact"
+                              aria-label={`Ya contacté a ${reminder.client.name}`}
+                              className="button button--secondary button--compact reminders-icon"
                               disabled={busy === key}
                               onClick={() => void resolve(reminder, 'CONTACTADO', 'TELEFONO')}
-                              title="Lo llamaste o le escribiste por otro medio"
+                              title="Ya lo contacté (lo llamaste o le escribiste por otro medio)"
                               type="button"
                             >
-                              <Check size={15} />
-                              Ya lo contacté
+                              <Check size={15} aria-hidden="true" />
                             </button>
                             <button
                               aria-label={`Descartar el aviso de ${reminder.client.name}`}
-                              className="button button--secondary button--compact"
+                              className="button button--secondary button--compact reminders-icon"
                               disabled={busy === key}
                               onClick={() => void resolve(reminder, 'DESCARTADO')}
-                              title="No corresponde avisarle (vendió la moto, ya lo hizo en otro lado…)"
+                              title="Descartar: no corresponde avisarle (vendió la moto, ya lo hizo en otro lado…)"
                               type="button"
                             >
-                              <X size={15} />
-                              Descartar
+                              <X size={15} aria-hidden="true" />
                             </button>
                           </div>
                         ) : (
