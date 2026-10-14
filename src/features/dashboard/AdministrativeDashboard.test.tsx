@@ -42,8 +42,8 @@ describe('Inicio de la administrativa (fase 5)', () => {
     ).toBeInTheDocument()
     const links = screen.getAllByRole('link', { name: 'Ver operaciones' })
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
-      '/motos/operaciones?patente=DEMORADAS',
-      '/motos/operaciones?patente=COBRO_PENDIENTE',
+      expect.stringMatching(/^\/motos\/operaciones\?patente=DEMORADAS&origen=/),
+      expect.stringMatching(/^\/motos\/operaciones\?patente=COBRO_PENDIENTE&origen=/),
     ])
   })
 

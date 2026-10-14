@@ -116,16 +116,21 @@ export function reminderMessage(reminder: ServiceReminder) {
 }
 
 /**
- * Link de WhatsApp Web (usa la sesión ya abierta en el navegador) con el
- * chat del cliente y el mensaje escrito. No se envía solo: se revisa y se
- * manda desde WhatsApp. `null` si el teléfono no parece un celular.
+ * Link de WhatsApp (wa.me) que abre el chat con el cliente y el mensaje
+ * escrito, en la app de escritorio, en el celular o en WhatsApp Web; es el
+ * mismo link que usa "Avisar que está lista" en las órdenes de service. No
+ * se envía solo: se revisa y se manda desde WhatsApp. `null` si el teléfono
+ * no parece un celular.
+ *
+ * Antes se abría web.whatsapp.com/send directo, y si WhatsApp Web ya estaba
+ * abierto en otra pestaña quedaba en la pantalla principal, sin el chat.
  */
 export function reminderWhatsappLink(reminder: ServiceReminder): string | null {
   const number = whatsappNumber(reminder.client.phone)
   if (!number) return null
   // encodeURIComponent: los espacios van como %20 (con "+" WhatsApp los
   // muestra tal cual).
-  return `https://web.whatsapp.com/send?phone=${number}&text=${encodeURIComponent(reminderMessage(reminder))}`
+  return `https://wa.me/${number}?text=${encodeURIComponent(reminderMessage(reminder))}`
 }
 
 /** "Hoy", "en 3 días", "vencido hace 2 días". */

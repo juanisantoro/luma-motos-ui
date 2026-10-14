@@ -105,6 +105,9 @@ export type CreditInstallmentQuery = {
   operationId?: string
   search?: string
   organizationId?: string
+  // Desde el inicio: sucursal de la venta y "vencen hoy" sin cobrar.
+  branchId?: string
+  dueToday?: boolean
 }
 
 export type PayCreditInstallmentInput = {

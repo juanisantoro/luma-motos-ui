@@ -47,14 +47,20 @@ describe('Tareas pendientes del inicio', () => {
     expect(items).toHaveLength(2)
     expect(within(items[0]!).getByText('Cuotas vencidas sin cobrar')).toBeInTheDocument()
     expect(within(items[0]!).getByText('9')).toBeInTheDocument()
-    expect(within(items[0]!).getByRole('link', { name: 'Resolver' })).toHaveAttribute(
-      'href',
-      '/creditos/cobranza',
+    // Abre la pantalla filtrada por lo que cuenta la tarea y la sucursal.
+    const overdueHref = within(items[0]!)
+      .getByRole('link', { name: 'Resolver' })
+      .getAttribute('href')!
+    const overdue = new URL(overdueHref, 'http://x')
+    expect(overdue.pathname).toBe('/creditos/cobranza')
+    expect(overdue.searchParams.get('estado')).toBe('VENCIDA')
+    expect(overdue.searchParams.get('sucursal')).toBeTruthy()
+    expect(overdue.searchParams.get('origen')).toBe(
+      'Cuotas vencidas sin cobrar · San Miguel',
     )
-    expect(within(items[1]!).getByRole('link', { name: 'Resolver' })).toHaveAttribute(
-      'href',
-      '/motos/ingresos',
-    )
+    expect(
+      within(items[1]!).getByRole('link', { name: 'Resolver' }).getAttribute('href'),
+    ).toMatch(/^\/motos\/ingresos\?pendientes=1&/)
   })
 
   it('avisa cuando la administrativa está al día', () => {
@@ -105,10 +111,15 @@ describe('Tareas pendientes del inicio', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('link', { name: 'Ver Cuotas vencidas sin cobrar' })).toHaveAttribute(
-      'href',
-      '/creditos/cobranza',
-    )
+    // Con varias sucursales a la vista no se filtra por sucursal.
+    const href = screen
+      .getByRole('link', { name: 'Ver Cuotas vencidas sin cobrar' })
+      .getAttribute('href')!
+    const url = new URL(href, 'http://x')
+    expect(url.pathname).toBe('/creditos/cobranza')
+    expect(url.searchParams.get('estado')).toBe('VENCIDA')
+    expect(url.searchParams.get('sucursal')).toBeNull()
+    expect(url.searchParams.get('origen')).toBe('Cuotas vencidas sin cobrar')
   })
 
   it('no reparte por sucursal cuando hay una sola y lista aparte lo que está al día', () => {

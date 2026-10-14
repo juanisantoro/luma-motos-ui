@@ -15,39 +15,45 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import {
+  HOME_BRANCH_PARAM,
+  HOME_ORIGIN_PARAM,
+  homeLink,
+} from '../../shared/homeFilters'
 import { DashboardPanel, PanelEmptyState } from './components'
 import { formatCurrency } from './format'
 import type { PendingTaskKey, PendingTasks } from './types'
 
-// Texto de cada tarea, la pantalla donde se resuelve y su ícono. `urgent`:
-// lo que ya está vencido se destaca en rojo.
+// Texto de cada tarea, la pantalla donde se resuelve (con los filtros que
+// muestran exactamente lo que cuenta la tarjeta) y su ícono. `urgent`: lo
+// que ya está vencido se destaca en rojo.
 const TASKS: Record<
   PendingTaskKey,
   { label: string; to: string; icon: LucideIcon; urgent?: boolean }
 > = {
   INSTALLMENTS_DUE_TODAY: {
     label: 'Cuotas que vencen hoy',
-    to: '/creditos/cobranza',
+    to: '/creditos/cobranza?vence=hoy',
     icon: CalendarClock,
   },
   INSTALLMENTS_OVERDUE: {
     label: 'Cuotas vencidas sin cobrar',
-    to: '/creditos/cobranza',
+    to: '/creditos/cobranza?estado=VENCIDA',
     icon: TriangleAlert, urgent: true,
   },
   INCOMES_PENDING_COLLECTION: {
     label: 'Ingresos pendientes de cobro',
-    to: '/motos/ingresos',
+    to: '/motos/ingresos?pendientes=1',
     icon: HandCoins,
   },
   CASH_PENDING_HANDOVER: {
     label: 'Efectivo cobrado sin rendir',
-    to: '/motos/ingresos',
+    to: '/motos/ingresos?rendicion=PENDIENTE_RENDICION',
     icon: Banknote,
   },
   VEHICLE_PAYMENTS_UNCONFIRMED: {
     label: 'Gastos de motos y autos sin pagar',
-    to: '/motos/pagos-vehiculo',
+    to: '/motos/pagos-vehiculo?estado=PENDIENTE',
     icon: Truck,
   },
   LICENSING_OVERDUE: {
@@ -62,7 +68,7 @@ const TASKS: Record<
   },
   EXPENSES_PENDING_PAYMENT: {
     label: 'Gastos pendientes de pago',
-    to: '/gastos',
+    to: '/gastos?pendientes=1',
     icon: Receipt,
   },
   SERVICE_READY_TO_DELIVER: {
@@ -75,6 +81,20 @@ const TASKS: Record<
     to: '/service/avisos',
     icon: BellRing,
   },
+}
+
+// Link de la tarjeta: la pantalla con sus filtros, la sucursal (si se está
+// mirando una sola: el tab abierto o la única del usuario) y el texto de la
+// tarjeta para que la pantalla muestre qué se fue a ver.
+function taskLink(
+  key: PendingTaskKey,
+  branch: { branchId: string; branchName: string } | null,
+) {
+  const { label, to } = TASKS[key]
+  return homeLink(to, {
+    [HOME_BRANCH_PARAM]: branch?.branchId,
+    [HOME_ORIGIN_PARAM]: branch ? `${label} · ${branch.branchName}` : label,
+  })
 }
 
 function TotalBadge({ total }: { total: number }) {
@@ -111,6 +131,8 @@ export function PendingTasksPanel({
   const find = (branchId: string, key: PendingTaskKey) =>
     branches.find((branch) => branch.branchId === branchId)?.tasks.find((task) => task.key === key)
 
+  const singleBranch = branches.length === 1 ? (branches[0] ?? null) : null
+
   if (mode === 'own') {
     const names = branches.map((branch) => branch.branchName).join(' · ')
     const rows = keys.map((key) => ({
@@ -143,7 +165,7 @@ export function PendingTasksPanel({
                     )}
                   </span>
                   <span className="ranking-list__stat">
-                    <Link to={TASKS[row.key].to}>Resolver</Link>
+                    <Link to={taskLink(row.key, singleBranch)}>Resolver</Link>
                   </span>
                 </li>
               ))}
@@ -201,7 +223,7 @@ export function PendingTasksPanel({
             )}
             <ul className="task-tiles" aria-label="Tareas pendientes de administración">
               {open.map((row) => {
-                const { label, to, icon: Icon, urgent } = TASKS[row.key]
+                const { label, icon: Icon, urgent } = TASKS[row.key]
                 return (
                   <li className={`task-tile${urgent ? ' task-tile--urgent' : ''}`} key={row.key}>
                     <div className="task-tile__head">
@@ -230,7 +252,11 @@ export function PendingTasksPanel({
                       </dl>
                     )}
                     {links && (
-                      <Link className="task-tile__link" to={to} aria-label={`Ver ${label}`}>
+                      <Link
+                        className="task-tile__link"
+                        to={taskLink(row.key, singleBranch)}
+                        aria-label={`Ver ${label}`}
+                      >
                         Ver <ArrowRight size={14} aria-hidden="true" />
                       </Link>
                     )}

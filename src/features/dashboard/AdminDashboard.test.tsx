@@ -98,10 +98,9 @@ describe('Inicio del administrador por sucursal', () => {
     expect(screen.getByText('Tareas pendientes de administración')).toBeInTheDocument()
     expect(screen.getByText('8 pendientes')).toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'Pendientes por sucursal' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Ver Patentes vencidas sin cargar' })).toHaveAttribute(
-      'href',
-      '/motos/operaciones?patente=DEMORADAS',
-    )
+    expect(
+      screen.getByRole('link', { name: 'Ver Patentes vencidas sin cargar' }).getAttribute('href'),
+    ).toMatch(/^\/motos\/operaciones\?patente=DEMORADAS&origen=/)
     expect(screen.getByText('Vendedores · Del Viso')).toBeInTheDocument()
     expect(screen.getByText('Vendedor Dos')).toBeInTheDocument()
   })

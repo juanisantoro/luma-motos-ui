@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, FileCheck2, Filter, Info, Plus, RefreshCw } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { HomeFilterNotice, useHomeFilters } from '../../shared/homeFilters'
 import { ApiError } from '../../shared/api/client'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { downloadExcel, fetchAllPages, type ExcelColumn } from '../../shared/export/excel'
@@ -194,7 +195,17 @@ export function VehiclePaymentsPage({
     null,
   )
 
-  const [query, setQuery] = useState<VehiclePaymentQuery>({ page: 1, limit: PAGE_SIZE })
+  // Desde una tarjeta del inicio: estado (sin pagar) y sucursal.
+  const home = useHomeFilters(['estado'])
+  const [initialQuery] = useState<VehiclePaymentQuery>(() => ({
+    page: 1,
+    limit: PAGE_SIZE,
+    ...(home.values.estado === 'PENDIENTE' || home.values.estado === 'PAGADO'
+      ? { status: home.values.estado }
+      : {}),
+    ...(home.branchId ? { branchId: home.branchId } : {}),
+  }))
+  const [query, setQuery] = useState<VehiclePaymentQuery>(initialQuery)
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [result, setResult] = useState<PageResponse<VehiclePayment> | null>(null)
   const [loadError, setLoadError] = useState('')
@@ -233,7 +244,7 @@ export function VehiclePaymentsPage({
   const [providers, setProviders] = useState<CatalogOption[]>([])
   const [accounts, setAccounts] = useState<PayerAccount[]>([])
   const [payingWithoutAccount, setPayingWithoutAccount] = useState<VehiclePayment | null>(null)
-  const [draft, setDraft] = useState<VehiclePaymentQuery>({ page: 1, limit: PAGE_SIZE })
+  const [draft, setDraft] = useState<VehiclePaymentQuery>(initialQuery)
 
   const workMonths = useWorkMonths()
   const changeDraft = <K extends keyof VehiclePaymentQuery>(
@@ -321,6 +332,7 @@ export function VehiclePaymentsPage({
     const cleared = { page: 1, limit: PAGE_SIZE }
     setDraft(cleared)
     setQuery(cleared)
+    home.clear()
   }
 
   // Pagar y devolver plata de una caja es sólo de su dueño.
@@ -412,6 +424,8 @@ export function VehiclePaymentsPage({
           </span>
         </div>
       </div>
+
+      <HomeFilterNotice origin={home.origin} onClear={clearFilters} />
 
       <details className="financial-filters" open>
         <summary>

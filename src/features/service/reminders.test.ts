@@ -24,9 +24,9 @@ describe('avisos de service', () => {
     expect(message).not.toContain('garantía')
   })
 
-  it('abre WhatsApp Web con el número argentino y el mensaje', () => {
+  it('abre el chat de WhatsApp con el número argentino y el mensaje', () => {
     const link = reminderWhatsappLink(reminderFixture())!
-    expect(link.startsWith('https://web.whatsapp.com/send?phone=5491155550000&text=')).toBe(true)
+    expect(link.startsWith('https://wa.me/5491155550000?text=')).toBe(true)
     expect(link).not.toContain('+')
     expect(decodeURIComponent(link.split('text=')[1]!)).toBe(reminderMessage(reminderFixture()))
     expect(

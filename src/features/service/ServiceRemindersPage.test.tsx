@@ -67,7 +67,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Avisos de service', () => {
-  it('lista a quién contactar y abre WhatsApp Web con el mensaje', async () => {
+  it('lista a quién contactar y abre el chat de WhatsApp con el mensaje', async () => {
     const user = userEvent.setup()
     const fetchMock = mockApi()
     vi.stubGlobal('open', openSpy)
@@ -87,8 +87,9 @@ describe('Avisos de service', () => {
     await user.click(screen.getByRole('button', { name: 'Escribir por WhatsApp a ANA PÉREZ' }))
 
     expect(openSpy).toHaveBeenCalledWith(
-      expect.stringContaining('https://web.whatsapp.com/send?phone=5491155550000&text='),
-      'luma-whatsapp',
+      expect.stringContaining('https://wa.me/5491155550000?text='),
+      '_blank',
+      'noopener',
     )
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')
     expect(JSON.parse(String(post?.[1]?.body))).toEqual({

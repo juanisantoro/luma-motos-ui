@@ -245,15 +245,23 @@ export function FinancialFilters({
         <label className="filter-field">
           <span>Estado</span>
           <select
-            value={draft.status ?? ''}
-            onChange={(event) =>
-              change(
-                'status',
-                event.target.value as FinancialStatus | undefined,
-              )
-            }
+            value={draft.unpaid ? 'SIN_SALDAR' : (draft.status ?? '')}
+            onChange={(event) => {
+              const value = event.target.value
+              // "Pendiente o parcial": lo que falta cobrar o pagar, igual que
+              // el contador del inicio.
+              setDraft((current) => {
+                const updated = { ...current }
+                delete updated.status
+                delete updated.unpaid
+                if (value === 'SIN_SALDAR') updated.unpaid = true
+                else if (value) updated.status = value as FinancialStatus
+                return updated
+              })
+            }}
           >
             <option value="">Todos</option>
+            <option value="SIN_SALDAR">Pendiente o parcial</option>
             <option value="PENDIENTE">Pendiente</option>
             <option value="PARCIAL">Parcial</option>
             <option value="PAGADO">Pagado</option>

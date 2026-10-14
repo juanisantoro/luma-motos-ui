@@ -87,6 +87,8 @@ export type VehiclePaymentQuery = {
   period?: string
   search?: string
   organizationId?: string
+  // Desde el inicio: la sucursal elegida.
+  branchId?: string
 }
 
 export type CreateVehiclePaymentInput = {

@@ -22,6 +22,7 @@ import {
 } from './format'
 import { ServiceReceptionModal } from './ServiceReceptionModal'
 import type { PageResponse, ServiceOrder, ServiceOrderQuery } from './types'
+import { HomeFilterNotice, useHomeFilters } from '../../shared/homeFilters'
 
 const PAGE_SIZE = 20
 
@@ -50,8 +51,10 @@ export function ServiceOrdersPage() {
     const requested = searchParams.get('tab')
     return TABS.some((item) => item.id === requested) ? (requested as TabId) : 'taller'
   })
+  // Desde una tarjeta del inicio: la sucursal elegida.
+  const home = useHomeFilters(['tab'])
   const [search, setSearch] = useState('')
-  const [branchId, setBranchId] = useState('')
+  const [branchId, setBranchId] = useState(home.branchId ?? '')
   const [branches, setBranches] = useState<BranchOption[]>([])
   const [page, setPage] = useState(1)
   const [result, setResult] = useState<PageResponse<ServiceOrder> | null>(null)
@@ -59,7 +62,9 @@ export function ServiceOrdersPage() {
   const [loadError, setLoadError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [receiving, setReceiving] = useState(false)
-  const [applied, setApplied] = useState<ServiceOrderQuery>({})
+  const [applied, setApplied] = useState<ServiceOrderQuery>(() =>
+    home.branchId ? { branchId: home.branchId } : {},
+  )
 
   // El filtro de sucursal sólo tiene sentido con más de una.
   useEffect(() => {
@@ -124,6 +129,20 @@ export function ServiceOrdersPage() {
           </div>
         )}
       </header>
+
+      <HomeFilterNotice
+        origin={home.origin}
+        onClear={() => {
+          home.clear()
+          setBranchId('')
+          setPage(1)
+          setApplied((current) => {
+            const next = { ...current }
+            delete next.branchId
+            return next
+          })
+        }}
+      />
 
       <div className="service-tabs" role="tablist" aria-label="Estado de las órdenes">
         {TABS.map((item) => (

@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Filter, HandCoins, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { HomeFilterNotice, useHomeFilters } from '../../shared/homeFilters'
 import { alertError, alertSuccess } from '../../shared/alerts'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { ApiError } from '../../shared/api/client'
@@ -40,8 +41,22 @@ export function CreditInstallmentsPage() {
   const permissions = user?.role.permissions ?? []
   const canCollect = hasPermission(permissions, 'creditos.cobrar')
 
-  const [query, setQuery] = useState<CreditInstallmentQuery>({ page: 1, limit: PAGE_SIZE })
-  const [draft, setDraft] = useState<CreditInstallmentQuery>({ page: 1, limit: PAGE_SIZE })
+  // Desde una tarjeta del inicio: estado, "vencen hoy" y sucursal.
+  const home = useHomeFilters(['estado', 'vence'])
+  const [initialQuery] = useState<CreditInstallmentQuery>(() => {
+    const status = home.values.estado as CreditInstallmentStatus | undefined
+    return {
+      page: 1,
+      limit: PAGE_SIZE,
+      ...(status && ['PENDIENTE', 'VENCIDA', 'PARCIAL', 'PAGADA'].includes(status)
+        ? { status }
+        : {}),
+      ...(home.values.vence === 'hoy' ? { dueToday: true } : {}),
+      ...(home.branchId ? { branchId: home.branchId } : {}),
+    }
+  })
+  const [query, setQuery] = useState<CreditInstallmentQuery>(initialQuery)
+  const [draft, setDraft] = useState<CreditInstallmentQuery>(initialQuery)
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [result, setResult] = useState<PageResponse<CreditInstallment> | null>(null)
   const [loadError, setLoadError] = useState('')
@@ -85,6 +100,7 @@ export function CreditInstallmentsPage() {
     const cleared = { page: 1, limit: PAGE_SIZE }
     setDraft(cleared)
     setQuery(cleared)
+    home.clear()
   }
 
   const totalPages = result ? Math.max(1, Math.ceil(result.total / result.limit)) : 1
@@ -141,6 +157,8 @@ export function CreditInstallmentsPage() {
           />
         </div>
       </header>
+
+      <HomeFilterNotice origin={home.origin} onClear={clearFilters} />
 
       <details className="financial-filters" open>
         <summary>

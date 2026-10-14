@@ -626,17 +626,12 @@ export function OperationTrackingPanel({
               <thead>
                 <tr>
                   <th scope="col">Operación</th>
-                  <th scope="col">Boleto</th>
                   <th scope="col">Cliente</th>
-                  <th scope="col">Vendedor</th>
-                  <th scope="col">Sucursal</th>
-                  <th scope="col">Acordado</th>
-                  <th scope="col">Cobrado</th>
-                  <th scope="col">Saldo</th>
-                  <th scope="col">Efectivo sin rendir</th>
-                  <th scope="col">Crédito propio</th>
-                  <th scope="col">Unidad</th>
-                  <th scope="col">Patentamiento</th>
+                  <th scope="col">Vendedor / sucursal</th>
+                  <th scope="col" className="tracking-money">Acordado / cobrado</th>
+                  <th scope="col" className="tracking-money">Saldo</th>
+                  <th scope="col">Sin rendir / crédito propio</th>
+                  <th scope="col">Unidad / patente</th>
                   <th scope="col">
                     <span className="sr-only">Acciones</span>
                   </th>
@@ -651,14 +646,16 @@ export function OperationTrackingPanel({
                       <tr>
                         <td>
                           <strong>#{row.number}</strong>
-                          <small>{formatOperationDate(row.operationDate)}</small>
+                          <small>
+                            {formatOperationDate(row.operationDate)}
+                            {row.ticketNumber ? ` · Boleto ${row.ticketNumber}` : ''}
+                          </small>
                           <span
                             className={`status-badge ${operationStatusClass(row.status)}`}
                           >
                             {operationStatusLabels[row.status]}
                           </span>
                         </td>
-                        <td>{row.ticketNumber ?? '—'}</td>
                         <td>
                           <strong>{row.client.fullName}</strong>
                           {row.client.documentNumber && (
@@ -668,11 +665,17 @@ export function OperationTrackingPanel({
                             </small>
                           )}
                         </td>
-                        <td>{row.seller?.fullName ?? '—'}</td>
-                        <td>{row.branch.name}</td>
-                        <td>{formatMoney(row.agreedPrice, row.currency)}</td>
-                        <td>{formatMoney(row.collectedAmount, row.currency)}</td>
                         <td>
+                          {row.seller?.fullName ?? '—'}
+                          <small>{row.branch.name}</small>
+                        </td>
+                        <td className="tracking-money">
+                          {formatMoney(row.agreedPrice, row.currency)}
+                          <small>
+                            Cobrado {formatMoney(row.collectedAmount, row.currency)}
+                          </small>
+                        </td>
+                        <td className="tracking-money">
                           <strong
                             className={
                               balance > 0 ? 'tracking-balance--due' : undefined
@@ -684,39 +687,33 @@ export function OperationTrackingPanel({
                         <td>
                           {row.pendingHandoverCount > 0 ? (
                             <span className="status-badge status-badge--warning">
+                              Sin rendir{' '}
                               {formatMoney(
                                 row.pendingHandoverAmount,
                                 row.currency,
                               )}
                             </span>
                           ) : (
-                            '—'
+                            <small>Rendido</small>
                           )}
-                        </td>
-                        <td>
-                          {row.ownCredit ? (
-                            <>
+                          {row.ownCredit && (
+                            <small>
+                              Crédito propio{' '}
                               {formatMoney(
                                 row.ownCredit.collectedAmount,
                                 row.currency,
-                              )}
-                              <small>
-                                {row.ownCredit.paidInstallments} de{' '}
-                                {row.ownCredit.installments} cuotas
-                              </small>
-                            </>
-                          ) : (
-                            '—'
+                              )}{' '}
+                              · {row.ownCredit.paidInstallments} de{' '}
+                              {row.ownCredit.installments} cuotas
+                            </small>
                           )}
                         </td>
-                        <td>
+                        <td className="tracking-states">
                           <span
                             className={`status-badge ${fulfillmentStatusClass(row.fulfillment.status)}`}
                           >
                             {fulfillmentLabel(row.fulfillment)}
                           </span>
-                        </td>
-                        <td>
                           <span
                             className={`status-badge ${licensingStatusClass(row.licensing.status)}`}
                           >
@@ -724,7 +721,7 @@ export function OperationTrackingPanel({
                           </span>
                         </td>
                         <td>
-                          <div className="unit-cell__actions">
+                          <div className="unit-cell__actions tracking-actions">
                             <button
                               aria-expanded={open}
                               aria-label={`${open ? 'Ocultar' : 'Ver'} ingresos de la operación #${row.number}`}
@@ -757,7 +754,7 @@ export function OperationTrackingPanel({
                       </tr>
                       {open && (
                         <tr className="tracking-detail">
-                          <td colSpan={13}>
+                          <td colSpan={8}>
                             <ComponentRows
                               canManage={canCollect && !row.readOnly}
                               onFinancing={(component) =>

@@ -41,6 +41,7 @@ import type {
 } from './types'
 import { WorkMonthSelect } from '../../shared/work-months/WorkMonthSelect'
 import { useWorkMonths, workMonthBounds } from '../../shared/work-months/workMonths'
+import { HomeFilterNotice, useHomeFilters } from '../../shared/homeFilters'
 
 type FilterStatus = SalesOperationStatus | 'TODOS'
 type LicensingFilter =
@@ -182,6 +183,9 @@ export function OperationsPage({
       },
       { replace: true },
     )
+  // Desde una tarjeta del inicio: sucursal (además del filtro de patente).
+  const home = useHomeFilters([LICENSING_FILTER_PARAM])
+  const homeBranchId = home.branchId
   const navigate = useNavigate()
   // Fase 5: el pago a la gestoría se carga en pagos de vehículo, con el
   // formulario precargado desde la operación.
@@ -229,9 +233,11 @@ export function OperationsPage({
       ...(showLicensing ? licensingQuery(licensingFilter) : {}),
       ...(unitFilter ? { fulfillmentStatus: unitFilter } : {}),
       ...(effectiveMine ? { mine: true } : {}),
+      ...(homeBranchId ? { branchId: homeBranchId } : {}),
     }),
     [
       effectiveMine,
+      homeBranchId,
       licensingFilter,
       operationStatus,
       period,
@@ -375,6 +381,14 @@ export function OperationsPage({
           )}
         </div>
       </header>
+
+      <HomeFilterNotice
+        origin={home.origin}
+        onClear={() => {
+          setPage(1)
+          home.clear()
+        }}
+      />
 
       {canTrack && (
         <nav className="access-tabs tracking-tabs" aria-label="Vistas de operaciones">

@@ -169,6 +169,8 @@ export type FinancialListQuery = {
   // plan de pago de una venta cuenta en el mes de la venta.
   period?: string
   status?: FinancialStatus
+  // Sin cobrar / pagar del todo (pendiente o parcial): lo que cuenta el inicio.
+  unpaid?: boolean
   search?: string
   supplierId?: string
   unitId?: string

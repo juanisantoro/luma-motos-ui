@@ -22,6 +22,7 @@ import {
   type ReminderChannel,
   type ServiceReminder,
 } from './reminders'
+import { HomeFilterNotice, useHomeFilters } from '../../shared/homeFilters'
 
 const TABS = [
   { id: 'PENDING', label: 'Para contactar' },
@@ -46,14 +47,16 @@ const reminderKey = (reminder: ServiceReminder) =>
 
 /**
  * Avisos de service: los clientes a los que les toca el service esta semana
- * (o se les pasó hace poco). El botón de WhatsApp abre WhatsApp Web con el
- * mensaje escrito y deja el aviso como contactado.
+ * (o se les pasó hace poco). El botón de WhatsApp abre el chat del cliente
+ * con el mensaje escrito y deja el aviso como contactado.
  */
 export function ServiceRemindersPage() {
   const { user } = useAuth()
   const scopeKey = branchScopeKey(user)
+  // Desde una tarjeta del inicio: la sucursal elegida.
+  const home = useHomeFilters([])
   const [tab, setTab] = useState<TabId>('PENDING')
-  const [branchId, setBranchId] = useState('')
+  const [branchId, setBranchId] = useState(home.branchId ?? '')
   const [branches, setBranches] = useState<BranchOption[]>([])
   const [items, setItems] = useState<ServiceReminder[]>([])
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
@@ -115,7 +118,9 @@ export function ServiceRemindersPage() {
   const openWhatsapp = (reminder: ServiceReminder, link: string) => {
     // Se abre en el mismo clic (si no, el navegador bloquea la ventana) y
     // después se marca como contactado.
-    window.open(link, 'luma-whatsapp')
+    // Siempre en una pestaña nueva: reusar una pestaña con WhatsApp Web
+    // abierto la dejaba en la pantalla principal, sin el chat.
+    window.open(link, '_blank', 'noopener')
     void resolve(reminder, 'CONTACTADO', 'WHATSAPP')
   }
 
@@ -144,6 +149,14 @@ export function ServiceRemindersPage() {
           </p>
         </div>
       </header>
+
+      <HomeFilterNotice
+        origin={home.origin}
+        onClear={() => {
+          home.clear()
+          setBranchId('')
+        }}
+      />
 
       <div className="service-tabs" role="tablist" aria-label="Avisos">
         {TABS.map((item) => (
@@ -322,7 +335,7 @@ export function ServiceRemindersPage() {
       </section>
       {tab === 'PENDING' && (
         <p className="financial-summary-note">
-          WhatsApp abre WhatsApp Web con el mensaje escrito: revisalo y mandalo desde ahí. El
+          WhatsApp abre el chat del cliente con el mensaje escrito: revisalo y mandalo desde ahí. El
           aviso queda como contactado. Una moto que ya está en el taller no aparece.
         </p>
       )}

@@ -139,7 +139,7 @@ describe('Seguimiento de operaciones', () => {
     const row = within(table).getAllByRole('row')[1]!
 
     expect(within(row).getByText('#1048')).toBeInTheDocument()
-    expect(within(row).getByText('B-0042')).toBeInTheDocument()
+    expect(within(row).getByText(/Boleto B-0042/)).toBeInTheDocument()
     expect(within(row).getByText('Ana Pérez')).toBeInTheDocument()
     expect(within(row).getByText('Vendedor Uno')).toBeInTheDocument()
     expect(within(row).getByText(/2\.500\.000/)).toBeInTheDocument()
@@ -451,7 +451,7 @@ describe('Financieras y crédito propio en el seguimiento', () => {
     const { plan } = await openDetail()
 
     const table = screen.getAllByRole('table')[0]!
-    expect(within(table).getByText('4 de 12 cuotas')).toBeInTheDocument()
+    expect(within(table).getAllByText(/4 de 12 cuotas/).length).toBeGreaterThan(0)
     expect(within(plan).getByText('Crédito propio')).toBeInTheDocument()
     expect(
       within(plan).queryByRole('button', { name: 'Financiera pagó' }),

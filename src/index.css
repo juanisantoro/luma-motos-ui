@@ -6977,7 +6977,36 @@ a {
 }
 
 .tracking-table {
-  min-width: 1480px;
+  /* 8 columnas agrupadas: entra en el ancho de la pantalla sin scroll
+     lateral (sólo en pantallas muy angostas aparece). */
+  min-width: 860px;
+  table-layout: auto;
+}
+
+.tracking-table th,
+.tracking-table td {
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
+.tracking-table .tracking-money {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tracking-table .tracking-states .status-badge {
+  display: flex;
+  width: fit-content;
+}
+
+.tracking-table .tracking-states .status-badge + .status-badge {
+  margin-top: 5px;
+}
+
+.tracking-table .tracking-actions {
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 118px;
 }
 
 .tracking-table td .status-badge {
@@ -8833,4 +8862,42 @@ body:has(.service-page--work .service-actions) {
   .guarantor-fields__grid--client {
     grid-template-columns: 1fr;
   }
+}
+
+/* Aviso de filtros que vienen desde una tarjeta del inicio. */
+.home-filter-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border: 1px solid #f1d9a6;
+  border-radius: 10px;
+  color: #6b4a00;
+  background: #fff8e8;
+  font-size: 12px;
+}
+
+.home-filter-notice strong {
+  color: #4a3300;
+}
+
+.home-filter-notice__clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 4px 9px;
+  border: 1px solid #e3c98c;
+  border-radius: 999px;
+  color: #6b4a00;
+  background: white;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.home-filter-notice__clear:hover {
+  background: #fff3d6;
 }

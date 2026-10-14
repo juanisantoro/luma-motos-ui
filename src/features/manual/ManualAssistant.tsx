@@ -1,5 +1,13 @@
 import { Send, X } from 'lucide-react'
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { ApiError, NetworkError } from '../../shared/api/client'
 import { useAuth } from '../auth/AuthContext'
 import { askAssistant, type AssistantMessage } from './api'
@@ -50,6 +58,45 @@ const SUGGESTIONS: Record<string, string[]> = {
     '¿Cómo confirmo que recibí un efectivo?',
     '¿Qué pagos de patentes están pendientes?',
   ],
+}
+
+// El botón se puede arrastrar para que no tape grillas ni botones: queda
+// pegado al costado más cercano, a la altura donde se soltó, y se recuerda
+// en este navegador.
+type LumiPosition = { side: 'left' | 'right'; bottom: number }
+const POSITION_KEY = 'lumi.position'
+const EDGE_GAP = 12
+// Movimiento mínimo para que cuente como arrastre y no como clic.
+const DRAG_THRESHOLD = 6
+
+function readPosition(): LumiPosition | null {
+  try {
+    const raw = window.localStorage.getItem(POSITION_KEY)
+    if (!raw) return null
+    const value = JSON.parse(raw) as Partial<LumiPosition>
+    if (
+      (value.side === 'left' || value.side === 'right') &&
+      typeof value.bottom === 'number' &&
+      Number.isFinite(value.bottom)
+    )
+      return { side: value.side, bottom: value.bottom }
+  } catch {
+    // Sin almacenamiento disponible: queda en el lugar de siempre.
+  }
+  return null
+}
+
+function savePosition(position: LumiPosition) {
+  try {
+    window.localStorage.setItem(POSITION_KEY, JSON.stringify(position))
+  } catch {
+    // Sin almacenamiento: la posición vale sólo hasta recargar.
+  }
+}
+
+function clampBottom(bottom: number, size: number) {
+  const max = Math.max(EDGE_GAP, window.innerHeight - size - EDGE_GAP)
+  return Math.min(Math.max(EDGE_GAP, Math.round(bottom)), max)
 }
 
 function errorMessage(error: unknown) {
@@ -114,6 +161,93 @@ export function ManualAssistant() {
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<LumiPosition | null>(readPosition)
+  const [dragging, setDragging] = useState(false)
+  const drag = useRef<{
+    startX: number
+    startY: number
+    moved: boolean
+    size: number
+  } | null>(null)
+  // Tras soltar un arrastre, el clic que dispara el navegador no abre Lumi.
+  const suppressClick = useRef(false)
+
+  // Si la ventana se achica, el botón no queda fuera de la pantalla.
+  useEffect(() => {
+    if (!position) return
+    const onResize = () =>
+      setPosition((current) =>
+        current ? { ...current, bottom: clampBottom(current.bottom, 48) } : current,
+      )
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [position])
+
+  function onPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) return
+    drag.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+      size: event.currentTarget.offsetHeight || 48,
+    }
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
+    const current = drag.current
+    if (!current) return
+    if (
+      !current.moved &&
+      Math.hypot(event.clientX - current.startX, event.clientY - current.startY) <
+        DRAG_THRESHOLD
+    )
+      return
+    current.moved = true
+    setDragging(true)
+    setPosition({
+      side: event.clientX < window.innerWidth / 2 ? 'left' : 'right',
+      bottom: clampBottom(
+        window.innerHeight - event.clientY - current.size / 2,
+        current.size,
+      ),
+    })
+  }
+
+  function onPointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
+    const current = drag.current
+    drag.current = null
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+    if (!current?.moved) return
+    suppressClick.current = true
+    setDragging(false)
+    setPosition((value) => {
+      if (value) savePosition(value)
+      return value
+    })
+  }
+
+  function onLauncherClick() {
+    if (suppressClick.current) {
+      suppressClick.current = false
+      return
+    }
+    setOpen((current) => !current)
+  }
+
+  const placement: CSSProperties | undefined = position
+    ? position.side === 'left'
+      ? {
+          left: EDGE_GAP,
+          right: 'auto',
+          bottom: `calc(${position.bottom}px + var(--lumi-lift, 0px))`,
+          justifyItems: 'start',
+        }
+      : {
+          right: EDGE_GAP,
+          bottom: `calc(${position.bottom}px + var(--lumi-lift, 0px))`,
+        }
+    : undefined
   const panelId = useId()
   const roleCode = user?.role.code
   const trimmed = question.trim()
@@ -169,7 +303,10 @@ export function ManualAssistant() {
   }
 
   return (
-    <div className={`lumi ${open ? 'lumi--open' : ''}`}>
+    <div
+      className={`lumi ${open ? 'lumi--open' : ''}${dragging ? ' lumi--dragging' : ''}${position?.side === 'left' ? ' lumi--left' : ''}`}
+      style={placement}
+    >
       {open && (
         <section
           aria-label="Lumi, asistente virtual"
@@ -267,11 +404,16 @@ export function ManualAssistant() {
         aria-expanded={open}
         aria-label={open ? 'Cerrar Lumi' : 'Abrir Lumi, asistente virtual'}
         className="lumi__launcher"
-        onClick={() => setOpen((current) => !current)}
+        onClick={onLauncherClick}
+        onPointerCancel={onPointerUp}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        title="Preguntale a Lumi. Arrastralo para moverlo."
         type="button"
       >
-        <LumiFace size={40} />
-        <span>Preguntale a Lumi</span>
+        <LumiFace size={32} />
+        <span>Lumi</span>
       </button>
     </div>
   )

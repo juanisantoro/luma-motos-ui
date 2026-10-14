@@ -11,6 +11,7 @@ import { ApiError } from '../../shared/api/client'
 import { StatePanel } from '../../shared/components/StatePanel'
 import { describeFilters, downloadExcel, fetchAllPages } from '../../shared/export/excel'
 import { ExportExcelButton } from '../../shared/export/ExportExcelButton'
+import { HomeFilterNotice, useHomeFilters } from '../../shared/homeFilters'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/PermissionRoute'
 import { alertError, alertSuccess } from '../../shared/alerts'
@@ -92,11 +93,26 @@ export function FinancialModulePage({
     || hasPermission(permissions, 'compras.costos.consultar')
   const canCreate = canManage && (kind !== 'purchase' || canViewCosts)
 
-  const [query, setQuery] = useState<FinancialListQuery>({
+  // Desde una tarjeta del inicio: pendientes de cobro/pago, efectivo sin
+  // rendir y sucursal.
+  const home = useHomeFilters(['pendientes', 'rendicion'])
+  const [query, setQuery] = useState<FinancialListQuery>(() => ({
     page: 1,
     limit: PAGE_SIZE,
     ...(vehicleType ? { vehicleType } : {}),
-  })
+    ...(home.values.pendientes === '1' ? { unpaid: true } : {}),
+    ...(kind === 'income' && home.values.rendicion === 'PENDIENTE_RENDICION'
+      ? { handoverStatus: 'PENDIENTE_RENDICION' as const }
+      : {}),
+    ...(home.branchId ? { branchId: home.branchId } : {}),
+  }))
+  // Al quitar el filtro del inicio se vuelven a montar los filtros vacíos.
+  const [filtersKey, setFiltersKey] = useState(0)
+  const clearHomeFilter = () => {
+    home.clear()
+    setQuery({ page: 1, limit: PAGE_SIZE, ...(vehicleType ? { vehicleType } : {}) })
+    setFiltersKey((current) => current + 1)
+  }
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [result, setResult] = useState<PageResponse<FinancialRecord> | null>(null)
   const [loadError, setLoadError] = useState('')
@@ -254,8 +270,11 @@ export function FinancialModulePage({
         </div>
       </header>
 
+      <HomeFilterNotice origin={home.origin} onClear={clearHomeFilter} />
+
       <div className="export-filters-scope" ref={filtersRef}>
       <FinancialFilters
+        key={filtersKey}
         kind={kind}
         {...(vehicleType ? { vehicleType } : {})}
         value={query}

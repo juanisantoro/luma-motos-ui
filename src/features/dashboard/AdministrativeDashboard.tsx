@@ -12,6 +12,7 @@ import { AlertStrip, DashboardPanel, KpiCard, PanelEmptyState, TopModelsPanel } 
 import { formatCurrency, formatDateTime, greetingFirstName, todayLongLabel } from './format'
 import { PendingTasksPanel } from './PendingTasksPanel'
 import type { AdministrativeHome } from './types'
+import { HOME_ORIGIN_PARAM, homeLink } from '../../shared/homeFilters'
 
 const RESULT_LABEL: Record<string, string> = {
   PENDIENTE: 'Pendiente',
@@ -26,8 +27,17 @@ const RESULT_TONE: Record<string, string> = {
 }
 
 // Los contadores de patentes abren la grilla de operaciones ya filtrada.
-const LICENSING_OVERDUE_PATH = '/motos/operaciones?patente=DEMORADAS'
-const LICENSING_COLLECTION_PATH = '/motos/operaciones?patente=COBRO_PENDIENTE'
+// Cada acceso abre la pantalla con el filtro de lo que muestra la tarjeta.
+const LICENSING_OVERDUE_PATH = homeLink('/motos/operaciones?patente=DEMORADAS', {
+  [HOME_ORIGIN_PARAM]: 'Patentes vencidas sin cargar',
+})
+const LICENSING_COLLECTION_PATH = homeLink(
+  '/motos/operaciones?patente=COBRO_PENDIENTE',
+  { [HOME_ORIGIN_PARAM]: 'Patentes recibidas con pago pendiente' },
+)
+const DUE_TODAY_PATH = homeLink('/creditos/cobranza?vence=hoy', {
+  [HOME_ORIGIN_PARAM]: 'Cuotas que vencen hoy',
+})
 
 export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) {
   const { greeting } = home
@@ -53,7 +63,7 @@ export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) 
       <PendingTasksPanel tasks={home.pendingTasks} mode="own" />
 
       {home.dueTodayAlert && home.dueTodayAlert.clientCount > 0 && (
-        <AlertStrip icon={CalendarClock} cta={{ label: 'Ir a cobranza', to: '/creditos/cobranza' }}>
+        <AlertStrip icon={CalendarClock} cta={{ label: 'Ir a cobranza', to: DUE_TODAY_PATH }}>
           <strong>{formatCurrency(home.dueTodayAlert.amount)}</strong> a cobrar hoy de{' '}
           <strong>{home.dueTodayAlert.clientCount}</strong>{' '}
           {home.dueTodayAlert.clientCount === 1 ? 'cliente' : 'clientes'} con cuota vencida hoy.
@@ -116,7 +126,7 @@ export function AdministrativeDashboard({ home }: { home: AdministrativeHome }) 
             title="Cobranza de hoy"
             description="Cuotas de crédito personal que vencen hoy"
             action={
-              <Link to="/creditos/cobranza" className="button button--secondary button--compact">
+              <Link to={DUE_TODAY_PATH} className="button button--secondary button--compact">
                 Ir a cobranza
               </Link>
             }

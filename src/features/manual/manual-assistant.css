@@ -25,12 +25,14 @@
   border-radius: 50%;
 }
 
-/* Botón flotante */
+/* Botón flotante: chico y arrastrable (ver ManualAssistant). */
 .lumi__launcher {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 18px 6px 6px;
+  gap: 8px;
+  padding: 4px 14px 4px 4px;
+  touch-action: none;
+  user-select: none;
   border: 0;
   border-radius: 999px;
   color: white;
@@ -39,9 +41,9 @@
     0 10px 24px #1013183d,
     0 0 0 1px #ffffff14 inset;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 750;
-  cursor: pointer;
+  cursor: grab;
   transition:
     transform 160ms ease,
     box-shadow 160ms ease;
@@ -62,6 +64,17 @@
 .lumi__suggestions button:focus-visible {
   outline: 3px solid var(--lumi-amber);
   outline-offset: 2px;
+}
+
+/* Mientras se arrastra: sin animaciones y con el cursor de agarre. */
+.lumi--dragging .lumi__launcher {
+  cursor: grabbing;
+  transform: scale(1.06);
+  transition: none;
+}
+
+.lumi--left .lumi__panel {
+  transform-origin: bottom left;
 }
 
 /* Panel */
@@ -354,12 +367,32 @@
     height: min(560px, calc(100dvh - 96px - var(--lumi-lift, 0px)));
   }
 
+  .lumi__launcher span {
+    display: none;
+  }
+}
+
+/* Pantallas chicas y tablets: sólo la cara, más chica y semitransparente
+   hasta que se la toca, para que no tape las grillas. */
+@media (max-width: 1024px) {
   .lumi__launcher {
-    padding: 5px;
+    padding: 3px;
+    opacity: 0.85;
+  }
+
+  .lumi__launcher .lumi-face {
+    width: 30px;
+    height: 30px;
   }
 
   .lumi__launcher span {
     display: none;
+  }
+
+  .lumi__launcher:hover,
+  .lumi__launcher:focus-visible,
+  .lumi--open .lumi__launcher {
+    opacity: 1;
   }
 }
 
