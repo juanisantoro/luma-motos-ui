@@ -101,8 +101,10 @@ describe('Inicio del administrador por sucursal', () => {
     expect(
       screen.getByRole('link', { name: 'Ver Patentes vencidas sin cargar' }).getAttribute('href'),
     ).toMatch(/^\/motos\/operaciones\?patente=DEMORADAS&origen=/)
-    expect(screen.getByText('Vendedores · Del Viso')).toBeInTheDocument()
+    // Un solo ranking de vendedores, con la sucursal de cada uno.
+    expect(screen.getByText('Vendedores del mes')).toBeInTheDocument()
     expect(screen.getByText('Vendedor Dos')).toBeInTheDocument()
+    expect(screen.getByText('Vendedor Uno')).toBeInTheDocument()
   })
 
   it('muestra una sola sucursal al elegirla y vuelve a la consolidada', async () => {

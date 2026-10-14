@@ -81,7 +81,7 @@ describe('Tareas pendientes del inicio', () => {
     expect(screen.getByText('No tenés tareas pendientes. Estás al día.')).toBeInTheDocument()
   })
 
-  it('le muestra al administrador una tarjeta por tarea con el reparto por sucursal', () => {
+  it('le muestra al administrador una fila por tarea con el reparto por sucursal', () => {
     show({ branches: [delViso, sanMiguel] }, 'team')
 
     expect(screen.getByText('16 pendientes')).toBeInTheDocument()

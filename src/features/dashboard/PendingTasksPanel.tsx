@@ -221,43 +221,44 @@ export function PendingTasksPanel({
                 ))}
               </ul>
             )}
-            <ul className="task-tiles" aria-label="Tareas pendientes de administración">
+            <ul className="task-rows" aria-label="Tareas pendientes de administración">
               {open.map((row) => {
                 const { label, icon: Icon, urgent } = TASKS[row.key]
                 return (
-                  <li className={`task-tile${urgent ? ' task-tile--urgent' : ''}`} key={row.key}>
-                    <div className="task-tile__head">
-                      <span className="task-tile__icon">
-                        <Icon size={18} aria-hidden="true" />
-                      </span>
-                      <span className="task-tile__count">{row.count}</span>
+                  <li className={`task-row${urgent ? ' task-row--urgent' : ''}`} key={row.key}>
+                    <span className="task-row__count">{row.count}</span>
+                    <div className="task-row__body">
+                      <p className="task-row__label">
+                        <Icon size={15} aria-hidden="true" />
+                        {label}
+                      </p>
+                      {(row.amount > 0 || several) && (
+                        <div className="task-row__meta">
+                          {row.amount > 0 && (
+                            <span className="task-row__amount">{formatCurrency(row.amount)}</span>
+                          )}
+                          {several && (
+                            <dl className="task-row__split">
+                              {row.perBranch.map((branch) => (
+                                <div key={branch.branchId}>
+                                  <dt>{branch.branchName}</dt>
+                                  <dd>
+                                    <b>{branch.count}</b>
+                                  </dd>
+                                </div>
+                              ))}
+                            </dl>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <p className="task-tile__label">{label}</p>
-                    {row.amount > 0 && (
-                      <p className="task-tile__amount">{formatCurrency(row.amount)}</p>
-                    )}
-                    {several && (
-                      <dl className="task-tile__split">
-                        {row.perBranch.map((branch) => (
-                          <div key={branch.branchId}>
-                            <dt>{branch.branchName}</dt>
-                            <dd>
-                              <span className="task-tile__bar" aria-hidden="true">
-                                <span style={{ width: `${(branch.count / row.count) * 100}%` }} />
-                              </span>
-                              <b>{branch.count}</b>
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                    )}
                     {links && (
                       <Link
-                        className="task-tile__link"
+                        className="task-row__link"
                         to={taskLink(row.key, singleBranch)}
                         aria-label={`Ver ${label}`}
                       >
-                        Ver <ArrowRight size={14} aria-hidden="true" />
+                        {urgent ? 'Urgente' : 'Ver'} <ArrowRight size={14} aria-hidden="true" />
                       </Link>
                     )}
                   </li>

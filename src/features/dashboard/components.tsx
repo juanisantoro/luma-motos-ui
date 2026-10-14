@@ -92,6 +92,8 @@ type RankingListItem = {
   subtitle?: string
   stat: string
   statSubtitle?: string
+  /** Largo de la barra, de 0 a 100, comparado con el primero del ranking. */
+  share?: number
 }
 
 export function RankingList({ items }: { items: RankingListItem[] }) {
@@ -103,6 +105,11 @@ export function RankingList({ items }: { items: RankingListItem[] }) {
           <span className="ranking-list__name">
             {item.name}
             {item.subtitle && <small>{item.subtitle}</small>}
+            {item.share !== undefined && (
+              <span className="ranking-list__bar" aria-hidden="true">
+                <span style={{ width: `${item.share}%` }} />
+              </span>
+            )}
           </span>
           <span className="ranking-list__stat">
             {item.stat}
@@ -132,11 +139,13 @@ export function TopModelsPanel({
         <RankingList
           items={models.map((model) => {
             const version = displayVersion(model.version, model.model)
+            const max = Math.max(...models.map((item) => item.units))
             return {
               key: model.versionId,
               name: `${model.brand} ${model.model}`,
               ...(version ? { subtitle: version } : {}),
               stat: `${model.units} un.`,
+              share: max > 0 ? Math.round((model.units / max) * 100) : 0,
             }
           })}
         />

@@ -1,16 +1,6 @@
-import {
-  Banknote,
-  CheckCircle2,
-  ClipboardCheck,
-  HandCoins,
-  PackageSearch,
-  Receipt,
-  UsersRound,
-  Wallet,
-  Warehouse,
-} from 'lucide-react'
-import { useState } from 'react'
-import { DashboardPanel, KpiCard, PanelEmptyState, RankingList, TopModelsPanel } from './components'
+import { ArrowRight } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { DashboardPanel, PanelEmptyState, RankingList, TopModelsPanel } from './components'
 import {
   formatCurrency,
   formatMonthDelta,
@@ -21,7 +11,14 @@ import {
 } from './format'
 import { formatDay } from '../../shared/work-months/workMonths'
 import { PendingTasksPanel } from './PendingTasksPanel'
-import type { AdminBranchSummary, AdminHome, DashboardMonth, PendingTasks } from './types'
+import type {
+  AdminBranchSummary,
+  AdminHome,
+  CreditPortfolio,
+  DashboardMonth,
+  MonthlyPerformance,
+  PendingTasks,
+} from './types'
 
 const ALL_BRANCHES = 'all'
 
@@ -70,193 +67,285 @@ function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
+type Collection = NonNullable<AdminBranchSummary['collection']>
+
 /** Qué parte de lo vendido en el mes ya se cobró, de 0 a 100. */
-export function collectedPercent(collection: NonNullable<AdminBranchSummary['collection']>) {
+export function collectedPercent(collection: Collection) {
   if (collection.agreedAmount <= 0) return 0
   const percent = Math.round((collection.collectedAmount / collection.agreedAmount) * 100)
   return Math.min(100, Math.max(0, percent))
 }
 
-function BranchSellers({ branch, labels }: { branch: AdminBranchSummary; labels: MonthLabels }) {
-  if (!branch.sellers) return null
-  if (branch.sellers.length === 0)
-    return <PanelEmptyState>No hay ventas computables {labels.inMonth}.</PanelEmptyState>
-  return (
-    <RankingList
-      items={branch.sellers.map((seller) => ({
-        key: seller.sellerId,
-        name: seller.sellerName,
-        stat: `${seller.units} un.`,
-      }))}
-    />
+/** Suma lo que mandan las sucursales; null si ninguna lo manda (sin permiso). */
+function sumOf<T>(items: Array<T | null>, add: (total: T, item: T) => T): T | null {
+  return items.reduce<T | null>((total, item) => {
+    if (item === null) return total
+    return total === null ? item : add(total, item)
+  }, null)
+}
+
+function sumCollections(branches: AdminBranchSummary[]) {
+  return sumOf<Collection>(
+    branches.map((branch) => branch.collection),
+    (total, item) => ({
+      agreedAmount: total.agreedAmount + item.agreedAmount,
+      collectedAmount: total.collectedAmount + item.collectedAmount,
+      pendingAmount: total.pendingAmount + item.pendingAmount,
+      pendingOperations: total.pendingOperations + item.pendingOperations,
+    }),
   )
 }
 
-function BranchCard({
+function sumExpenses(branches: AdminBranchSummary[]) {
+  return sumOf(
+    branches.map((branch) => branch.expensesThisMonth),
+    (total, item) => ({ amount: total.amount + item.amount, count: total.count + item.count }),
+  )
+}
+
+function percentOf(value: number, max: number) {
+  return max > 0 ? Math.round((value / max) * 100) : 0
+}
+
+// --- Piezas del inicio -------------------------------------------------------
+
+function Stat({
+  label,
+  value,
+  meta,
+  tone = 'neutral',
+  progress,
+}: {
+  label: string
+  value: string
+  meta?: ReactNode
+  tone?: 'neutral' | 'danger'
+  /** Barra de avance de 0 a 100 (decorativa: el texto ya dice el número). */
+  progress?: number
+}) {
+  return (
+    <article className="cockpit-stat">
+      <p className="cockpit-stat__label">{label}</p>
+      <p className={`cockpit-stat__value${tone === 'danger' ? ' cockpit-stat__value--danger' : ''}`}>
+        {value}
+      </p>
+      {progress !== undefined && (
+        <span className="cockpit-bar" aria-hidden="true">
+          <span style={{ width: `${progress}%` }} />
+        </span>
+      )}
+      {meta && <p className="cockpit-stat__meta">{meta}</p>}
+    </article>
+  )
+}
+
+/** Tarjeta oscura con las ventas del mes: lo primero que se mira. */
+function SalesHero({
+  scope,
+  sales,
+  labels,
+  footer,
+}: {
+  scope: string
+  sales: MonthlyPerformance
+  labels: MonthLabels
+  footer: ReactNode
+}) {
+  const delta = formatMonthDelta(sales.currentMonth.units, sales.previousMonth.units)
+  const up = sales.currentMonth.units >= sales.previousMonth.units
+  return (
+    <article className="cockpit-stat cockpit-stat--hero">
+      <p className="cockpit-stat__label">
+        VENTAS {labels.ofMonth.toUpperCase()} · {scope.toUpperCase()}
+      </p>
+      <p className="cockpit-stat__value">{formatCurrency(sales.currentMonth.amount)}</p>
+      <p className="cockpit-stat__meta">
+        {formatUnits(sales.currentMonth.units)} vendidas {labels.inMonth}, frente a{' '}
+        {formatUnits(sales.previousMonth.units)} {labels.inPreviousMonth} (
+        <b className={up ? 'cockpit-up' : 'cockpit-down'}>{delta}</b>).
+      </p>
+      <p className="cockpit-stat__foot">{footer}</p>
+    </article>
+  )
+}
+
+function CollectionStats({
+  collection,
+  expenses,
+  labels,
+  expensesNote,
+}: {
+  collection: Collection | null
+  expenses: { amount: number; count: number } | null
+  labels: MonthLabels
+  expensesNote: string
+}) {
+  const percent = collection ? collectedPercent(collection) : 0
+  return (
+    <>
+      {collection && (
+        <Stat
+          label={`Cobrado de las ventas ${labels.ofMonth}`}
+          value={formatCurrency(collection.collectedAmount)}
+          progress={percent}
+          meta={`${percent}% de lo vendido`}
+        />
+      )}
+      {collection && (
+        <Stat
+          label="Falta cobrar"
+          value={formatCurrency(collection.pendingAmount)}
+          tone={collection.pendingAmount > 0 ? 'danger' : 'neutral'}
+          meta={
+            collection.pendingOperations === 1
+              ? '1 venta con saldo'
+              : `${collection.pendingOperations} ventas con saldo`
+          }
+        />
+      )}
+      {expenses && (
+        <Stat
+          label={`Gastos ${labels.ofMonth}`}
+          value={formatCurrency(expenses.amount)}
+          meta={expensesNote}
+        />
+      )}
+    </>
+  )
+}
+
+/** Cartera de créditos, stock y lo que espera una decisión. */
+function PortfolioPanel({
+  credit,
+  items,
+}: {
+  credit: CreditPortfolio | null
+  items: Array<{ label: string; value: string } | null>
+}) {
+  const shown = items.filter((item): item is { label: string; value: string } => item !== null)
+  if (!credit && shown.length === 0) return null
+  return (
+    <DashboardPanel title="Cartera y stock">
+      {credit && (
+        <div className="cockpit-credit">
+          <p className="cockpit-stat__label">Cartera de créditos personales</p>
+          <p className="cockpit-credit__value">{formatCurrency(credit.financedAmount)}</p>
+          <p className={`cockpit-credit__overdue${credit.overdueAmount > 0 ? ' cockpit-credit__overdue--danger' : ''}`}>
+            {formatCurrency(credit.overdueAmount)} en mora
+          </p>
+        </div>
+      )}
+      {shown.length > 0 && (
+        <dl className="cockpit-facts">
+          {shown.map((item) => (
+            <div key={item.label}>
+              <dt>{item.label}</dt>
+              <dd>{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </DashboardPanel>
+  )
+}
+
+function SellersPanel({
+  branches,
+  labels,
+  showBranch,
+}: {
+  branches: AdminBranchSummary[]
+  labels: MonthLabels
+  showBranch: boolean
+}) {
+  const withSellers = branches.filter((branch) => branch.sellers)
+  if (withSellers.length === 0) return null
+  // Un solo ranking, con la sucursal de cada vendedor.
+  const sellers = withSellers
+    .flatMap((branch) =>
+      (branch.sellers ?? []).map((seller) => ({ ...seller, branchName: branch.branchName })),
+    )
+    .sort((a, b) => b.units - a.units)
+  const max = sellers[0]?.units ?? 0
+  return (
+    <DashboardPanel title="Vendedores del mes" description={`Unidades computables ${labels.ofMonth}`}>
+      {sellers.length === 0 ? (
+        <PanelEmptyState>No hay ventas computables {labels.inMonth}.</PanelEmptyState>
+      ) : (
+        <RankingList
+          items={sellers.map((seller) => ({
+            key: `${seller.branchName}-${seller.sellerId}`,
+            name: seller.sellerName,
+            ...(showBranch ? { subtitle: seller.branchName } : {}),
+            stat: `${seller.units} un.`,
+            share: percentOf(seller.units, max),
+          }))}
+        />
+      )}
+    </DashboardPanel>
+  )
+}
+
+function BranchRow({
   branch,
   labels,
+  totalAmount,
   onOpen,
 }: {
   branch: AdminBranchSummary
   labels: MonthLabels
+  totalAmount: number
   onOpen: () => void
 }) {
   const sales = branch.monthlySales
   const collection = branch.collection
   const percent = collection ? collectedPercent(collection) : 0
   return (
-    <section className="dashboard-panel branch-card">
-      <div className="dashboard-panel__header">
-        <div>
-          <h3>{branch.branchName}</h3>
+    <li className="cockpit-branch">
+      <div className="cockpit-branch__head">
+        <h3>{branch.branchName}</h3>
+        {sales && <strong>{formatCurrency(sales.currentMonth.amount)}</strong>}
+      </div>
+      {collection && (
+        <div
+          aria-label={`Cobrado ${percent}% de lo vendido ${labels.withinMonth}`}
+          className="cockpit-bar cockpit-bar--large"
+          role="img"
+        >
+          <span style={{ width: `${percent}%` }} />
         </div>
-        <button className="button button--secondary button--compact" onClick={onOpen} type="button">
-          Ver sucursal
+      )}
+      <div className="cockpit-branch__foot">
+        <p>
+          {sales && (
+            <>
+              <span>
+                <b>{sales.currentMonth.units}</b> un. ·{' '}
+                {formatMonthDelta(sales.currentMonth.units, sales.previousMonth.units)}
+              </span>
+              {totalAmount > 0 && (
+                <span>
+                  <b>{percentOf(sales.currentMonth.amount, totalAmount)}%</b> del total
+                </span>
+              )}
+            </>
+          )}
+          {collection && (
+            <>
+              <span>
+                Cobrado <b>{percent}%</b>
+              </span>
+              <span>
+                Saldo <b>{formatCurrency(collection.pendingAmount)}</b>
+              </span>
+            </>
+          )}
+        </p>
+        <button className="cockpit-link" onClick={onOpen} type="button">
+          Ver sucursal <ArrowRight size={14} aria-hidden="true" />
         </button>
       </div>
-      {sales && (
-        <div>
-          <p className="branch-card__label">Ventas {labels.ofMonth}</p>
-          <p className="branch-card__value">{formatCurrency(sales.currentMonth.amount)}</p>
-          <p className="branch-card__meta">
-            {formatUnits(sales.currentMonth.units)} ·{' '}
-            {formatMonthDelta(sales.currentMonth.units, sales.previousMonth.units)} contra{' '}
-            {labels.previousMonth}
-          </p>
-        </div>
-      )}
-      {collection && (
-        <div className="branch-card__collection">
-          <div className="branch-card__collection-text">
-            <strong>Cobrado {formatCurrency(collection.collectedAmount)}</strong>
-            <span>Falta cobrar {formatCurrency(collection.pendingAmount)}</span>
-          </div>
-          <div
-            aria-label={`Cobrado ${percent}% de lo vendido ${labels.withinMonth}`}
-            className="branch-card__bar"
-            role="img"
-          >
-            <div className="branch-card__bar-fill" style={{ width: `${percent}%` }} />
-          </div>
-        </div>
-      )}
-    </section>
-  )
-}
-
-function BranchDetail({
-  branch,
-  labels,
-  shareOfTotal,
-}: {
-  branch: AdminBranchSummary
-  labels: MonthLabels
-  shareOfTotal: number | null
-}) {
-  const sales = branch.monthlySales
-  const collection = branch.collection
-  const credit = branch.creditPortfolio
-  return (
-    <>
-      {sales && (
-        <section className="hero-card">
-          <div>
-            <span className="hero-card__icon" aria-hidden="true">
-              <Banknote />
-            </span>
-            <p className="eyebrow">
-              VENTAS {labels.ofMonth.toUpperCase()} · {branch.branchName.toUpperCase()}
-            </p>
-            <h2>{formatCurrency(sales.currentMonth.amount)}</h2>
-            <p>
-              {formatUnits(sales.currentMonth.units)} vendidas {labels.inMonth}, frente a{' '}
-              {formatUnits(sales.previousMonth.units)} {labels.inPreviousMonth} (
-              {formatMonthDelta(sales.currentMonth.units, sales.previousMonth.units)}).
-            </p>
-          </div>
-          <div className="hero-card__meta">
-            <small>{capitalize(labels.inPreviousMonth)}</small>
-            <strong>{formatCurrency(sales.previousMonth.amount)}</strong>
-            {shareOfTotal !== null && (
-              <>
-                <small>Participación en el total</small>
-                <strong>{shareOfTotal}%</strong>
-              </>
-            )}
-          </div>
-        </section>
-      )}
-
-      <div className="kpi-grid">
-        {collection && (
-          <KpiCard
-            icon={HandCoins}
-            label={`Cobrado de las ventas ${labels.ofMonth}`}
-            value={formatCurrency(collection.collectedAmount)}
-            meta={`${collectedPercent(collection)}% de lo vendido`}
-          />
-        )}
-        {collection && (
-          <KpiCard
-            icon={Wallet}
-            label="Falta cobrar"
-            value={formatCurrency(collection.pendingAmount)}
-            meta={
-              collection.pendingOperations === 1
-                ? '1 venta con saldo'
-                : `${collection.pendingOperations} ventas con saldo`
-            }
-            metaTone={collection.pendingAmount > 0 ? 'negative' : 'neutral'}
-          />
-        )}
-        {branch.expensesThisMonth && (
-          <KpiCard
-            icon={Receipt}
-            label={`Gastos ${labels.ofMonth}`}
-            value={formatCurrency(branch.expensesThisMonth.amount)}
-            meta="Sólo los de la sucursal, en pesos"
-          />
-        )}
-        {branch.stockUnits !== null && (
-          <KpiCard
-            icon={Warehouse}
-            label="Stock disponible"
-            value={formatUnits(branch.stockUnits)}
-            meta="Motos + autos"
-          />
-        )}
-        {credit && (
-          <KpiCard
-            icon={Banknote}
-            label="Cartera de créditos personales"
-            value={formatCurrency(credit.financedAmount)}
-            meta={`${formatCurrency(credit.overdueAmount)} en mora`}
-            metaTone={credit.overdueAmount > 0 ? 'negative' : 'neutral'}
-          />
-        )}
-        {branch.pendingApprovals !== null && (
-          <KpiCard
-            icon={ClipboardCheck}
-            label="Esperan aprobación"
-            value={String(branch.pendingApprovals)}
-            meta="Ventas por debajo de lista"
-          />
-        )}
-      </div>
-
-      <div className="panel-grid">
-        {branch.sellers && (
-          <DashboardPanel title="Vendedores" description={`Unidades computables ${labels.ofMonth}`}>
-            <BranchSellers branch={branch} labels={labels} />
-          </DashboardPanel>
-        )}
-        <TopModelsPanel
-          title="Modelos más vendidos"
-          description={`Top 5 por unidades ${labels.ofMonth}, ${branch.branchName}`}
-          models={branch.topModels}
-        />
-      </div>
-    </>
+    </li>
   )
 }
 
@@ -287,11 +376,11 @@ function MonthSwitch({
         { value: 'previous', label: capitalize(monthNameOf(currentPeriod, -1)) },
       ]
   return (
-    <div aria-busy={loading} aria-label="Mes" className="month-switch" role="group">
+    <div aria-busy={loading} aria-label="Mes" className="cockpit-segment" role="group">
       {options.map((option) => (
         <button
           aria-pressed={option.value === month}
-          className={`month-switch__option${option.value === month ? ' month-switch__option--active' : ''}`}
+          className={`cockpit-segment__option${option.value === month ? ' cockpit-segment__option--dark' : ''}`}
           disabled={loading}
           key={option.value}
           onClick={() => onChange(option.value)}
@@ -302,6 +391,186 @@ function MonthSwitch({
         </button>
       ))}
     </div>
+  )
+}
+
+// --- Vistas ------------------------------------------------------------------
+
+function BranchView({
+  branch,
+  labels,
+  shareOfTotal,
+}: {
+  branch: AdminBranchSummary
+  labels: MonthLabels
+  shareOfTotal: number | null
+}) {
+  const sales = branch.monthlySales
+  return (
+    <>
+      <section aria-label="Números del mes" className="cockpit-stats">
+        {sales && (
+          <SalesHero
+            labels={labels}
+            sales={sales}
+            scope={branch.branchName}
+            footer={
+              shareOfTotal !== null ? (
+                <>
+                  <strong>{shareOfTotal}%</strong> del total de la organización
+                </>
+              ) : (
+                <>
+                  {capitalize(labels.inPreviousMonth)}: {formatCurrency(sales.previousMonth.amount)}
+                </>
+              )
+            }
+          />
+        )}
+        <CollectionStats
+          collection={branch.collection}
+          expenses={branch.expensesThisMonth}
+          expensesNote="Sólo los de la sucursal, en pesos"
+          labels={labels}
+        />
+      </section>
+
+      <div className="cockpit-split">
+        <SellersPanel branches={[branch]} labels={labels} showBranch={false} />
+        <PortfolioPanel
+          credit={branch.creditPortfolio}
+          items={[
+            branch.stockUnits !== null
+              ? { label: 'Stock disponible', value: formatUnits(branch.stockUnits) }
+              : null,
+            branch.pendingApprovals !== null
+              ? { label: 'Esperan aprobación', value: String(branch.pendingApprovals) }
+              : null,
+          ]}
+        />
+      </div>
+
+      <div className="cockpit-pair">
+        <TopModelsPanel
+          title="Modelos más vendidos"
+          description={`Top 5 por unidades ${labels.ofMonth}, ${branch.branchName}`}
+          models={branch.topModels}
+        />
+      </div>
+    </>
+  )
+}
+
+function OrganizationView({
+  home,
+  branches,
+  labels,
+  onOpen,
+}: {
+  home: AdminHome
+  branches: AdminBranchSummary[]
+  labels: MonthLabels
+  onOpen: (branchId: string) => void
+}) {
+  const sales = home.monthlySales
+  const totalAmount = sales?.currentMonth.amount ?? 0
+  const several = branches.length > 1
+  return (
+    <>
+      <section aria-label="Números del mes" className="cockpit-stats">
+        {sales && (
+          <SalesHero
+            labels={labels}
+            sales={sales}
+            scope="Todas las sucursales"
+            footer={
+              <>
+                {capitalize(labels.inPreviousMonth)}: {formatCurrency(sales.previousMonth.amount)} ·
+                monto {formatMonthDelta(sales.currentMonth.amount, sales.previousMonth.amount)}
+              </>
+            }
+          />
+        )}
+        <CollectionStats
+          collection={sumCollections(branches)}
+          expenses={sumExpenses(branches)}
+          expensesNote="Todas las sucursales, en pesos"
+          labels={labels}
+        />
+      </section>
+
+      <div className="cockpit-split">
+        {branches.length > 0 ? (
+          <DashboardPanel
+            title="Sucursales"
+            description={`Ventas y cobranza ${labels.ofMonth}`}
+          >
+            <ul className="cockpit-branches">
+              {branches.map((item) => (
+                <BranchRow
+                  branch={item}
+                  key={item.branchId}
+                  labels={labels}
+                  onOpen={() => onOpen(item.branchId)}
+                  totalAmount={several ? totalAmount : 0}
+                />
+              ))}
+            </ul>
+          </DashboardPanel>
+        ) : (
+          home.salesByBranch && (
+            <DashboardPanel
+              title="Ventas por sucursal"
+              description={`Unidades y monto ${labels.ofMonth}, por sucursal`}
+            >
+              {home.salesByBranch.length === 0 ? (
+                <PanelEmptyState>No hay sucursales activas.</PanelEmptyState>
+              ) : (
+                <RankingList
+                  items={home.salesByBranch.map((item) => ({
+                    key: item.branchId,
+                    name: item.branchName,
+                    stat: formatUnits(item.units),
+                    statSubtitle: formatCurrency(item.amount),
+                  }))}
+                />
+              )}
+            </DashboardPanel>
+          )
+        )}
+        <PortfolioPanel
+          credit={home.creditPortfolio}
+          items={[
+            home.stockUnitsTotal !== null
+              ? { label: 'Stock total', value: formatUnits(home.stockUnitsTotal) }
+              : null,
+            home.pendingPurchases !== null
+              ? { label: 'Compras pendientes de recibir', value: formatUnits(home.pendingPurchases) }
+              : null,
+            home.newClientsThisWeek !== null
+              ? { label: 'Clientes nuevos esta semana', value: String(home.newClientsThisWeek) }
+              : null,
+          ]}
+        />
+      </div>
+
+      <div className="cockpit-pair">
+        <SellersPanel branches={branches} labels={labels} showBranch={several} />
+        <TopModelsPanel
+          title="Modelos más vendidos"
+          description={`Top 5 por unidades ${labels.ofMonth}, toda la organización`}
+          models={home.topModels}
+        />
+      </div>
+
+      {!home.salesByBranch && !home.topModels && !home.creditPortfolio && (
+        <DashboardPanel title="Sin secciones disponibles">
+          <PanelEmptyState>
+            Tu rol no tiene permisos asignados para ver información de este panel todavía.
+          </PanelEmptyState>
+        </DashboardPanel>
+      )}
+    </>
   )
 }
 
@@ -348,19 +617,18 @@ export function AdminDashboard({
       : null
 
   return (
-    <>
-      <header className="page-heading">
+    <div className="cockpit">
+      <header className="cockpit-heading">
         <div>
-          <p className="eyebrow">LUMA MOTOS</p>
+          <p className="cockpit-heading__date">{todayLongLabel(greeting.date)}</p>
           <h1>Buen día, {greetingFirstName(greeting.name)}</h1>
-          <p>
-            {todayLongLabel(greeting.date)} ·{' '}
-            {branch ? `Sucursal ${branch.branchName}` : 'Vista consolidada de la organización'}
+          <p className="cockpit-heading__scope">
+            {branch ? `Sucursal ${branch.branchName}` : `${greeting.organizationName} · todas las sucursales`}
             {shownRange && ` · ${shownRange}`}
             {loading && ' · Actualizando…'}
           </p>
         </div>
-        <div className="page-heading__actions">
+        <div className="cockpit-heading__actions">
           {onMonthChange && home.period && (
             <MonthSwitch
               loading={loading}
@@ -370,176 +638,44 @@ export function AdminDashboard({
               today={greeting.date}
             />
           )}
-          <span className="status-badge status-badge--success">
-            <CheckCircle2 size={15} aria-hidden="true" />
-            {greeting.organizationName}
-          </span>
+          {branches.length > 0 && (
+            <nav className="cockpit-segment" aria-label="Sucursal">
+              <button
+                aria-current={branch ? undefined : 'page'}
+                className={`cockpit-segment__option${branch ? '' : ' cockpit-segment__option--accent'}`}
+                onClick={() => setSelected(ALL_BRANCHES)}
+                type="button"
+              >
+                Todas las sucursales
+              </button>
+              {branches.map((item) => (
+                <button
+                  aria-current={item.branchId === branch?.branchId ? 'page' : undefined}
+                  className={`cockpit-segment__option${item.branchId === branch?.branchId ? ' cockpit-segment__option--accent' : ''}`}
+                  key={item.branchId}
+                  onClick={() => setSelected(item.branchId)}
+                  type="button"
+                >
+                  {item.branchName}
+                </button>
+              ))}
+            </nav>
+          )}
         </div>
       </header>
-
-      {branches.length > 0 && (
-        <nav className="access-tabs" aria-label="Sucursal">
-          <button
-            aria-current={branch ? undefined : 'page'}
-            className={`access-tab${branch ? '' : ' access-tab--active'}`}
-            onClick={() => setSelected(ALL_BRANCHES)}
-            type="button"
-          >
-            Todas las sucursales
-          </button>
-          {branches.map((item) => (
-            <button
-              aria-current={item.branchId === branch?.branchId ? 'page' : undefined}
-              className={`access-tab${item.branchId === branch?.branchId ? ' access-tab--active' : ''}`}
-              key={item.branchId}
-              onClick={() => setSelected(item.branchId)}
-              type="button"
-            >
-              {item.branchName}
-            </button>
-          ))}
-        </nav>
-      )}
 
       <PendingTasksPanel tasks={branch ? branchTasks : home.pendingTasks} mode="team" links />
 
       {branch ? (
-        <BranchDetail branch={branch} labels={labels} shareOfTotal={shareOfTotal} />
+        <BranchView branch={branch} labels={labels} shareOfTotal={shareOfTotal} />
       ) : (
-        <>
-          {home.monthlySales && (
-            <section className="hero-card">
-              <div>
-                <span className="hero-card__icon" aria-hidden="true">
-                  <Banknote />
-                </span>
-                <p className="eyebrow">VENTAS {labels.ofMonth.toUpperCase()} · TODAS LAS SUCURSALES</p>
-                <h2>{formatCurrency(home.monthlySales.currentMonth.amount)}</h2>
-                <p>
-                  {formatUnits(home.monthlySales.currentMonth.units)} vendidas {labels.inMonth}, frente a{' '}
-                  {formatUnits(home.monthlySales.previousMonth.units)} {labels.inPreviousMonth} (
-                  {formatMonthDelta(
-                    home.monthlySales.currentMonth.units,
-                    home.monthlySales.previousMonth.units,
-                  )}
-                  ).
-                </p>
-              </div>
-              <div className="hero-card__meta">
-                <small>{capitalize(labels.inPreviousMonth)}</small>
-                <strong>{formatCurrency(home.monthlySales.previousMonth.amount)}</strong>
-                <small>Variación en monto</small>
-                <strong>
-                  {formatMonthDelta(
-                    home.monthlySales.currentMonth.amount,
-                    home.monthlySales.previousMonth.amount,
-                  )}
-                </strong>
-              </div>
-            </section>
-          )}
-
-          {branches.length > 0 && (
-            <div className="panel-grid">
-              {branches.map((item) => (
-                <BranchCard
-                  branch={item}
-                  key={item.branchId}
-                  labels={labels}
-                  onOpen={() => setSelected(item.branchId)}
-                />
-              ))}
-            </div>
-          )}
-
-          <div className="kpi-grid">
-            {home.newClientsThisWeek !== null && (
-              <KpiCard
-                icon={UsersRound}
-                label="Clientes nuevos esta semana"
-                value={String(home.newClientsThisWeek)}
-                meta="Todas las sucursales"
-              />
-            )}
-            {home.stockUnitsTotal !== null && (
-              <KpiCard
-                icon={Warehouse}
-                label="Stock total"
-                value={formatUnits(home.stockUnitsTotal)}
-                meta="Motos + autos, todas las sucursales"
-              />
-            )}
-            {home.creditPortfolio && (
-              <KpiCard
-                icon={Banknote}
-                label="Cartera de créditos personales"
-                value={formatCurrency(home.creditPortfolio.financedAmount)}
-                meta={`${formatCurrency(home.creditPortfolio.overdueAmount)} en mora`}
-                metaTone={home.creditPortfolio.overdueAmount > 0 ? 'negative' : 'neutral'}
-              />
-            )}
-            {home.pendingPurchases !== null && (
-              <KpiCard
-                icon={PackageSearch}
-                label="Compras pendientes de recibir"
-                value={formatUnits(home.pendingPurchases)}
-              />
-            )}
-          </div>
-
-          {branches.some((item) => item.sellers) && (
-            <div className="panel-grid">
-              {branches
-                .filter((item) => item.sellers)
-                .map((item) => (
-                  <DashboardPanel
-                    description={`Unidades computables ${labels.ofMonth}`}
-                    key={item.branchId}
-                    title={`Vendedores · ${item.branchName}`}
-                  >
-                    <BranchSellers branch={item} labels={labels} />
-                  </DashboardPanel>
-                ))}
-            </div>
-          )}
-
-          <div className="panel-grid">
-            {branches.length === 0 && home.salesByBranch && (
-              <DashboardPanel
-                title="Ventas por sucursal"
-                description={`Unidades y monto ${labels.ofMonth}, por sucursal`}
-              >
-                {home.salesByBranch.length === 0 ? (
-                  <PanelEmptyState>No hay sucursales activas.</PanelEmptyState>
-                ) : (
-                  <RankingList
-                    items={home.salesByBranch.map((item) => ({
-                      key: item.branchId,
-                      name: item.branchName,
-                      stat: formatUnits(item.units),
-                      statSubtitle: formatCurrency(item.amount),
-                    }))}
-                  />
-                )}
-              </DashboardPanel>
-            )}
-
-            <TopModelsPanel
-              title="Modelos más vendidos"
-              description={`Top 5 por unidades ${labels.ofMonth}, toda la organización`}
-              models={home.topModels}
-            />
-          </div>
-
-          {!home.salesByBranch && !home.topModels && !home.creditPortfolio && (
-            <DashboardPanel title="Sin secciones disponibles">
-              <PanelEmptyState>
-                Tu rol no tiene permisos asignados para ver información de este panel todavía.
-              </PanelEmptyState>
-            </DashboardPanel>
-          )}
-        </>
+        <OrganizationView
+          branches={branches}
+          home={home}
+          labels={labels}
+          onOpen={setSelected}
+        />
       )}
-    </>
+    </div>
   )
 }
