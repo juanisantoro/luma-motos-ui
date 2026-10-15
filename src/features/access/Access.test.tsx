@@ -595,6 +595,29 @@ describe('gestión de roles', () => {
     })
   })
 
+  it('crea un rol que funciona como vendedor', async () => {
+    const api = gateway()
+    const user = userEvent.setup()
+    renderRoute(
+      '/usuarios/roles/nuevo',
+      <RoleFormPage gateway={api} />,
+      '/usuarios/roles/nuevo',
+    )
+    await screen.findByRole('heading', { name: 'Permisos' })
+    await user.type(screen.getByLabelText('Nombre *'), 'Vendedor autos')
+    await user.type(screen.getByLabelText('Descripción *'), 'Vende y gestiona stock de autos')
+    await user.selectOptions(screen.getByLabelText(/^Funciona como/), 'VENDEDOR')
+    await user.click(screen.getByLabelText(/usuarios.gestionar/))
+    await user.click(screen.getByRole('button', { name: 'Guardar rol' }))
+
+    expect(api.createRole).toHaveBeenCalledWith({
+      name: 'Vendedor autos',
+      description: 'Vende y gestiona stock de autos',
+      baseRole: 'VENDEDOR',
+      permissionCodes: ['usuarios.gestionar'],
+    })
+  })
+
   it('presenta permiso inválido y protege el estado de roles base', async () => {
     const api = gateway()
     vi.mocked(api.createRole).mockRejectedValue(

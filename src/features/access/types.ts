@@ -133,6 +133,8 @@ export type ManagedRole = {
   userCount: number
   active: boolean
   system: boolean
+  // "Funciona como": rol del sistema que toma como base (sólo roles propios).
+  baseRole?: BaseRoleCode | null
   version: number
   organization: {
     id: string
@@ -163,16 +165,25 @@ export type RoleListQuery = {
   active?: boolean
 }
 
+export type BaseRoleCode =
+  | 'VENDEDOR'
+  | 'CALLCENTER'
+  | 'ADMINISTRATIVA'
+  | 'GERENTE'
+  | 'MECANICO'
+
 export type CreateRoleInput = {
   name: string
   code?: string
   description: string
+  baseRole?: BaseRoleCode
   permissionCodes: string[]
 }
 
 export type UpdateRoleInput = {
   name?: string
   description?: string
+  baseRole?: BaseRoleCode | null
   permissionCodes?: string[]
   version: number
 }

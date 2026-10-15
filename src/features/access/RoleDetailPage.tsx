@@ -7,6 +7,7 @@ import { hasPermission } from '../auth/PermissionRoute'
 import { accessApiGateway } from './api'
 import { AccessNotice, managedUserName } from './components'
 import { accessErrorMessage } from './errors'
+import { baseRoleLabel } from './baseRoles'
 import type {
   AccessGateway,
   ManagedRole,
@@ -112,6 +113,9 @@ export function RoleDetailPage({
         <article><small>Código</small><strong>{role.code}</strong></article>
         <article><small>Estado</small><strong>{role.active ? 'Activo' : 'Inactivo'}</strong></article>
         <article><small>Tipo</small><strong>{role.system ? 'Rol base protegido' : 'Personalizado'}</strong></article>
+        {!role.system && (
+          <article><small>Funciona como</small><strong>{baseRoleLabel(role.baseRole) ?? 'Rol independiente'}</strong></article>
+        )}
         <article><small>Usuarios</small><strong>{role.userCount}</strong></article>
       </div>
       <div className={`role-detail-grid ${canViewUsers ? '' : 'role-detail-grid--single'}`}>

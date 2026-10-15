@@ -8,7 +8,8 @@ import { accessApiGateway } from './api'
 import { AccessNotice } from './components'
 import { accessErrorMessage } from './errors'
 import { alertError, alertSuccess } from '../../shared/alerts'
-import type { AccessGateway, ManagedRole, PermissionGroup } from './types'
+import { BASE_ROLE_OPTIONS } from './baseRoles'
+import type { AccessGateway, BaseRoleCode, ManagedRole, PermissionGroup } from './types'
 
 export function RoleFormPage({
   gateway = accessApiGateway,
@@ -104,6 +105,7 @@ export function RoleFormPage({
     const data = new FormData(event.currentTarget)
     const name = String(data.get('name') ?? '').trim()
     const description = String(data.get('description') ?? '').trim()
+    const baseRole = (String(data.get('baseRole') ?? '') || null) as BaseRoleCode | null
     setSubmitting(true)
     setError('')
     try {
@@ -111,12 +113,14 @@ export function RoleFormPage({
         ? await gateway.updateRole(id, {
             name,
             description,
+            ...(role.system ? {} : { baseRole }),
             permissionCodes: [...selected],
             version: role.version,
           })
         : await gateway.createRole({
             name,
             description,
+            ...(baseRole ? { baseRole } : {}),
             permissionCodes: [...selected],
           })
       const saved = 'role' in response ? response.role : response
@@ -158,6 +162,20 @@ export function RoleFormPage({
         <div className="access-form-grid">
           <label className="field"><span>Nombre *</span><input defaultValue={role?.name ?? ''} maxLength={80} name="name" required /></label>
           <label className="field field--wide"><span>Descripción *</span><textarea defaultValue={role?.description ?? ''} maxLength={500} name="description" required rows={3} /></label>
+          {!role?.system && (
+            <label className="field field--wide">
+              <span>Funciona como</span>
+              <select defaultValue={role?.baseRole ?? ''} name="baseRole">
+                <option value="">Rol independiente</option>
+                {BASE_ROLE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <small className="field-hint">
+                El sistema lo trata como ese rol: por ejemplo, uno que funciona como Vendedor aparece en "Quién hizo la venta", cobra comisión de vendedor y ve el inicio del vendedor. Los permisos son los que marques abajo.
+              </small>
+            </label>
+          )}
         </div>
         <section className="permission-editor" aria-labelledby="permissions-title">
           <header>
