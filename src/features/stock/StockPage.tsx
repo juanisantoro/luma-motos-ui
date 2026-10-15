@@ -118,8 +118,12 @@ export function StockPage({
 
   const reload = () => setRefreshKey((current) => current + 1)
   const mutateAndReload = async (mutation: () => Promise<void>) => {
-    await mutation()
-    reload()
+    try {
+      await mutation()
+    } finally {
+      // También si el alta salió a medias (p. ej. sin la foto).
+      reload()
+    }
   }
 
   if (status === 'loading') {

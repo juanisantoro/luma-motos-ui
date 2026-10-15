@@ -1,6 +1,7 @@
 import { LoaderCircle, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
+import { CatalogPhotoField } from './CatalogPhotoField'
 import type { CatalogModel, CreateCatalogModelInput, VehicleKind } from './types'
 
 type NewCatalogModelModalProps = {
@@ -29,6 +30,8 @@ export function NewCatalogModelModal({
 }: NewCatalogModelModalProps) {
   const dialogRef = useDialogFocus(onClose, submitting)
   const [validationError, setValidationError] = useState<string | null>(null)
+  // Foto opcional, ya encuadrada; se sube después de crear el modelo.
+  const [photo, setPhoto] = useState<File | null>(null)
   const singular = vehicleType === 'AUTO' ? 'auto' : 'moto'
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -75,6 +78,7 @@ export function NewCatalogModelModal({
         scope: 'RESTRINGIDO',
         listPrice,
         minimumPrice,
+        ...(photo ? { photo } : {}),
       },
     })
   }
@@ -145,6 +149,7 @@ export function NewCatalogModelModal({
               <span>Precio mínimo *</span>
               <input min="0.01" name="minimumPrice" required step="0.01" type="number" />
             </label>
+            <CatalogPhotoField disabled={submitting} onChange={setPhoto} value={photo} />
           </div>
           <footer className="stock-modal__actions">
             <button

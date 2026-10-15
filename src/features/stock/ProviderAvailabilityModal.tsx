@@ -2,6 +2,7 @@ import { LoaderCircle, ShieldCheck, X } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { localIsoDate } from '../../shared/utils/date'
+import { CatalogPhotoField } from './CatalogPhotoField'
 import type {
   CatalogModel,
   CatalogModelDraft,
@@ -276,6 +277,11 @@ export function ProviderAvailabilityModal({
                     required
                   />
                 </label>
+                <CatalogPhotoField
+                  disabled={submitting}
+                  onChange={(photo) => setDraft((current) => ({ ...current, photo }))}
+                  value={draft.photo ?? null}
+                />
               </>
             )}
 

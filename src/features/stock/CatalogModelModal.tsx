@@ -1,10 +1,13 @@
 import { ImagePlus, LoaderCircle, TriangleAlert, X } from 'lucide-react'
-import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { resolveMediaUrl } from '../../shared/api/client'
 import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
+import { PhotoCropper, type PhotoCrop } from '../../shared/components/PhotoCropper'
+import { PhotoUnreadableError, preparePhoto, readPhotoSize } from '../../shared/utils/photo'
 import type { CatalogModel, UpdateCatalogModelInput } from './types'
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024
+const UNREADABLE_PHOTO = 'No pudimos leer esa foto. Probá con otra o sacala con la cámara.'
 
 type CatalogModelModalProps = {
   model: CatalogModel
@@ -31,20 +34,53 @@ export function CatalogModelModal({
   const [validationError, setValidationError] = useState<string | null>(null)
   const photoUrl = resolveMediaUrl(model.photoUrl)
 
-  const selectPhoto = (event: ChangeEvent<HTMLInputElement>) => {
+  // Foto elegida que el usuario está encuadrando.
+  const [cropping, setCropping] = useState<{
+    file: File
+    url: string
+    width: number
+    height: number
+  } | null>(null)
+
+  useEffect(() => {
+    if (!cropping) return
+    return () => URL.revokeObjectURL(cropping.url)
+  }, [cropping])
+
+  // Sin `capture`: en Android y iPhone el selector ofrece galería, cámara y
+  // archivos. Después de elegirla, el usuario la encuadra.
+  const selectPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setValidationError('La foto debe ser JPEG, PNG o WEBP.')
-      return
-    }
-    if (file.size > MAX_PHOTO_BYTES) {
-      setValidationError('La foto no puede superar los 5 MB.')
-      return
-    }
     setValidationError(null)
-    onUploadPhoto(file)
+    try {
+      const size = await readPhotoSize(file)
+      setCropping({ file, url: URL.createObjectURL(file), ...size })
+    } catch {
+      setValidationError(UNREADABLE_PHOTO)
+    }
+  }
+
+  // Encuadrada, se pasa a 4:3 en WebP (JPEG en iPhone) y se sube.
+  const uploadCropped = async (crop: PhotoCrop) => {
+    if (!cropping) return
+    try {
+      const photo = await preparePhoto(cropping.file, crop)
+      if (photo.size > MAX_PHOTO_BYTES) {
+        setValidationError('La foto no puede superar los 5 MB.')
+        return
+      }
+      setCropping(null)
+      onUploadPhoto(photo)
+    } catch (error) {
+      setCropping(null)
+      setValidationError(
+        error instanceof PhotoUnreadableError
+          ? UNREADABLE_PHOTO
+          : 'No pudimos preparar la foto. Intentá nuevamente.',
+      )
+    }
   }
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -113,100 +149,112 @@ export function CatalogModelModal({
             ' Tu alcance permite editar la versión; marca y modelo globales quedan protegidos.'}
         </div>
 
-        <div className="catalog-photo-uploader">
-          {photoUrl ? (
-            <img alt={`Foto de ${model.model} ${model.version ?? ''}`} src={photoUrl} />
-          ) : (
-            <div className="catalog-photo-uploader__placeholder">
-              <ImagePlus size={22} aria-hidden="true" />
-              <span>Sin foto</span>
-            </div>
-          )}
-          <label className="button button--secondary">
-            {submitting && <LoaderCircle className="spin" size={15} />}
-            {photoUrl ? 'Cambiar foto' : 'Subir foto'}
-            <input
-              accept="image/jpeg,image/png,image/webp"
-              capture="environment"
-              disabled={submitting}
-              hidden
-              onChange={selectPhoto}
-              type="file"
-            />
-          </label>
-        </div>
-
-        {(validationError || error) && (
-          <div className="form-alert form-alert--error" role="alert">
-            {validationError ?? error}
-          </div>
-        )}
-
-        <form onSubmit={submit}>
-          <div className="stock-form-grid">
-            <label className="field">
-              <span>Marca *</span>
-              <input
-                defaultValue={model.brand}
-                disabled={!canEditSharedCatalog}
-                name="brandName"
-                required={canEditSharedCatalog}
-              />
-            </label>
-            <label className="field">
-              <span>Modelo *</span>
-              <input
-                defaultValue={model.model}
-                disabled={!canEditSharedCatalog}
-                name="modelName"
-                required={canEditSharedCatalog}
-              />
-            </label>
-            <label className="field field--wide">
-              <span>Versión *</span>
-              <input
-                defaultValue={model.version ?? model.model}
-                name="versionName"
-                required
-              />
-            </label>
-            {canManageCost && (
-              <label className="field">
-                <span>Precio de costo</span>
+        {cropping ? (
+          <PhotoCropper
+            disabled={submitting}
+            imageHeight={cropping.height}
+            imageWidth={cropping.width}
+            onCancel={() => setCropping(null)}
+            onConfirm={(crop) => void uploadCropped(crop)}
+            src={cropping.url}
+          />
+        ) : (
+          <>
+            <div className="catalog-photo-uploader">
+              {photoUrl ? (
+                <img alt={`Foto de ${model.model} ${model.version ?? ''}`} src={photoUrl} />
+              ) : (
+                <div className="catalog-photo-uploader__placeholder">
+                  <ImagePlus size={22} aria-hidden="true" />
+                  <span>Sin foto</span>
+                </div>
+              )}
+              <label className="button button--secondary">
+                {submitting && <LoaderCircle className="spin" size={15} />}
+                {photoUrl ? 'Cambiar foto' : 'Subir foto'}
                 <input
-                  defaultValue={model.costPrice ?? ''}
-                  min={0}
-                  name="costPrice"
-                  placeholder="Sin cargar"
-                  step="0.01"
-                  type="number"
+                  accept="image/*"
+                  disabled={submitting}
+                  hidden
+                  onChange={(event) => void selectPhoto(event)}
+                  type="file"
                 />
               </label>
+            </div>
+
+            {(validationError || error) && (
+              <div className="form-alert form-alert--error" role="alert">
+                {validationError ?? error}
+              </div>
             )}
-            <label className="check stock-new-product-check field--wide">
-              <input defaultChecked={model.active} name="active" type="checkbox" />
-              Versión activa
-            </label>
-          </div>
-          <footer className="stock-modal__actions">
-            <button
-              className="button button--secondary"
-              disabled={submitting}
-              onClick={onClose}
-              type="button"
-            >
-              Cancelar
-            </button>
-            <button
-              className="button button--primary"
-              disabled={submitting}
-              type="submit"
-            >
-              {submitting && <LoaderCircle className="spin" size={17} />}
-              {submitting ? 'Guardando…' : 'Guardar cambios'}
-            </button>
-          </footer>
-        </form>
+
+            <form onSubmit={submit}>
+              <div className="stock-form-grid">
+                <label className="field">
+                  <span>Marca *</span>
+                  <input
+                    defaultValue={model.brand}
+                    disabled={!canEditSharedCatalog}
+                    name="brandName"
+                    required={canEditSharedCatalog}
+                  />
+                </label>
+                <label className="field">
+                  <span>Modelo *</span>
+                  <input
+                    defaultValue={model.model}
+                    disabled={!canEditSharedCatalog}
+                    name="modelName"
+                    required={canEditSharedCatalog}
+                  />
+                </label>
+                <label className="field field--wide">
+                  <span>Versión *</span>
+                  <input
+                    defaultValue={model.version ?? model.model}
+                    name="versionName"
+                    required
+                  />
+                </label>
+                {canManageCost && (
+                  <label className="field">
+                    <span>Precio de costo</span>
+                    <input
+                      defaultValue={model.costPrice ?? ''}
+                      min={0}
+                      name="costPrice"
+                      placeholder="Sin cargar"
+                      step="0.01"
+                      type="number"
+                    />
+                  </label>
+                )}
+                <label className="check stock-new-product-check field--wide">
+                  <input defaultChecked={model.active} name="active" type="checkbox" />
+                  Versión activa
+                </label>
+              </div>
+              <footer className="stock-modal__actions">
+                <button
+                  className="button button--secondary"
+                  disabled={submitting}
+                  onClick={onClose}
+                  type="button"
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="button button--primary"
+                  disabled={submitting}
+                  type="submit"
+                >
+                  {submitting && <LoaderCircle className="spin" size={17} />}
+                  {submitting ? 'Guardando…' : 'Guardar cambios'}
+                </button>
+              </footer>
+            </form>
+          </>
+        )}
       </div>
     </div>
   )

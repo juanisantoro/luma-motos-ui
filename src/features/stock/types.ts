@@ -157,6 +157,8 @@ export type CatalogModelDraft = {
   scope: 'GLOBAL' | 'RESTRINGIDO'
   listPrice: number
   minimumPrice: number
+  // Foto opcional (ya encuadrada) que se sube al crear el modelo.
+  photo?: File | null
 }
 
 export type UnitDraft = {

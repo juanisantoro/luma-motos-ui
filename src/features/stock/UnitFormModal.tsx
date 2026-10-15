@@ -4,6 +4,7 @@ import { useDialogFocus } from '../../shared/hooks/useDialogFocus'
 import { localIsoDate } from '../../shared/utils/date'
 import { listUnitColors } from './api'
 import { UNIT_FINISHES } from './colors'
+import { CatalogPhotoField } from './CatalogPhotoField'
 import type {
   CatalogModel,
   CatalogModelDraft,
@@ -418,6 +419,11 @@ export function UnitFormModal({
                     required
                   />
                 </label>
+                <CatalogPhotoField
+                  disabled={submitting}
+                  onChange={(photo) => updateDraft({ photo })}
+                  value={catalogDraft.photo ?? null}
+                />
               </div>
             )}
           </section>

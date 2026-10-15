@@ -22,7 +22,7 @@ import { ProviderAvailabilityModal } from './ProviderAvailabilityModal'
 import { PricePolicyModal } from './PricePolicyModal'
 import { ReceiveSupplyModal } from './ReceiveSupplyModal'
 import { UnitFormModal } from './UnitFormModal'
-import { stockErrorMessage } from './errors'
+import { PartialSuccessError, stockErrorMessage } from './errors'
 import {
   availabilityColumns,
   catalogColumns,
@@ -1140,6 +1140,12 @@ export function StockWorkspace({
       afterSuccess()
       void alertSuccess(successMessage)
     } catch (error) {
+      if (error instanceof PartialSuccessError) {
+        // Lo principal se guardó: no hay que volver a cargarlo.
+        afterSuccess()
+        void alertError(error.message)
+        return
+      }
       const message = stockErrorMessage(error)
       setActionError(message)
       void alertError(message)

@@ -5990,6 +5990,63 @@ a {
   margin-top: 8px;
 }
 
+/* Encuadre de la foto antes de subirla (catálogo). */
+.photo-cropper {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.photo-cropper__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.photo-cropper__frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 2px solid var(--dark);
+  border-radius: 12px;
+  background: #fff;
+  cursor: grab;
+  /* Sin esto el celular scrollea o hace zoom de la página al arrastrar. */
+  touch-action: none;
+  user-select: none;
+}
+
+.photo-cropper__frame:active {
+  cursor: grabbing;
+}
+
+.photo-cropper__frame img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.photo-cropper__zoom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.photo-cropper__zoom input {
+  flex: 1;
+  accent-color: var(--red);
+}
+
+.photo-cropper__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .catalog-photo-uploader {
   display: flex;
   align-items: center;
@@ -6000,7 +6057,8 @@ a {
 .catalog-photo-uploader img {
   width: 76px;
   height: 76px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #fff;
   border-radius: 10px;
   border: 1px solid var(--line);
 }
@@ -6066,13 +6124,15 @@ a {
 
 .catalog-browser-card__photo {
   aspect-ratio: 4 / 3;
-  background: var(--background);
+  background: #fff;
 }
 
+/* La moto entera, sin recortar: las fotos nuevas ya vienen en 4:3 sobre
+   blanco y las viejas se ven completas con el mismo fondo. */
 .catalog-browser-card__photo img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 

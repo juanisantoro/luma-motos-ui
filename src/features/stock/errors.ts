@@ -24,3 +24,7 @@ export function stockErrorMessage(error: unknown) {
   }
   return 'Ocurrió un error inesperado. Intentá nuevamente.'
 }
+
+// El alta se hizo pero algo secundario (p. ej. la foto) falló: se cierra el
+// formulario como un éxito y se avisa qué faltó.
+export class PartialSuccessError extends Error {}

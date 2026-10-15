@@ -3,6 +3,7 @@ import {
   AUTH_TOKEN_KEY,
   apiRequest,
 } from '../../shared/api/client'
+import { PartialSuccessError } from './errors'
 import { localIsoDate } from '../../shared/utils/date'
 import type { StockGateway } from './gateway'
 import type {
@@ -732,6 +733,25 @@ async function loadWorkspace(
   }
 }
 
+// Foto elegida al crear el modelo: se sube después del alta. Si falla, el
+// alta ya quedó hecha y se avisa para subirla desde "Editar modelo".
+async function uploadDraftPhoto(
+  versionId: string,
+  draft: CreateUnitsInput['catalogModel'],
+  done: string,
+) {
+  if (!draft?.photo) return
+  try {
+    await apiUpload<VersionDto>(`/catalog/versions/${versionId}/photo`, draft.photo, 'photo', {
+      token: token(),
+    })
+  } catch {
+    throw new PartialSuccessError(
+      `${done}, pero la foto no se pudo subir. Subila desde "Editar modelo" en el catálogo.`,
+    )
+  }
+}
+
 export const stockApiGateway: StockGateway = {
   loadWorkspace,
   async createUnits(input, organizationId) {
@@ -748,12 +768,14 @@ export const stockApiGateway: StockGateway = {
         method: 'POST',
         body: units[0],
       })
+      await uploadDraftPhoto(versionId, input.catalogModel, 'La unidad se cargó')
       return
     }
     await request<{ items: UnitDto[]; count: number }>('/inventory/units/bulk', {
       method: 'POST',
       body: { units },
     })
+    await uploadDraftPhoto(versionId, input.catalogModel, 'Las unidades se cargaron')
   },
   // Alta de catálogo sola: marca, modelo y versión (reusa las que ya existen)
   // y su precio de lista y mínimo, sin cargar unidades.
@@ -765,6 +787,7 @@ export const stockApiGateway: StockGateway = {
       input.vehicleType,
       organizationId,
     )
+    await uploadDraftPhoto(versionId, input.catalogModel, 'El modelo se agregó al catálogo')
   },
   async upsertAvailability(input: UpsertAvailabilityInput, organizationId) {
     const versionId = await createVersion(input, organizationId)
@@ -785,6 +808,7 @@ export const stockApiGateway: StockGateway = {
         notes: input.notes,
       },
     })
+    await uploadDraftPhoto(versionId, input.catalogModel, 'La disponibilidad se guardó')
   },
   configurePrice,
   async updateCatalogModel(input: UpdateCatalogModelInput) {
